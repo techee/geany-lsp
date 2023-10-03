@@ -1,0 +1,100 @@
+/*
+ * Copyright 2023 Jiri Techet <techet@gmail.com>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ */
+
+#ifndef LSP_UTILS_H
+#define LSP_UTILS_H 1
+
+#include <geanyplugin.h>
+
+#define SSM(s, m, w, l) scintilla_send_message(s, m, w, l)
+
+
+typedef enum
+{
+	UserConfigurationType,
+	ProjectConfigurationType,
+	DisableConfigurationType
+} LspProjectConfigurationType;
+
+
+typedef struct
+{
+	gint64 line;       // zero-based
+	gint64 character;  // pos. on line - number of code units in UTF-16, zero-based
+} LspPosition;
+
+
+typedef struct
+{
+	LspPosition start;
+	LspPosition end;
+} LspRange;
+
+
+typedef struct
+{
+	gchar *new_text;
+	LspRange range;
+} LspTextEdit;
+
+
+typedef struct
+{
+	gchar *uri;
+	LspRange range;
+} LspLocation;
+
+
+void lsp_utils_free_lsp_text_edit(LspTextEdit *e);
+void lsp_utils_free_lsp_location(LspLocation *e);
+
+LspPosition lsp_utils_scintilla_pos_to_lsp(ScintillaObject *sci, gint sci_pos);
+gint lsp_utils_lsp_pos_to_scintilla(ScintillaObject *sci, LspPosition lsp_pos);
+
+gchar *lsp_utils_get_doc_uri(GeanyDocument *doc);
+gchar *lsp_utils_get_lsp_lang_name(GeanyDocument *doc);
+gchar *lsp_utils_get_real_path_from_uri(const gchar *uri);
+
+gchar *lsp_utils_get_locale(void);
+gchar *lsp_utils_json_pretty_print(GVariant *variant);
+
+gchar *lsp_utils_get_project_base_path(void);
+
+const gchar *lsp_utils_get_global_config_filename(void);
+const gchar *lsp_utils_get_user_config_filename(void);
+const gchar *lsp_utils_get_project_config_filename(void);
+const gchar *lsp_utils_get_config_filename(void);
+
+gboolean lsp_utils_is_lsp_disabled_for_project(void);
+
+LspPosition lsp_utils_parse_pos(GVariant *variant);
+LspRange lsp_utils_parse_range(GVariant *variant);
+
+LspTextEdit *lsp_utils_parse_text_edit(GVariant *variant);
+GPtrArray *lsp_utils_parse_text_edits(GVariantIter *iter);
+
+LspLocation *lsp_utils_parse_location(GVariant *variant);
+GPtrArray *lsp_utils_parse_locations(GVariantIter *iter);
+
+void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean update_pos);
+void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArray *edits);
+
+gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart);
+
+
+#endif  /* LSP_UTILS_H */
