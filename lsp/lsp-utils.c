@@ -217,13 +217,13 @@ const gchar *lsp_utils_get_user_config_filename(void)
 	if (!g_file_test(filename, G_FILE_TEST_EXISTS))
 	{
 		const gchar *global_config = lsp_utils_get_global_config_filename();
-		gchar *cont;
+		gchar *cont = NULL;
 
 		utils_mkdir(dirname, TRUE);
 		msgwin_status_add("User LSP config filename %s does not exist, creating", filename);
 		if (!g_file_get_contents(global_config, &cont, NULL, NULL))
 			msgwin_status_add("Cannot read global LSP config filename %s", global_config);
-		else if (!g_file_set_contents(filename, cont ? cont : "", 0, NULL))
+		if (!g_file_set_contents(filename, cont ? cont : "", -1, NULL))
 			msgwin_status_add("Cannot write user LSP config filename %s", filename);
 		g_free(cont);
 	}
