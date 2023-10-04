@@ -70,7 +70,7 @@ void lsp_log_stop(LspLogInfo log)
 void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *params)
 {
 	gchar *json_msg;
-	const gchar *title;
+	const gchar *title = "";
 	GDateTime *time;
 	gchar *time_str;
 	const gchar *fmt_str = "%s %s: %s\n\n%s\n\n";

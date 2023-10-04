@@ -348,7 +348,6 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	GVariantIter *iter = NULL;
 	GVariant *member = NULL;
 	GPtrArray *symbols, *symbols_filtered;
-	ScintillaObject *sci = doc->editor->sci;
 	GHashTable *entry_set;
 	gint i;
 
