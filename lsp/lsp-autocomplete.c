@@ -273,13 +273,14 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 {
 	guint i;
 	ScintillaObject *sci = doc->editor->sci;
+	gint pos = sci_get_current_position(sci);
 	GString *words = g_string_sized_new(2000);
+	const gchar *label;
 
 	for (i = 0; i < symbols->len; i++)
 	{
 		LspAutocompleteSymbol *symbol = symbols->pdata[i];
 		guint icon_id = get_autocomplete_icon(symbol->kind);
-		const gchar *label = get_symbol_label(server, symbol);
 		gchar buf[10];
 
 		if (i > server->config.autocomplete_window_max_entries)
@@ -288,6 +289,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 		if (i > 0)
 			g_string_append_c(words, '\n');
 
+		label = get_symbol_label(server, symbol);
 		g_string_append(words, label);
 
 		sprintf(buf, "?%u", icon_id + 1);
@@ -301,8 +303,11 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH, 0);
 	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
 	SSM(sci, SCI_AUTOCSETMAXHEIGHT, server->config.autocomplete_window_max_displayed, 0);
-	SSM(sci, SCI_AUTOCSHOW, 0, (sptr_t) words->str);
-	//SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(doc, pos), (sptr_t) words->str);
+	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(doc, pos), (sptr_t) words->str);
+
+	//make sure Scintilla selects the first item - see https://sourceforge.net/p/scintilla/bugs/2403/
+	label = get_symbol_label(server, symbols->pdata[0]);
+	SSM(sci, SCI_AUTOCSELECT, 0, (sptr_t)label);
 
 	g_string_free(words, TRUE);
 }
