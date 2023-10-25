@@ -28,6 +28,8 @@
 #include "lsp/lsp-log.h"
 
 
+/* careful: also reused by ALL_SYMBOL_KINDS below - make sure that ALL_SYMBOL_KINDS
+ * contains valid values when item added here */
 #define ALL_AUTOCOMPLETION_KINDS \
 	JSONRPC_MESSAGE_PUT_INT32(1),\
 	JSONRPC_MESSAGE_PUT_INT32(2),\
@@ -54,6 +56,11 @@
 	JSONRPC_MESSAGE_PUT_INT32(23),\
 	JSONRPC_MESSAGE_PUT_INT32(24),\
 	JSONRPC_MESSAGE_PUT_INT32(25),
+
+
+#define ALL_SYMBOL_KINDS \
+	ALL_AUTOCOMPLETION_KINDS \
+	JSONRPC_MESSAGE_PUT_INT32(26),
 
 
 typedef struct {
@@ -480,6 +487,14 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 					"contentFormat", "[",
 						JSONRPC_MESSAGE_PUT_STRING("plaintext"),
 					"]",
+				"}",
+				"documentSymbol", "{",
+					"symbolKind", "{",
+						"valueSet", "[",
+							ALL_SYMBOL_KINDS
+						"]",
+					"}",
+					"hierarchicalDocumentSymbolSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 				"}",
 			"}",
 		"}",

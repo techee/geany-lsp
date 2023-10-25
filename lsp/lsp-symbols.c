@@ -85,6 +85,80 @@ static void tm_tag_unref(TMTag *tag)
 
 /******************************************************************************/
 
+static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gchar *scope_sep)
+{
+	GVariant *member = NULL;
+	GVariantIter iter;
+
+	g_variant_iter_init(&iter, symbol_variant);
+
+	while (g_variant_iter_loop(&iter, "v", &member))
+	{
+		TMTag *tag;
+		const gchar *name = NULL;
+		const gchar *detail = NULL;
+		GVariant *loc_variant = NULL;
+		GVariant *children = NULL;
+		gint64 kind = 0;
+		gint line_num = 0;
+
+		if (!JSONRPC_MESSAGE_PARSE(member, "name", JSONRPC_MESSAGE_GET_STRING(&name)))
+			continue;
+		if (!JSONRPC_MESSAGE_PARSE(member, "kind", JSONRPC_MESSAGE_GET_INT64(&kind)))
+			continue;
+
+		if (JSONRPC_MESSAGE_PARSE(member, "selectionRange", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
+		{
+			LspRange range = lsp_utils_parse_range(loc_variant);
+			line_num = range.start.line;
+		}
+		else if (JSONRPC_MESSAGE_PARSE(member, "range", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
+		{
+			LspRange range = lsp_utils_parse_range(loc_variant);
+			line_num = range.start.line;
+		}
+		else if (JSONRPC_MESSAGE_PARSE(member, "location", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
+		{
+			LspLocation *loc = lsp_utils_parse_location(loc_variant);
+			if (loc)
+			{
+				line_num = loc->range.start.line;
+				lsp_utils_free_lsp_location(loc);
+			}
+		}
+		else
+			continue;
+
+		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
+
+		tag = tm_tag_new();
+		tag->name = g_strdup(name);
+		tag->line = line_num;
+		tag->type = kind;
+		tag->scope = scope ? g_strdup(scope) : NULL;
+
+		g_ptr_array_add(cached_symbols, tag);
+
+		if (JSONRPC_MESSAGE_PARSE(member, "children", JSONRPC_MESSAGE_GET_VARIANT(&children)))
+		{
+			gchar *new_scope;
+
+			if (scope)
+				new_scope = g_strconcat(scope, scope_sep, tag->name, NULL);
+			else
+				new_scope = g_strdup(tag->name);
+			parse_symbols(children, new_scope, scope_sep);
+			g_free(new_scope);
+		}
+
+		if (loc_variant)
+			g_variant_unref(loc_variant);
+		if (children)
+			g_variant_unref(children);
+	}
+}
+
+
 static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 {
 	JsonrpcClient *self = (JsonrpcClient *)object;
@@ -97,61 +171,13 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 
 		if (data->doc == document_get_current())
 		{
-			GVariant *member = NULL;
-			GVariantIter iter;
-
 			if (cached_symbols)
 				g_ptr_array_free(cached_symbols, TRUE);
 			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
 			g_free(cached_symbols_fname);
 			cached_symbols_fname = g_strdup(data->doc->real_path);
 
-			g_variant_iter_init(&iter, return_value);
-
-			while (g_variant_iter_loop(&iter, "v", &member))
-			{
-				TMTag *tag;
-
-				const gchar *name = NULL;
-				const gchar *detail = NULL;
-				GVariant *loc_variant = NULL;
-				gint64 kind = 0;
-				gint line_num = 0;
-
-				if (!JSONRPC_MESSAGE_PARSE(member, "name", JSONRPC_MESSAGE_GET_STRING(&name)))
-					continue;
-				if (!JSONRPC_MESSAGE_PARSE(member, "kind", JSONRPC_MESSAGE_GET_INT64(&kind)))
-					continue;
-
-				if (JSONRPC_MESSAGE_PARSE(member, "range", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
-				{
-					LspRange range = lsp_utils_parse_range(loc_variant);
-					line_num = range.start.line;
-				}
-				else if (JSONRPC_MESSAGE_PARSE(member, "location", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
-				{
-					LspLocation *loc = lsp_utils_parse_location(loc_variant);
-					if (loc)
-					{
-						line_num = loc->range.start.line;
-						lsp_utils_free_lsp_location(loc);
-					} 
-				}
-				else
-					continue;
-
-				JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
-
-				tag = tm_tag_new();
-				tag->name = g_strdup(name);
-				tag->line = line_num;
-				tag->type = kind;
-
-				g_ptr_array_add(cached_symbols, tag);
-
-				if (loc_variant)
-					g_variant_unref(loc_variant);
-			}
+			parse_symbols(return_value, NULL, symbols_get_context_separator(data->doc->file_type->id));
 		}
 
 		if (return_value)
