@@ -133,7 +133,7 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 
 		tag = tm_tag_new();
 		tag->name = g_strdup(name);
-		tag->line = line_num;
+		tag->line = line_num + 1;
 		tag->type = kind;
 		tag->scope = scope ? g_strdup(scope) : NULL;
 

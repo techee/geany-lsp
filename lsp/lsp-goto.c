@@ -34,7 +34,7 @@ static void goto_location(GeanyDocument *old_doc, LspLocation *loc)
 	GeanyDocument *doc = document_open_file(fname, FALSE, NULL, NULL);
 
 	if (doc)
-		navqueue_goto_line(old_doc, doc, loc->range.start.line);
+		navqueue_goto_line(old_doc, doc, loc->range.start.line + 1);
 
 	g_free(fname);
 }
