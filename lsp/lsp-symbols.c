@@ -135,6 +135,7 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 		tag->name = g_strdup(name);
 		tag->line = line_num + 1;
 		tag->type = kind;
+		tag->arglist = detail ? g_strdup(detail) : NULL;
 		tag->scope = scope ? g_strdup(scope) : NULL;
 
 		g_ptr_array_add(cached_symbols, tag);
