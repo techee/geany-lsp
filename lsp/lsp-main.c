@@ -28,6 +28,7 @@
 #include "lsp-hover.h"
 #include "lsp-signature.h"
 #include "lsp-goto.h"
+#include "lsp-symbols.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -513,12 +514,12 @@ PluginCallback plugin_callbacks[] = {
 
 static gboolean autocomplete_available(GeanyDocument *doc)
 {
-	LspServer *srv = lsp_server_get(doc);
+	LspServerConfig *cfg = lsp_server_get_config(doc);
 
-	if (!srv)
+	if (!cfg)
 		return FALSE;
 
-	return srv->config.autocomplete_enable;
+	return cfg->autocomplete_enable;
 }
 
 
@@ -535,12 +536,12 @@ static void autocomplete_perform(GeanyDocument *doc)
 
 static gboolean calltips_available(GeanyDocument *doc)
 {
-	LspServer *srv = lsp_server_get(doc);
+	LspServerConfig *cfg = lsp_server_get_config(doc);
 
-	if (!srv)
+	if (!cfg)
 		return FALSE;
 
-	return srv->config.signature_enable;
+	return cfg->signature_enable;
 }
 
 
@@ -557,12 +558,12 @@ static void calltips_show(GeanyDocument *doc)
 
 static gboolean goto_available(GeanyDocument *doc)
 {
-	LspServer *srv = lsp_server_get(doc);
+	LspServerConfig *cfg = lsp_server_get_config(doc);
 
-	if (!srv)
+	if (!cfg)
 		return FALSE;
 
-	return srv->config.goto_enable;
+	return cfg->goto_enable;
 }
 
 
@@ -577,13 +578,43 @@ static void goto_perform(GeanyDocument *doc, gboolean definition)
 }
 
 
+static gboolean doc_symbols_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return cfg->document_symbols_enable;
+}
+
+
+static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
+{
+	if (doc_symbols_available(doc))
+		lsp_symbols_request(doc, callback, user_data);
+}
+
+
+static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
+{
+	return lsp_symbols_get_cached(doc);
+}
+
+
 static Lsp lsp = {
 	.autocomplete_available = autocomplete_available,
 	.autocomplete_perform = autocomplete_perform,
+
 	.calltips_available = calltips_available,
 	.calltips_show = calltips_show,
+
 	.goto_available = goto_available,
 	.goto_perform = goto_perform,
+
+	.doc_symbols_available = doc_symbols_available,
+	.doc_symbols_request = doc_symbols_request,
+	.doc_symbols_get_cached = doc_symbols_get_cached
 };
 
 

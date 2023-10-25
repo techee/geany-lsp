@@ -23,6 +23,9 @@
 
 #include <glib.h>
 
-void lsp_symbols_send_request(LspServer *server, GeanyDocument *doc);
+void lsp_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
+	gpointer user_data);
+
+GPtrArray *lsp_symbols_get_cached(GeanyDocument *doc);
 
 #endif  /* LSP_SYMBOLS_H */

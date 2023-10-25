@@ -49,6 +49,8 @@ typedef struct
 	gboolean signature_enable;
 
 	gboolean goto_enable;
+
+	gboolean document_symbols_enable;
 } LspServerConfig;
 
 
@@ -86,6 +88,7 @@ LspServer *lsp_server_get(GeanyDocument *doc);
 LspServer *lsp_server_get_for_ft(GeanyFiletype *ft);
 LspLogInfo lsp_server_get_log_info(JsonrpcClient *client);
 LspServer *lsp_server_get_if_running(GeanyDocument *doc);
+LspServerConfig *lsp_server_get_config(GeanyDocument *doc);
 
 void lsp_server_stop_all(gboolean wait);
 void lsp_server_init_all(void);

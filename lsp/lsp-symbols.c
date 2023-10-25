@@ -23,107 +23,206 @@
 #include "lsp/lsp-symbols.h"
 #include "lsp/lsp-client.h"
 #include "lsp/lsp-utils.h"
+#include "lsp/lsp-sync.h"
 
-#if 0
-/* keep in sync with icon names in symbols.c */
-typedef enum
+
+typedef struct {
+	GeanyDocument *doc;
+	LspSymbolRequestCallback callback;
+	gpointer user_data;
+} LspSymbolUserData;
+
+
+extern GeanyPlugin *geany_plugin;
+
+//TODO: possibly cache symbols of multiple files
+static GPtrArray *cached_symbols;
+static gchar *cached_symbols_fname;
+
+
+/******************************************************************************/
+/** copied from Geany, not part of public API */
+
+#define TAG_NEW(T)	((T) = g_slice_new0(TMTag))
+#define TAG_FREE(T)	g_slice_free(TMTag, (T))
+
+
+static TMTag *tm_tag_new(void)
 {
-	TM_ICON_CLASS,
-	TM_ICON_MACRO,
-	TM_ICON_MEMBER,
-	TM_ICON_METHOD,
-	TM_ICON_NAMESPACE,
-	TM_ICON_OTHER,
-	TM_ICON_STRUCT,
-	TM_ICON_VAR,
-	TM_ICON_NONE,
-	TM_N_ICONS = TM_ICON_NONE
-} LspGeanyIcon;
+	TMTag *tag;
+
+	TAG_NEW(tag);
+	tag->refcount = 1;
+
+	return tag;
+}
+
+/*
+ Destroys a TMTag structure, i.e. frees all elements except the tag itself.
+ @param tag The TMTag structure to destroy
+ @see tm_tag_free()
+*/
+static void tm_tag_destroy(TMTag *tag)
+{
+	g_free(tag->name);
+	g_free(tag->arglist);
+	g_free(tag->scope);
+	g_free(tag->inheritance);
+	g_free(tag->var_type);
+}
 
 
-typedef enum {
-	LspKindFile = 1,
-	LspKindModule,
-	LspKindNamespace,
-	LspKindPackage,
-	LspKindClass,
-	LspKindMethod,
-	LspKindProperty,
-	LspKindField,
-	LspKindConstructor,
-	LspKindEnum,
-	LspKindInterface,
-	LspKindFunction,
-	LspKindVariable,
-	LspKindConstant,
-	LspKindString,
-	LspKindNumber,
-	LspKindBoolean,
-	LspKindArray,
-	LspKindObject,
-	LspKindKey,
-	LspKindNull,
-	LspKindEnumMember,
-	LspKindStruct,
-	LspKindEvent,
-	LspKindOperator,
-	LspKindTypeParameter,
-	LSP_KIND_NUM = LspKindTypeParameter
-} LspSymbolKind;  /* enums different than in LspCompletionItemKind */
+static void tm_tag_unref(TMTag *tag)
+{
+	/* be NULL-proof because tm_tag_free() was NULL-proof and we indent to be a
+	 * drop-in replacment of it */
+	if (NULL != tag && g_atomic_int_dec_and_test(&tag->refcount))
+	{
+		tm_tag_destroy(tag);
+		TAG_FREE(tag);
+	}
+}
 
-
-static LspGeanyIcon kind_icons[LSP_KIND_NUM] = {
-	TM_ICON_NAMESPACE,  // LspKindFile
-	TM_ICON_NAMESPACE,  // LspKindModule
-	TM_ICON_NAMESPACE,  // LspKindNamespace
-	TM_ICON_NAMESPACE,  // LspKindPackage
-	TM_ICON_CLASS,      // LspKindClass
-	TM_ICON_METHOD,     // LspKindMethod
-	TM_ICON_MEMBER,     // LspKindProperty
-	TM_ICON_MEMBER,     // LspKindField
-	TM_ICON_METHOD,     // LspKindConstructor
-	TM_ICON_STRUCT,     // LspKindEnum
-	TM_ICON_CLASS,      // LspKindInterface
-	TM_ICON_METHOD,     // LspKindFunction
-	TM_ICON_VAR,        // LspKindVariable
-	TM_ICON_MACRO,      // LspKindConstant
-	TM_ICON_OTHER,      // LspKindString
-	TM_ICON_OTHER,      // LspKindNumber
-	TM_ICON_OTHER,      // LspKindBoolean
-	TM_ICON_OTHER,      // LspKindArray
-	TM_ICON_OTHER,      // LspKindObject
-	TM_ICON_OTHER,      // LspKindKey
-	TM_ICON_OTHER,      // LspKindNull
-	TM_ICON_MEMBER,     // LspKindEnumMember
-	TM_ICON_STRUCT,     // LspKindStruct
-	TM_ICON_OTHER,      // LspKindEvent
-	TM_ICON_OTHER,      // LspKindOperator
-	TM_ICON_OTHER       // LspKindTypeParameter
-};                         
-#endif
-
+/******************************************************************************/
 
 static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 {
 	JsonrpcClient *self = (JsonrpcClient *)object;
 	GVariant *return_value = NULL;
+	LspSymbolUserData *data = user_data;
 
 	if (lsp_client_call_finish(self, result, &return_value))
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
+		if (data->doc == document_get_current())
+		{
+			GVariant *member = NULL;
+			GVariantIter iter;
+
+			if (cached_symbols)
+				g_ptr_array_free(cached_symbols, TRUE);
+			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+			g_free(cached_symbols_fname);
+			cached_symbols_fname = g_strdup(data->doc->real_path);
+
+			g_variant_iter_init(&iter, return_value);
+
+			while (g_variant_iter_loop(&iter, "v", &member))
+			{
+				TMTag *tag;
+
+				const gchar *name = NULL;
+				const gchar *detail = NULL;
+				GVariant *loc_variant = NULL;
+				gint64 kind = 0;
+				gint line_num = 0;
+
+				if (!JSONRPC_MESSAGE_PARSE(member, "name", JSONRPC_MESSAGE_GET_STRING(&name)))
+					continue;
+				if (!JSONRPC_MESSAGE_PARSE(member, "kind", JSONRPC_MESSAGE_GET_INT64(&kind)))
+					continue;
+
+				if (JSONRPC_MESSAGE_PARSE(member, "range", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
+				{
+					LspRange range = lsp_utils_parse_range(loc_variant);
+					line_num = range.start.line;
+				}
+				else if (JSONRPC_MESSAGE_PARSE(member, "location", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
+				{
+					LspLocation *loc = lsp_utils_parse_location(loc_variant);
+					if (loc)
+					{
+						line_num = loc->range.start.line;
+						lsp_utils_free_lsp_location(loc);
+					} 
+				}
+				else
+					continue;
+
+				JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
+
+				tag = tm_tag_new();
+				tag->name = g_strdup(name);
+				tag->line = line_num;
+				tag->type = kind;
+
+				g_ptr_array_add(cached_symbols, tag);
+
+				if (loc_variant)
+					g_variant_unref(loc_variant);
+			}
+		}
+
 		if (return_value)
 			g_variant_unref(return_value);
 	}
+
+	data->callback(data->user_data);
 
 	g_free(user_data);
 }
 
 
-void lsp_symbols_send_request(LspServer *server, GeanyDocument *doc)
+GPtrArray *lsp_symbols_get_cached(GeanyDocument *doc)
 {
+	if (g_strcmp0(doc->real_path, cached_symbols_fname) == 0)
+		return cached_symbols;
+
+	return NULL;
+}
+
+
+static gboolean retry_cb(gpointer user_data)
+{
+	LspSymbolUserData *data = user_data;
+
+	printf("retrying\n");  //TODO: remove
+	if (data->doc == document_get_current())
+	{
+		LspServer *srv = lsp_server_get(data->doc);
+		if (!srv)
+			return TRUE;  // retry
+		else
+		{
+			// should be successful now
+			lsp_symbols_request(data->doc, data->callback, data->user_data);
+			g_free(data);
+			return FALSE;
+		}
+	}
+
+	// server shut down or document not current any more
+	g_free(data);
+	return FALSE;
+}
+
+
+void lsp_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
+	gpointer user_data)
+{
+	LspServer *server = lsp_server_get(doc);
+	LspSymbolUserData *data = g_new0(LspSymbolUserData, 1);
 	GVariant *node;
-	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
+	gchar *doc_uri;
+
+	data->user_data = user_data;
+	data->doc = doc;
+	data->callback = callback;
+
+	if (!server)
+	{
+		// happens when Geany and LSP server started - we cannot send the request yet
+		plugin_timeout_add(geany_plugin, 300, retry_cb, data);
+		return;
+	}
+
+	doc_uri = lsp_utils_get_doc_uri(doc);
+
+	/* Geany requests symbols before firing "document-activate" signal so we may
+	 * need to request document opening here */
+	if (!lsp_sync_is_document_open(doc))
+		lsp_sync_text_document_did_open(server, doc);
 
 	node = JSONRPC_MESSAGE_NEW (
 		"textDocument", "{",
@@ -134,7 +233,7 @@ void lsp_symbols_send_request(LspServer *server, GeanyDocument *doc)
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
 	lsp_client_call_async(server->rpc_client, "textDocument/documentSymbol", node,
-		symbols_cb, NULL);
+		symbols_cb, data);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

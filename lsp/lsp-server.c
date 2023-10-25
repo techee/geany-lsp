@@ -649,6 +649,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 	get_bool(&s->config.hover_enable, kf, section, "hover_enable");
 	get_bool(&s->config.signature_enable, kf, section, "signature_enable");
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
+	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");
 }
 
@@ -806,6 +807,30 @@ LspServer *lsp_server_get(GeanyDocument *doc)
 		return NULL;
 
 	return lsp_server_get_for_ft(doc->file_type);
+}
+
+
+LspServerConfig *lsp_server_get_config(GeanyDocument *doc)
+{
+	LspServer *s = NULL;
+
+	if (!doc || !lsp_servers || lsp_utils_is_lsp_disabled_for_project())
+		return NULL;
+
+	// make sure we attempted to start the server
+	lsp_server_get(doc);
+
+	s = lsp_servers->pdata[doc->file_type->id];
+
+	if (s->process)
+		;
+	else if (s->referenced && s->referenced->process)
+		s = s->referenced;
+
+	if (s->process)
+		return &s->config;
+
+	return NULL;
 }
 
 
