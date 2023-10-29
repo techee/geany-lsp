@@ -26,6 +26,7 @@
 #include "lsp-autocomplete.h"
 #include "lsp-diagnostics.h"
 #include "lsp-hover.h"
+#include "lsp-semtokens.h"
 #include "lsp-signature.h"
 #include "lsp-goto.h"
 #include "lsp-symbols.h"
@@ -602,6 +603,30 @@ static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
 }
 
 
+static gboolean symbol_highlight_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return cfg->symbol_highlight_available;
+}
+
+
+static void symbol_highlight_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
+{
+	if (symbol_highlight_available(doc))
+		lsp_semtokens_send_request(doc, callback, user_data);
+}
+
+
+static const gchar *symbol_highlight_get_cached(GeanyDocument *doc)
+{
+	return lsp_semtokens_get_cached(doc);
+}
+
+
 static Lsp lsp = {
 	.autocomplete_available = autocomplete_available,
 	.autocomplete_perform = autocomplete_perform,
@@ -614,7 +639,11 @@ static Lsp lsp = {
 
 	.doc_symbols_available = doc_symbols_available,
 	.doc_symbols_request = doc_symbols_request,
-	.doc_symbols_get_cached = doc_symbols_get_cached
+	.doc_symbols_get_cached = doc_symbols_get_cached,
+
+	.symbol_highlight_available = symbol_highlight_available,
+	.symbol_highlight_request = symbol_highlight_request,
+	.symbol_highlight_get_cached = symbol_highlight_get_cached
 };
 
 

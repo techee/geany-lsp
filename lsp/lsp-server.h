@@ -51,6 +51,8 @@ typedef struct
 	gboolean goto_enable;
 
 	gboolean document_symbols_enable;
+
+	gboolean symbol_highlight_available;
 } LspServerConfig;
 
 
@@ -81,6 +83,9 @@ typedef struct LspServer
 	gchar *signature_trigger_chars;
 	gchar *initialize_response;
 	gboolean use_incremental_sync;
+
+	gboolean supports_semantic_tokens;
+	guint64 semantic_token_mask;
 } LspServer;
 
 

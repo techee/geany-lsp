@@ -296,6 +296,64 @@ static gchar *get_autocomplete_trigger_chars(GVariant *node)
 }
 
 
+static gboolean supports_semantic_tokens(GVariant *node)
+{
+	gboolean val = FALSE;
+
+	JSONRPC_MESSAGE_PARSE(node,
+		"capabilities", "{",
+			"semanticTokensProvider", "{",
+				"full", "{",
+					"delta", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
+				"}",
+			"}",
+		"}");
+
+	return val;
+}
+
+
+static guint64 get_semantic_token_mask(GVariant *node)
+{
+	guint64 mask = 0;
+	guint64 index = 1;
+	GVariantIter *iter = NULL;
+
+	JSONRPC_MESSAGE_PARSE(node,
+		"capabilities", "{",
+			"semanticTokensProvider", "{",
+				"legend", "{",
+					"tokenTypes", JSONRPC_MESSAGE_GET_ITER(&iter),
+				"}",
+			"}",
+		"}");
+
+	if (iter)
+	{
+		GVariant *val = NULL;
+		while (g_variant_iter_loop(iter, "v", &val))
+		{
+			const gchar *str = g_variant_get_string(val, NULL);
+			if (g_strcmp0(str, "namespace") == 0 ||
+				g_strcmp0(str, "type") == 0 ||
+				g_strcmp0(str, "class") == 0 ||
+				g_strcmp0(str, "enum") == 0 ||
+				g_strcmp0(str, "interface") == 0 ||
+				g_strcmp0(str, "struct") == 0 ||
+				g_strcmp0(str, "decorator") == 0)
+			{
+				mask |= index;
+			}
+
+			index <<= 1;
+		}
+		g_variant_iter_free(iter);
+	}
+
+	return mask;
+}
+
+
 static gchar *get_signature_trigger_chars(GVariant *node)
 {
 	GVariantIter *iter = NULL;
@@ -371,6 +429,9 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 
 				s->initialize_response = lsp_utils_json_pretty_print(return_value);
 				//printf("%s\n", lsp_utils_json_pretty_print(return_value));
+
+				s->supports_semantic_tokens = supports_semantic_tokens(return_value);
+				s->semantic_token_mask = get_semantic_token_mask(return_value);
 
 				msgwin_status_add("LSP server %s initialized", s->cmd);
 
@@ -485,7 +546,7 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 				"}",
 				"hover", "{",
 					"contentFormat", "[",
-						JSONRPC_MESSAGE_PUT_STRING("plaintext"),
+						"plaintext",
 					"]",
 				"}",
 				"documentSymbol", "{",
@@ -495,6 +556,32 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 						"]",
 					"}",
 					"hierarchicalDocumentSymbolSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+				"}",
+				"semanticTokens", "{",
+					"requests", "{",
+						"range", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+						"full", "{",
+							"delta", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+						"}",
+					"}",
+					"tokenTypes", "[",
+						"namespace",
+						"type",
+						"class",
+						"enum",
+						"interface",
+						"struct",
+						"decorator",
+					"]",
+					"tokenModifiers", "[",
+					"]",
+					"formats", "[",
+						"relative",
+					"]",
+					"overlappingTokenSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+					"multilineTokenSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+					"serverCancelSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+					"augmentsSyntaxTokens", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 				"}",
 			"}",
 		"}",
@@ -666,6 +753,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
 	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");
+	get_bool(&s->config.symbol_highlight_available, kf, section, "symbol_highlight_available");
 }
 
 
