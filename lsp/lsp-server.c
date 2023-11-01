@@ -26,6 +26,7 @@
 #include "lsp/lsp-sync.h"
 #include "lsp/lsp-diagnostics.h"
 #include "lsp/lsp-log.h"
+#include "lsp/lsp-semtokens.h"
 
 
 /* careful: also reused by ALL_SYMBOL_KINDS below - make sure that ALL_SYMBOL_KINDS
@@ -437,6 +438,8 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 
 				lsp_client_notify(s->rpc_client, "initialized", NULL);
 				s->startup_shutdown = FALSE;
+
+				lsp_semtokens_init(filetype_id);
 
 				foreach_document(i)
 				{

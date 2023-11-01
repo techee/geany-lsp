@@ -45,11 +45,40 @@ extern GeanyPlugin *geany_plugin;
 
 extern GeanyData *geany_data;
 
-//TODO: possibly cache multiple files
-static GArray *cached_tokens;
-static gchar *cached_tokens_fname;
-static gchar *cached_tokens_str;
-static gchar *cached_result_id;
+typedef struct {
+	gint ft_id;
+	GArray *tokens;
+	gchar *tokens_str;
+	gchar *result_id;
+} CachedData;
+
+//TODO: destroy on plugin unload
+static GHashTable *cached_tokens;
+
+
+static void cached_data_free(CachedData *data)
+{
+	g_array_free(data->tokens, TRUE);
+	g_free(data->tokens_str);
+	g_free(data->result_id);
+}
+
+
+static gboolean should_remove(gpointer key, gpointer value, gpointer user_data)
+{
+	CachedData *data = value;
+	gint ft_id = GPOINTER_TO_INT(user_data);
+	return data->ft_id == ft_id;
+}
+
+
+void lsp_semtokens_init(gint ft_id)
+{
+	if (cached_tokens)
+		g_hash_table_foreach_remove(cached_tokens, should_remove, GINT_TO_POINTER(ft_id));
+	else
+		cached_tokens = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)cached_data_free);
+}
 
 
 static SemanticTokensEdit *sem_tokens_edit_new(void)
@@ -66,24 +95,31 @@ static void sem_tokens_edit_free(SemanticTokensEdit *edit)
 }
 
 
-static void sem_tokens_edit_apply(SemanticTokensEdit *edit)
+static void sem_tokens_edit_apply(CachedData *data, SemanticTokensEdit *edit)
 {
-	g_return_if_fail(!cached_tokens || edit->start + edit->delete_count <= cached_tokens->len);
+	g_return_if_fail(edit->start + edit->delete_count <= data->tokens->len);
 
-	g_array_remove_range(cached_tokens, edit->start, edit->delete_count);
-	g_array_insert_vals(cached_tokens, edit->start, edit->data->data, edit->data->len);
+	g_array_remove_range(data->tokens, edit->start, edit->delete_count);
+	g_array_insert_vals(data->tokens, edit->start, edit->data->data, edit->data->len);
 }
 
 
 const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
 {
-	if (cached_tokens_str && g_strcmp0(doc->real_path, cached_tokens_fname) == 0)
-		return cached_tokens_str;
+	static gchar *empty_result = NULL;
+	CachedData *data;
 
-	g_free(cached_tokens_str);
-	cached_tokens_str = g_strdup("");
+	if (!empty_result)
+		empty_result = g_strdup("");
 
-	return cached_tokens_str;
+	if (!cached_tokens)
+		return empty_result;
+
+	data = g_hash_table_lookup(cached_tokens, doc->real_path);
+	if (!data || !data->tokens_str)
+		return empty_result;
+
+	return data->tokens_str;
 }
 
 
@@ -172,25 +208,28 @@ static void process_full_result(GeanyDocument *doc, GVariant *result, guint64 to
 	if (iter && result_id)
 	{
 		GVariant *val = NULL;
+		CachedData *data = g_hash_table_lookup(cached_tokens, doc->real_path);
 
-		g_free(cached_tokens_fname);
-		cached_tokens_fname = g_strdup(doc->real_path);
+		if (data == NULL)
+		{
+			data = g_new0(CachedData, 1);
+			data->tokens = g_array_sized_new(FALSE, FALSE, sizeof(guint), 1000);
+			g_hash_table_insert(cached_tokens, g_strdup(doc->real_path), data);
+		}
 
-		g_free(cached_result_id);
-		cached_result_id = g_strdup(result_id);
-
-		if (!cached_tokens)
-			cached_tokens = g_array_sized_new(FALSE, FALSE, sizeof(guint), 1000);
-		cached_tokens->len = 0;
+		data->ft_id = doc->file_type->id;
+		g_free(data->result_id);
+		data->result_id = g_strdup(result_id);
+		data->tokens->len = 0;
 
 		while (g_variant_iter_loop(iter, "v", &val))
 		{
 			guint v = g_variant_get_int64(val);
-			g_array_append_val(cached_tokens, v);
+			g_array_append_val(data->tokens, v);
 		}
 
-		g_free(cached_tokens_str);
-		cached_tokens_str = process_tokens(cached_tokens, doc->editor->sci, token_mask);
+		g_free(data->tokens_str);
+		data->tokens_str = process_tokens(data->tokens, doc->editor->sci, token_mask);
 
 		g_variant_iter_free(iter);
 	}
@@ -210,22 +249,25 @@ static void process_delta_result(GeanyDocument *doc, GVariant *result, guint64 t
 {
 	GVariantIter *iter = NULL;
 	const gchar *result_id = NULL;
+	CachedData *data = NULL;
 
 	JSONRPC_MESSAGE_PARSE(result,
 		"resultId", JSONRPC_MESSAGE_GET_STRING(&result_id),
 		"edits", JSONRPC_MESSAGE_GET_ITER(&iter)
 	);
 
-	if (iter && result_id && cached_tokens &&
-		g_strcmp0(cached_tokens_fname, doc->real_path) == 0)
+	if (cached_tokens)
+		data = g_hash_table_lookup(cached_tokens, doc->real_path);
+
+	if (data && iter && result_id)
 	{
 		GPtrArray *edits = g_ptr_array_new_full(4, (GDestroyNotify)sem_tokens_edit_free);
 		SemanticTokensEdit *edit;
 		GVariant *val = NULL;
 		guint i;
  
-		g_free(cached_result_id);
-		cached_result_id = g_strdup(result_id);
+		g_free(data->result_id);
+		data->result_id = g_strdup(result_id);
 
 		while (g_variant_iter_loop(iter, "v", &val))
 		{
@@ -259,10 +301,10 @@ static void process_delta_result(GeanyDocument *doc, GVariant *result, guint64 t
 		g_ptr_array_sort(edits, sort_edits);
 
 		foreach_ptr_array(edit, i, edits)
-			sem_tokens_edit_apply(edit);
+			sem_tokens_edit_apply(data, edit);
 
-		g_free(cached_tokens_str);
-		cached_tokens_str = process_tokens(cached_tokens, doc->editor->sci, token_mask);
+		g_free(data->tokens_str);
+		data->tokens_str = process_tokens(data->tokens, doc->editor->sci, token_mask);
 
 		g_ptr_array_free(edits, TRUE);
 		g_variant_iter_free(iter);
@@ -318,7 +360,7 @@ static gboolean retry_cb(gpointer user_data)
 {
 	LspSemtokensUserData *data = user_data;
 
-	printf("retrying\n");  //TODO: remove
+	printf("retrying sem tokens\n");
 	if (data->doc == document_get_current())
 	{
 		LspServer *srv = lsp_server_get(data->doc);
@@ -346,6 +388,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 	LspServer *server = lsp_server_get(doc);
 	gchar *doc_uri;
 	GVariant *node;
+	CachedData *cached_data;
 
 	data->user_data = user_data;
 	data->doc = doc;
@@ -365,12 +408,13 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 	if (!lsp_sync_is_document_open(doc))
 		lsp_sync_text_document_did_open(server, doc);
 
-	data->delta = g_strcmp0(doc->real_path, cached_tokens_fname) == 0;
+	cached_data = g_hash_table_lookup(cached_tokens, doc->real_path);
+	data->delta = cached_data != NULL;
 
 	if (data->delta)
 	{
 		node = JSONRPC_MESSAGE_NEW(
-			"previousResultId", JSONRPC_MESSAGE_PUT_STRING(cached_result_id),
+			"previousResultId", JSONRPC_MESSAGE_PUT_STRING(cached_data->result_id),
 			"textDocument", "{",
 				"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 			"}"
