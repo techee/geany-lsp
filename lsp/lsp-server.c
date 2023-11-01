@@ -586,12 +586,14 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 			"}",
 		"}",
 		"trace", JSONRPC_MESSAGE_PUT_STRING("off"),
-		"workspaceFolders", JSONRPC_MESSAGE_PUT_STRING(NULL),
+		"workspaceFolders", JSONRPC_MESSAGE_PUT_STRING(NULL)
+#if 0
 		"initializationOptions", "{",
 			//TODO: JSONRPC_MESSAGE_PUT_VARIANT() has to be last, otherwise it strips the rest of the message
 			//report to jsonrpc-glib
 			JSONRPC_MESSAGE_PUT_VARIANT(get_init_options(server)),
 		"}"
+#endif
 	);
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
