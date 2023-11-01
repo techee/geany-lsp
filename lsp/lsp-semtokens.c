@@ -408,6 +408,9 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 	if (!lsp_sync_is_document_open(doc))
 		lsp_sync_text_document_did_open(server, doc);
 
+	if (!cached_tokens)
+		lsp_semtokens_init(doc->file_type->id);
+
 	cached_data = g_hash_table_lookup(cached_tokens, doc->real_path);
 	data->delta = cached_data != NULL;
 
