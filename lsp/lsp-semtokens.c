@@ -360,7 +360,7 @@ static gboolean retry_cb(gpointer user_data)
 {
 	LspSemtokensUserData *data = user_data;
 
-	printf("retrying sem tokens\n");
+	//printf("retrying sem tokens\n");
 	if (data->doc == document_get_current())
 	{
 		LspServer *srv = lsp_server_get(data->doc);

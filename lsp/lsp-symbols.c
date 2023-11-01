@@ -204,7 +204,7 @@ static gboolean retry_cb(gpointer user_data)
 {
 	LspSymbolUserData *data = user_data;
 
-	printf("retrying\n");  //TODO: remove
+	//printf("retrying symbols\n");
 	if (data->doc == document_get_current())
 	{
 		LspServer *srv = lsp_server_get(data->doc);
