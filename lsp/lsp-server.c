@@ -427,47 +427,45 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 	if (lsp_client_call_finish(self, result, &return_value))
 	{
 		LspServer *s = get_server(filetype_id);
-		if (s)
+
+		if (s && s->rpc_client == self)
 		{
-			if (s->rpc_client == self)
+			GeanyDocument *current_doc = document_get_current();
+			guint i;
+
+			g_free(s->autocomplete_trigger_chars);
+			s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
+
+			g_free(s->signature_trigger_chars);
+			s->signature_trigger_chars = get_signature_trigger_chars(return_value);
+
+			s->use_incremental_sync = use_incremental_sync(return_value);
+
+			s->initialize_response = lsp_utils_json_pretty_print(return_value);
+			//printf("%s\n", lsp_utils_json_pretty_print(return_value));
+
+			s->supports_semantic_tokens = supports_semantic_tokens(return_value);
+			s->semantic_token_mask = get_semantic_token_mask(return_value);
+
+			msgwin_status_add("LSP server %s initialized", s->cmd);
+
+			lsp_client_notify(s->rpc_client, "initialized", NULL);
+			s->startup_shutdown = FALSE;
+
+			lsp_semtokens_init(filetype_id);
+
+			foreach_document(i)
 			{
-				GeanyDocument *current_doc = document_get_current();
-				guint i;
+				GeanyDocument *doc = documents[i];
 
-				g_free(s->autocomplete_trigger_chars);
-				s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
-
-				g_free(s->signature_trigger_chars);
-				s->signature_trigger_chars = get_signature_trigger_chars(return_value);
-
-				s->use_incremental_sync = use_incremental_sync(return_value);
-
-				s->initialize_response = lsp_utils_json_pretty_print(return_value);
-				//printf("%s\n", lsp_utils_json_pretty_print(return_value));
-
-				s->supports_semantic_tokens = supports_semantic_tokens(return_value);
-				s->semantic_token_mask = get_semantic_token_mask(return_value);
-
-				msgwin_status_add("LSP server %s initialized", s->cmd);
-
-				lsp_client_notify(s->rpc_client, "initialized", NULL);
-				s->startup_shutdown = FALSE;
-
-				lsp_semtokens_init(filetype_id);
-
-				foreach_document(i)
+				// see on_document_activate() for detailed comment
+				if (doc->file_type->id == filetype_id && (doc->changed || doc == current_doc))
 				{
-					GeanyDocument *doc = documents[i];
-
-					// see on_document_activate() for detailed comment
-					if (doc->file_type->id == filetype_id && (doc->changed || doc == current_doc))
+					lsp_sync_text_document_did_open(s, doc);
+					if (doc == current_doc)
 					{
-						lsp_sync_text_document_did_open(s, doc);
-						if (doc == current_doc)
-						{
-							lsp_diagnostics_style_current_doc(s);
-							lsp_diagnostics_redraw_current_doc(s);
-						}
+						lsp_diagnostics_style_current_doc(s);
+						lsp_diagnostics_redraw_current_doc(s);
 					}
 				}
 			}
@@ -479,14 +477,12 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 	else
 	{
 		LspServer *s = get_server(filetype_id);
-		if (s)
+
+		if (s && s->rpc_client == self)
 		{
-			if (s->rpc_client == self)
-			{
-				msgwin_status_add("LSP initialize request failed for LSP server %s", s->cmd);
-				stop_process(s);
-				start_lsp_server(s, filetype_id);
-			}
+			msgwin_status_add("LSP initialize request failed for LSP server %s", s->cmd);
+			stop_process(s);
+			start_lsp_server(s, filetype_id);
 		}
 	}
 }
@@ -648,16 +644,12 @@ static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer 
 	GeanyFiletypeID filetype_id = GPOINTER_TO_INT(data);
 	LspServer *s = get_server(filetype_id);
 
-	if (s)
+	if (s && s->process == process)
 	{
-		if (s->process == process)
-		{
-			msgwin_status_add("LSP server %s crashed, restarting", s->cmd);
-			stop_process(s);
-			start_lsp_server(s, filetype_id);
-		}
+		msgwin_status_add("LSP server %s crashed, restarting", s->cmd);
+		stop_process(s);
+		start_lsp_server(s, filetype_id);
 	}
-
 }
 
 
