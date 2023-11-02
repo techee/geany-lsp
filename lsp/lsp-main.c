@@ -488,7 +488,8 @@ static void on_project_save(G_GNUC_UNUSED GObject *obj, GKeyFile *kf,
 		G_GNUC_UNUSED gpointer user_data)
 {
 	g_key_file_set_integer(kf, "lsp", "settings_type", project_configuration_type);
-	g_key_file_set_string(kf, "lsp", "config_file", project_configuration_file);
+	g_key_file_set_string(kf, "lsp", "config_file",
+		project_configuration_file ? project_configuration_file : "");
 }
 
 
