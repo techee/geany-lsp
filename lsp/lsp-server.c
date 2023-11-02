@@ -404,6 +404,20 @@ static gboolean use_incremental_sync(GVariant *node)
 }
 
 
+static LspServer *get_server(gint ft_id)
+{
+	LspServer *s;
+
+	if (!lsp_servers || lsp_servers->len <= ft_id)
+		return NULL;
+
+	s = lsp_servers->pdata[ft_id];
+	if (s && s->referenced)
+		s = s->referenced;
+	return s;
+}
+
+
 static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 {
 	JsonrpcClient *self = (JsonrpcClient *)object;
@@ -412,9 +426,9 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 
 	if (lsp_client_call_finish(self, result, &return_value))
 	{
-		if (lsp_servers && lsp_servers->len > filetype_id)
+		LspServer *s = get_server(filetype_id);
+		if (s)
 		{
-			LspServer *s = lsp_servers->pdata[filetype_id];
 			if (s->rpc_client == self)
 			{
 				GeanyDocument *current_doc = document_get_current();
@@ -464,9 +478,9 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 	}
 	else
 	{
-		if (lsp_servers && lsp_servers->len > filetype_id)
+		LspServer *s = get_server(filetype_id);
+		if (s)
 		{
-			LspServer *s = lsp_servers->pdata[filetype_id];
 			if (s->rpc_client == self)
 			{
 				msgwin_status_add("LSP initialize request failed for LSP server %s", s->cmd);
@@ -632,10 +646,10 @@ static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer 
 {
 	GSubprocess *process = (GSubprocess *)source_object;
 	GeanyFiletypeID filetype_id = GPOINTER_TO_INT(data);
+	LspServer *s = get_server(filetype_id);
 
-	if (lsp_servers && lsp_servers->len > filetype_id)
+	if (s)
 	{
-		LspServer *s = lsp_servers->pdata[filetype_id];
 		if (s->process == process)
 		{
 			msgwin_status_add("LSP server %s crashed, restarting", s->cmd);
