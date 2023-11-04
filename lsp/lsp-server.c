@@ -516,8 +516,12 @@ static GVariant *get_init_options(LspServer *server)
 }
 
 
+#define ADD_KEY_VALUE(b, k, v) \
+	g_variant_builder_add((b), "{sv}", (k), (v));
+
 static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 {
+	GVariantBuilder *b;
 	GVariant *node;
 
 	gchar *locale = lsp_utils_get_locale();
@@ -527,87 +531,87 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 	if (project_base)
 		project_base_uri = g_filename_to_uri(project_base, NULL, NULL);
 
-	node = JSONRPC_MESSAGE_NEW (
-		"processId", JSONRPC_MESSAGE_PUT_INT32(getpid()),
-		"clientInfo", "{",
-			"name", JSONRPC_MESSAGE_PUT_STRING("Geany"),
-			"version", JSONRPC_MESSAGE_PUT_STRING("0.1"), //VERSION
-		"}",
-		"locale", JSONRPC_MESSAGE_PUT_STRING(locale),
-		"rootPath", JSONRPC_MESSAGE_PUT_STRING(project_base),
-		"workspaceFolders", "[",
-			"{",
-				"uri", JSONRPC_MESSAGE_PUT_STRING (project_base_uri),
-				"name", JSONRPC_MESSAGE_PUT_STRING (project_base),
-			"}",
-		"]",
-		//"rootUri", JSONRPC_MESSAGE_PUT_STRING(project_base_uri),
-		"capabilities", "{",
-			"textDocument", "{",
-				"synchronization", "{",
-					"willSave", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
-					"willSaveWaitUntil", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
-					"didSave", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
-				"}",
-				"completion", "{",
-					"completionItemKind", "{",
-						"valueSet", "[",
-							ALL_AUTOCOMPLETION_KINDS
-						"]",
-					"}",
-//					"contxtSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
-				"}",
-				"hover", "{",
-					"contentFormat", "[",
-						"plaintext",
-					"]",
-				"}",
-				"documentSymbol", "{",
-					"symbolKind", "{",
-						"valueSet", "[",
-							ALL_SYMBOL_KINDS
-						"]",
-					"}",
-					"hierarchicalDocumentSymbolSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
-				"}",
-				"semanticTokens", "{",
-					"requests", "{",
-						"range", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
-						"full", "{",
-							"delta", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
-						"}",
-					"}",
-					"tokenTypes", "[",
-						"namespace",
-						"type",
-						"class",
-						"enum",
-						"interface",
-						"struct",
-						"decorator",
-					"]",
-					"tokenModifiers", "[",
-					"]",
-					"formats", "[",
-						"relative",
-					"]",
-					"overlappingTokenSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
-					"multilineTokenSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
-					"serverCancelSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
-					"augmentsSyntaxTokens", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
-				"}",
-			"}",
-		"}",
-		"trace", JSONRPC_MESSAGE_PUT_STRING("off"),
-		"workspaceFolders", JSONRPC_MESSAGE_PUT_STRING(NULL)
-#if 0
-		"initializationOptions", "{",
-			//TODO: JSONRPC_MESSAGE_PUT_VARIANT() has to be last, otherwise it strips the rest of the message
-			//report to jsonrpc-glib
-			JSONRPC_MESSAGE_PUT_VARIANT(get_init_options(server)),
+	// using g_variant_builder_new() because JSONRPC_MESSAGE_PUT_VARIANT()
+	// needed for "initializationOptions" is only present in recent
+	// versions of jsonrpc-glib
+	b = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
+
+	ADD_KEY_VALUE(b, "processId", g_variant_new_int64(getpid()));
+	ADD_KEY_VALUE(b, "clientInfo", JSONRPC_MESSAGE_NEW(
+		"name", JSONRPC_MESSAGE_PUT_STRING("Geany"),
+		"version", JSONRPC_MESSAGE_PUT_STRING("0.1")  //VERSION
+	));
+
+	ADD_KEY_VALUE(b, "locale", g_variant_new_string(locale));
+	ADD_KEY_VALUE(b, "rootPath", g_variant_new_string(project_base));
+	ADD_KEY_VALUE(b, "workspaceFolders", JSONRPC_MESSAGE_NEW_ARRAY(
+		"{",
+			"uri", JSONRPC_MESSAGE_PUT_STRING (project_base_uri),
+			"name", JSONRPC_MESSAGE_PUT_STRING (project_base),
 		"}"
-#endif
-	);
+	));
+	//ADD_KEY_VALUE(b, "rootUri", g_variant_new_string(project_base_uri));
+	ADD_KEY_VALUE(b, "capabilities", JSONRPC_MESSAGE_NEW(
+		"textDocument", "{",
+			"synchronization", "{",
+				"willSave", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+				"willSaveWaitUntil", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+				"didSave", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+			"}",
+			"completion", "{",
+				"completionItemKind", "{",
+					"valueSet", "[",
+						ALL_AUTOCOMPLETION_KINDS
+					"]",
+				"}",
+//				"contxtSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+			"}",
+			"hover", "{",
+				"contentFormat", "[",
+					"plaintext",
+				"]",
+			"}",
+			"documentSymbol", "{",
+				"symbolKind", "{",
+					"valueSet", "[",
+						ALL_SYMBOL_KINDS
+					"]",
+				"}",
+				"hierarchicalDocumentSymbolSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+			"}",
+			"semanticTokens", "{",
+				"requests", "{",
+					"range", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+					"full", "{",
+						"delta", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+					"}",
+				"}",
+				"tokenTypes", "[",
+					"namespace",
+					"type",
+					"class",
+					"enum",
+					"interface",
+					"struct",
+					"decorator",
+				"]",
+				"tokenModifiers", "[",
+				"]",
+				"formats", "[",
+					"relative",
+				"]",
+				"overlappingTokenSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+				"multilineTokenSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+				"serverCancelSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
+				"augmentsSyntaxTokens", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+			"}",
+		"}"
+	));
+	ADD_KEY_VALUE(b, "trace", g_variant_new_string("off"));
+	ADD_KEY_VALUE(b, "initializationOptions", get_init_options(server));
+
+	node = g_variant_builder_end(b);
+	g_variant_ref_sink(node);
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
