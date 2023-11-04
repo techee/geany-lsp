@@ -66,6 +66,7 @@ typedef struct
 typedef struct LspServer
 {
 	gchar *cmd;
+	gchar *ref_lang;
 
 	JsonrpcClient *rpc_client;
 	GSubprocess *process;

@@ -171,6 +171,7 @@ static void stop_server(LspServer *s)
 	}
 
 	g_free(s->cmd);
+	g_free(s->ref_lang);
 	g_free(s->autocomplete_trigger_chars);
 	g_free(s->signature_trigger_chars);
 	g_free(s->initialize_response);
@@ -775,6 +776,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 static void load_filetype_only_config(GKeyFile *kf, gchar *section, LspServer *s)
 {
 	get_str(&s->cmd, kf, section, "cmd");
+	get_str(&s->ref_lang, kf, section, "use");
 	get_str(&s->config.rpc_log, kf, section, "rpc_log");
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
 }
@@ -832,10 +834,7 @@ LspServer *lsp_server_get_if_running(GeanyDocument *doc)
 
 LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 {
-	GKeyFile *kf, *kf_global;
 	LspServer *s, *s2 = NULL;
-	gchar *ref_lang = NULL;
-	gchar *ft_name;
 
 	if (!ft || !lsp_servers || lsp_utils_is_lsp_disabled_for_project())
 		return NULL;
@@ -859,43 +858,21 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 		return NULL;
 	}
 
-	ft_name = ft->name;
-
-	kf_global = read_keyfile(lsp_utils_get_global_config_filename());
-	kf = read_keyfile(lsp_utils_get_config_filename());
-
-	get_str(&ref_lang, kf_global, ft_name, "use");
-	get_str(&ref_lang, kf, ft_name, "use");
-
-	if (ref_lang)
+	if (s->ref_lang)
 	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(ref_lang);
+		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
 
-		g_free(ref_lang);
 		if (ft)
 		{
-			ft_name = ft->name;
 			s2 = g_ptr_array_index(lsp_servers, ft->id);
 			s->referenced = s2;
 			if (s2->process)
-			{
-				g_key_file_free(kf);
-				g_key_file_free(kf_global);
 				return s2;
-			}
 		}
 	}
 
 	if (s2)
 		s = s2;
-
-	load_config(kf_global, "all", s);
-	load_config(kf_global, ft_name, s);
-	load_config(kf, "all", s);
-	load_config(kf, ft_name, s);
-
-	load_filetype_only_config(kf_global, ft_name, s);
-	load_filetype_only_config(kf, ft_name, s);
 
 	if (s->cmd)
 		g_strstrip(s->cmd);
@@ -909,9 +886,6 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 	{
 		start_lsp_server(s, ft->id);
 	}
-
-	g_key_file_free(kf);
-	g_key_file_free(kf_global);
 
 	// the server isn't initialized when running for the first time because the async
 	// handshake with the server hasn't completed yet
@@ -930,25 +904,24 @@ LspServer *lsp_server_get(GeanyDocument *doc)
 
 LspServerConfig *lsp_server_get_config(GeanyDocument *doc)
 {
-	LspServer *s = NULL;
+	LspServer *s;
 
 	if (!doc || !lsp_servers || lsp_utils_is_lsp_disabled_for_project())
 		return NULL;
 
-	// make sure we attempted to start the server
-	lsp_server_get(doc);
-
 	s = lsp_servers->pdata[doc->file_type->id];
 
-	if (s->process)
-		;
-	else if (s->referenced && s->referenced->process)
-		s = s->referenced;
+	if (s->ref_lang)
+	{
+		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
 
-	if (s->process)
-		return &s->config;
+		if (ft)
+			s = lsp_servers->pdata[ft->id];
+		else
+			return NULL;
+	}
 
-	return NULL;
+	return &s->config;
 }
 
 
@@ -973,8 +946,10 @@ void lsp_server_stop_all(gboolean wait)
 
 void lsp_server_init_all(void)
 {
+	GKeyFile *kf_global = read_keyfile(lsp_utils_get_global_config_filename());
+	GKeyFile *kf = read_keyfile(lsp_utils_get_config_filename());
+	GeanyFiletype *ft;
 	guint i;
-	GeanyFiletype *filetype;
 
 	if (lsp_servers)
 		lsp_server_stop_all(FALSE);
@@ -984,11 +959,22 @@ void lsp_server_init_all(void)
 
 	lsp_servers = g_ptr_array_new_full(0, free_server);
 
-	for (i = 0; (filetype = filetypes_index(i)); i++)
+	for (i = 0; (ft = filetypes_index(i)); i++)
 	{
 		LspServer *s = g_new0(LspServer, 1);
 		g_ptr_array_add(lsp_servers, s);
+
+		load_config(kf_global, "all", s);
+		load_config(kf_global, ft->name, s);
+		load_config(kf, "all", s);
+		load_config(kf, ft->name, s);
+
+		load_filetype_only_config(kf_global, ft->name, s);
+		load_filetype_only_config(kf, ft->name, s);
 	}
+
+	g_key_file_free(kf);
+	g_key_file_free(kf_global);
 }
 
 
