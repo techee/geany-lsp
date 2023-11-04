@@ -611,7 +611,7 @@ static gboolean symbol_highlight_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return cfg->symbol_highlight_available;
+	return cfg->symbol_highlight_enable;
 }
 
 
