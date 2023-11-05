@@ -26,6 +26,23 @@
 #include <glib.h>
 
 
+static void log_print(LspLogInfo log, const gchar *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+
+	if (log.type == STDOUT_FILENO)
+		vprintf(fmt, args);
+	else if (log.type == STDERR_FILENO)
+		vfprintf(stderr, fmt, args);
+	else
+		g_output_stream_vprintf(G_OUTPUT_STREAM(log.stream), NULL, NULL, NULL, fmt, args);
+
+	va_end(args);
+}
+
+
 LspLogInfo lsp_log_start(LspServerConfig *config)
 {
 	LspLogInfo info = {0, NULL};
@@ -35,24 +52,22 @@ LspLogInfo lsp_log_start(LspServerConfig *config)
 		return info;
 
 	if (g_strcmp0(config->rpc_log, "stdout") == 0)
-	{
 		info.type = STDOUT_FILENO;
-		return info;
-	}
 	else if (g_strcmp0(config->rpc_log, "stderr") == 0)
-	{
 		info.type = STDERR_FILENO;
-		return info;
+	else
+	{
+		fp = g_file_new_for_path(config->rpc_log);
+		g_file_delete(fp, NULL, NULL);
+		info.stream = g_file_create(fp, G_FILE_CREATE_NONE, NULL, NULL);
+
+		if (!info.stream)
+			g_warning("failed to create log file: %s\n", config->rpc_log);
+
+		g_object_unref(fp);
 	}
 
-	fp = g_file_new_for_path(config->rpc_log);
-	g_file_delete(fp, NULL, NULL);
-	info.stream = g_file_create(fp, G_FILE_CREATE_NONE, NULL, NULL);
-
-	if (!info.stream)
-		g_warning("failed to create log file: %s\n", config->rpc_log);
-
-	g_object_unref(fp);
+	log_print(info, "{\n");
 
 	return info;
 }
@@ -60,20 +75,21 @@ LspLogInfo lsp_log_start(LspServerConfig *config)
 
 void lsp_log_stop(LspLogInfo log)
 {
-	if (!log.stream)
+	if (log.type == 0 && !log.stream)
 		return;
 
-	g_output_stream_close(G_OUTPUT_STREAM(log.stream), NULL, NULL);
+	log_print(log, "\n\n\"log end\": \"\"\n}\n");
+
+	if (log.stream)
+		g_output_stream_close(G_OUTPUT_STREAM(log.stream), NULL, NULL);
 }
 
 
 void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *params)
 {
-	gchar *json_msg;
+	gchar *json_msg, *time_str;
 	const gchar *title = "";
 	GDateTime *time;
-	gchar *time_str;
-	const gchar *fmt_str = "%s %s: %s\n\n%s\n\n";
 
 	if (log.type == 0 && !log.stream)
 		return;
@@ -88,34 +104,33 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 	switch (type)
 	{
 		case LspLogClientMessageSent:
-			title = "Geany ---> Server\nmessage request";
+			title = "Geany ---> Server (message request)";
 			break;
 		case LspLogClientMessageReceived:
-			title = "Geany <--- Server\nmessage response";
+			title = "Geany <--- Server (message response)";
 			break;
 		case LspLogClientNotificationSent:
-			title = "Geany ---> Server\nnotification";
+			title = "Geany ---> Server (notification)";
 			break;
 		case LspLogServerMessageSent:
-			title = "Server ---> Geany\nmessage request";
+			title = "Server ---> Geany (message request)";
 			break;
 		case LspLogServerMessageReceived:
-			title = "Server <--- Geany\nmessage response";
+			title = "Server <--- Geany (message response)";
 			break;
 		case LspLogServerNotificationSent:
-			title = "Server ---> Geany\nnotification";
+			title = "Server ---> Geany (notification)";
 			break;
 	}
 
-	json_msg = lsp_utils_json_pretty_print(params);
+	log_print(log, "\n\n\"%s\": \"%s\",\n", time_str, title);
 
-	if (log.type == STDOUT_FILENO)
-		printf(fmt_str, time_str, title, method, json_msg);
-	else if (log.type == STDERR_FILENO)
-		fprintf(stderr, fmt_str, time_str, title, method, json_msg);
+	if (!params)
+		json_msg = g_strdup("null");
 	else
-		g_output_stream_printf(G_OUTPUT_STREAM(log.stream), NULL, NULL, NULL,
-			fmt_str, time_str, title, method, json_msg);
+		json_msg = lsp_utils_json_pretty_print(params);
+
+	log_print(log, "\"%s\":\n%s,\n", method, json_msg);
 
 	g_free(json_msg);
 	g_free(time_str);
