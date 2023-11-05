@@ -521,7 +521,7 @@ static gboolean autocomplete_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return cfg->autocomplete_enable;
+	return cfg->active && cfg->autocomplete_enable;
 }
 
 
@@ -543,7 +543,7 @@ static gboolean calltips_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return cfg->signature_enable;
+	return cfg->active && cfg->signature_enable;
 }
 
 
@@ -565,7 +565,7 @@ static gboolean goto_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return cfg->goto_enable;
+	return cfg->active && cfg->goto_enable;
 }
 
 
@@ -587,7 +587,7 @@ static gboolean doc_symbols_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return cfg->document_symbols_enable;
+	return cfg->active && cfg->document_symbols_enable;
 }
 
 
@@ -611,7 +611,7 @@ static gboolean symbol_highlight_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return cfg->symbol_highlight_enable;
+	return cfg->active && cfg->symbol_highlight_enable;
 }
 
 

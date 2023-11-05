@@ -27,6 +27,8 @@
 
 typedef struct
 {
+	gboolean active;
+
 	gboolean show_server_stderr;
 	gchar *rpc_log;
 	gchar *initialization_options_file;

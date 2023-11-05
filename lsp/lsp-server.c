@@ -971,6 +971,8 @@ void lsp_server_init_all(void)
 
 		load_filetype_only_config(kf_global, ft->name, s);
 		load_filetype_only_config(kf, ft->name, s);
+
+		s->config.active = s->cmd || s->ref_lang;
 	}
 
 	g_key_file_free(kf);
