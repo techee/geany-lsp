@@ -27,6 +27,7 @@
 #include "lsp/lsp-diagnostics.h"
 #include "lsp/lsp-log.h"
 #include "lsp/lsp-semtokens.h"
+#include "lsp/lsp-progress.h"
 
 
 /* careful: also reused by ALL_SYMBOL_KINDS below - make sure that ALL_SYMBOL_KINDS
@@ -175,6 +176,7 @@ static void stop_server(LspServer *s)
 	g_free(s->autocomplete_trigger_chars);
 	g_free(s->signature_trigger_chars);
 	g_free(s->initialize_response);
+	lsp_progress_free_all(s);
 
 	g_strfreev(cfg->autocomplete_trigger_sequences);
 	g_free(cfg->diagnostics_error_style);
@@ -233,6 +235,23 @@ static void log_message(GVariant *params)
 }
 
 
+static LspServer *srv_from_rpc_client(JsonrpcClient *client)
+{
+	if (lsp_servers)
+	{
+		gint i;
+		for (i = 0; i < lsp_servers->len; i++)
+		{
+			LspServer *s = lsp_servers->pdata[i];
+			if (s->rpc_client == client)
+				return s;
+		}
+	}
+
+	return NULL;
+}
+
+
 static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *params,
 	gpointer user_data)
 {
@@ -246,7 +265,67 @@ static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *pa
 		log_message(params);
 	}
 	else if (g_str_has_prefix(method, "$/"))
-		;
+	{
+		LspServer *srv = srv_from_rpc_client(self);
+		gboolean have_token = FALSE;
+		gint64 token_int = 0;
+		const gchar *token_str = NULL;
+		const gchar *kind = NULL;
+		const gchar *title = NULL;
+		const gchar *message = NULL;
+		gchar buf[50];
+
+		have_token = JSONRPC_MESSAGE_PARSE(params,
+			"token", JSONRPC_MESSAGE_GET_STRING(&token_str)
+		);
+		if (!have_token)
+		{
+			have_token = JSONRPC_MESSAGE_PARSE(params,
+				"token", JSONRPC_MESSAGE_GET_INT64(&token_int)
+			);
+		}
+		JSONRPC_MESSAGE_PARSE(params,
+			"value", "{",
+				"kind", JSONRPC_MESSAGE_GET_STRING(&kind),
+			"}"
+		);
+		JSONRPC_MESSAGE_PARSE(params,
+			"value", "{",
+				"title", JSONRPC_MESSAGE_GET_STRING(&title),
+			"}"
+		);
+		JSONRPC_MESSAGE_PARSE(params,
+			"value", "{",
+				"message", JSONRPC_MESSAGE_GET_STRING(&message),
+			"}"
+		);
+
+		if (!message)
+		{
+			gint64 percentage;
+			gboolean have_percentage = JSONRPC_MESSAGE_PARSE(params,
+				"value", "{",
+					"percentage", JSONRPC_MESSAGE_GET_INT64(&percentage),
+				"}"
+			);
+			if (have_percentage)
+			{
+				g_snprintf(buf, 30, "%ld%%", percentage);
+				message = buf;
+			}
+		}
+
+		if (srv && have_token && kind)
+		{
+			LspProgressToken token = {token_int, (gchar *)token_str};
+			if (g_strcmp0(kind, "begin") == 0)
+				lsp_progress_begin(srv, token, title, message);
+			else if (g_strcmp0(kind, "report") == 0)
+				lsp_progress_report(srv, token, message);
+			else if (g_strcmp0(kind, "end") == 0)
+				lsp_progress_end(srv, token, message);
+		}
+	}
 	else
 	{
 		//printf("\n\nNOTIFICATION FROM SERVER: %s\n", method);
@@ -255,22 +334,50 @@ static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *pa
 }
 
 
-static gboolean handle_call(JsonrpcClient* self, gchar* method, GVariant* id, GVariant* params,
+static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GVariant *params,
 	gpointer user_data)
 {
 	JsonNode *node = json_from_string("{}", NULL);
 	GVariant *variant = json_gvariant_deserialize(node, NULL, NULL);
+	gboolean ret = FALSE;
 
 	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageSent, method, params);
 
 	//printf("\n\nREQUEST FROM SERVER: %s\n", method);
 	//printf("params:\n%s\n\n\n", lsp_utils_json_pretty_print(params));
 
+	if (g_strcmp0(method, "window/workDoneProgress/create") == 0)
+	{
+		LspServer *srv = srv_from_rpc_client(self);
+		gboolean have_token = FALSE;
+		const gchar *token_str = NULL;
+		gint64 token_int = 0;
+
+		have_token = JSONRPC_MESSAGE_PARSE(params,
+			"token", JSONRPC_MESSAGE_GET_STRING(&token_str)
+		);
+		if (!have_token)
+		{
+			have_token = JSONRPC_MESSAGE_PARSE(params,
+				"token", JSONRPC_MESSAGE_GET_INT64(&token_int)
+			);
+		}
+
+		if (srv && have_token)
+		{
+			LspProgressToken token = {token_int, (gchar *)token_str};
+			lsp_progress_create(srv, token);
+		}
+
+		jsonrpc_client_reply_async(self, id, NULL, NULL, NULL, NULL);
+		ret = TRUE;
+	}
+
 	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageReceived, method, variant);
 	g_variant_unref(variant);
 	json_node_free(node);
 
-	return FALSE;  //TODO: return TRUE for handled requests
+	return ret;
 }
 
 
@@ -606,6 +713,9 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 				"serverCancelSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
 				"augmentsSyntaxTokens", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 			"}",
+		"}",
+		"window", "{",
+			"workDoneProgress", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 		"}"
 	));
 	ADD_KEY_VALUE(b, "trace", g_variant_new_string("off"));

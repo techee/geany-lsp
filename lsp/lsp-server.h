@@ -82,6 +82,8 @@ typedef struct LspServer
 
 	LspServerConfig config;
 
+	GSList *progress_ops;
+
 	gchar *autocomplete_trigger_chars;
 	gchar *signature_trigger_chars;
 	gchar *initialize_response;
