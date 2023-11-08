@@ -252,16 +252,31 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	}
 	else if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-		if (!srv)
+		LspServerConfig *cfg = lsp_server_get_config(doc);
+
+		if (!cfg)
+			return FALSE;
+
+		// also delivered when other window has focus
+		if (!gtk_widget_has_focus(GTK_WIDGET(sci)))
+			return FALSE;
+
+		// the event is also delivered for the margin with numbers where position
+		// is -1. In addition, at the top of Scintilla window, the event is delivered
+		// when mouse is at the menubar place, with y = 0
+		if (nt->position < 0 || nt->y == 0)
 			return FALSE;
 
 		if (lsp_signature_showing_calltip(doc))
 			;  /* don't cancel signature calltips by accidental hovers */
-		else if (srv->config.diagnostics_enable && lsp_diagnostics_has_diag(nt->position))
+		else if (cfg->diagnostics_enable && lsp_diagnostics_has_diag(nt->position))
 			lsp_diagnostics_show_calltip(nt->position);
-		else if (srv->config.hover_enable)
-			lsp_hover_send_request(srv, doc, nt->position);
+		else if (cfg->hover_enable)
+		{
+			LspServer *srv = lsp_server_get_if_running(doc);
+			if (srv)
+				lsp_hover_send_request(srv, doc, nt->position);
+		}
 
 		return FALSE;
 	}
