@@ -30,6 +30,7 @@
 #include "lsp-signature.h"
 #include "lsp-goto.h"
 #include "lsp-symbols.h"
+#include "lsp-lookup-panel.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -58,6 +59,12 @@ PLUGIN_SET_TRANSLATABLE_INFO(
 	_("Language server protocol client for Geany"),
 	"0.1",  //TODO: VERSION when part o geany-plugins
 	"Jiri Techet <techet@gmail.com>")
+
+
+enum {
+  KB_FIND_WORKSPACE_SYMBOL,
+  KB_COUNT
+};
 
 
 struct
@@ -609,13 +616,13 @@ static gboolean doc_symbols_available(GeanyDocument *doc)
 static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
 {
 	if (doc_symbols_available(doc))
-		lsp_symbols_request(doc, callback, user_data);
+		lsp_symbols_doc_request(doc, callback, user_data);
 }
 
 
 static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
 {
-	return lsp_symbols_get_cached(doc);
+	return lsp_symbols_doc_get_cached(doc);
 }
 
 
@@ -740,6 +747,32 @@ static void create_menu_items()
 }
 
 
+static gboolean on_kb_invoked(GeanyKeyBinding *kb, guint key_id, gpointer data)
+{
+	switch (key_id)
+	{
+		case KB_FIND_WORKSPACE_SYMBOL:
+			lsp_lookup_panel_for_workspace();
+			break;
+
+		default:
+			break;
+	}
+
+	return TRUE;
+}
+
+
+static void init_keybindings(void)
+{
+	GeanyKeyGroup *group;
+
+	group = plugin_set_key_group(geany_plugin, "lsp", KB_COUNT, NULL);
+	keybindings_set_item_full(group, KB_FIND_WORKSPACE_SYMBOL, 0, 0, "find_symbol_workspace",
+		_("Find symbol in workspace"), NULL, on_kb_invoked, NULL, NULL);
+}
+
+
 void plugin_init(G_GNUC_UNUSED GeanyData * data)
 {
 	plugin_module_make_resident(geany_plugin);
@@ -748,6 +781,7 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	lsp_register(&lsp);
 	create_menu_items();
+	init_keybindings();
 }
 
 

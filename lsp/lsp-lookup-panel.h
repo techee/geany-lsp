@@ -16,22 +16,11 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef LSP_SYMBOLS_H
-#define LSP_SYMBOLS_H 1
-
-#include "lsp/lsp-server.h"
-
-#include <glib.h>
-
-void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
-	gpointer user_data);
-
-GPtrArray *lsp_symbols_doc_get_cached(GeanyDocument *doc);
+#ifndef LSP_LOOKUP_PANEL_H
+#define LSP_LOOKUP_PANEL_H 1
 
 
-typedef void (*LspWorkspaceSymbolRequestCallback) (GPtrArray *arr, gpointer user_data);
+void lsp_lookup_panel_for_workspace(void);
 
-void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query, LspWorkspaceSymbolRequestCallback callback,
-	gpointer user_data);
 
-#endif  /* LSP_SYMBOLS_H */
+#endif  /* LSP_LOOKUP_PANEL_H */

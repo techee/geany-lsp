@@ -24,89 +24,16 @@
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
 #include "lsp/lsp-server.h"
+#include "lsp/lsp-symbol-kinds.h"
 
 #include <ctype.h>
 #include <glib.h>
-
-/* keep in sync with icon names in symbols.c */
-typedef enum
-{
-	TM_ICON_CLASS,
-	TM_ICON_MACRO,
-	TM_ICON_MEMBER,
-	TM_ICON_METHOD,
-	TM_ICON_NAMESPACE,
-	TM_ICON_OTHER,
-	TM_ICON_STRUCT,
-	TM_ICON_VAR,
-	TM_ICON_NONE,
-	TM_N_ICONS = TM_ICON_NONE
-} LspGeanyIcon;
-
-
-typedef enum {
-	LspKindText = 1,
-	LspKindMethod,
-	LspKindFunction,
-	LspKindConstructor,
-	LspKindField,
-	LspKindVariable,
-	LspKindClass,
-	LspKindInterface,
-	LspKindModule,
-	LspKindProperty,
-	LspKindUnit,
-	LspKindValue,
-	LspKindEnum,
-	LspKindKeyword,
-	LspKindSnippet,
-	LspKindColor,
-	LspKindFile,
-	LspKindReference,
-	LspKindFolder,
-	LspKindEnumMember,
-	LspKindConstant,
-	LspKindStruct,
-	LspKindEvent,
-	LspKindOperator,
-	LspKindTypeParameter,
-	LSP_KIND_NUM = LspKindTypeParameter
-} LspCompletionItemKind;
-
-
-static LspGeanyIcon kind_icons[LSP_KIND_NUM] = {
-	TM_ICON_MACRO,      // LspKindText - also used for macros by clangd
-	TM_ICON_METHOD,     // LspKindMethod
-	TM_ICON_METHOD,     // LspKindFunction
-	TM_ICON_METHOD,     // LspKindConstructor
-	TM_ICON_MEMBER,     // LspKindField
-	TM_ICON_VAR,        // LspKindVariable
-	TM_ICON_CLASS,      // LspKindClass
-	TM_ICON_CLASS,      // LspKindInterface
-	TM_ICON_NAMESPACE,  // LspKindModule
-	TM_ICON_MEMBER,     // LspKindProperty
-	TM_ICON_NAMESPACE,  // LspKindUnit
-	TM_ICON_MACRO,      // LspKindValue
-	TM_ICON_STRUCT,     // LspKindEnum
-	TM_ICON_NONE,       // LspKindKeyword
-	TM_ICON_NONE,       // LspKindSnippet
-	TM_ICON_OTHER,      // LspKindColor
-	TM_ICON_OTHER,      // LspKindFile
-	TM_ICON_OTHER,      // LspKindReference
-	TM_ICON_OTHER,      // LspKindFolder
-	TM_ICON_MEMBER,     // LspKindEnumMember
-	TM_ICON_MACRO,      // LspKindConstant
-	TM_ICON_STRUCT,     // LspKindStruct
-	TM_ICON_OTHER,      // LspKindEvent
-	TM_ICON_OTHER,      // LspKindOperator
-	TM_ICON_OTHER       // LspKindTypeParameter
-};
 
 
 typedef struct
 {
 	gchar *label;
-	LspCompletionItemKind kind;
+	LspCompletionKind kind;
 	gchar *sort_text;
 	gchar *insert_text;
 	gchar *detail;
@@ -139,15 +66,6 @@ void lsp_autocomplete_set_displayed_symbols(GPtrArray *symbols)
 	if (displayed_autocomplete_symbols)
 		g_ptr_array_free(displayed_autocomplete_symbols, TRUE);
 	displayed_autocomplete_symbols = symbols;
-}
-
-
-static LspGeanyIcon get_autocomplete_icon(LspCompletionItemKind kind)
-{
-	if (kind < 1 || kind > LSP_KIND_NUM)
-		return TM_ICON_OTHER;
-
-	return kind_icons[kind - 1];
 }
 
 
@@ -280,7 +198,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	for (i = 0; i < symbols->len; i++)
 	{
 		LspAutocompleteSymbol *symbol = symbols->pdata[i];
-		guint icon_id = get_autocomplete_icon(symbol->kind);
+		guint icon_id = lsp_symbol_kinds_get_completion_icon(symbol->kind);
 		gchar buf[10];
 
 		if (i > server->config.autocomplete_window_max_entries)
@@ -321,16 +239,16 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 
 	if (pass > 1)
 	{
-		if (sym1->kind == LspKindKeyword && sym2->kind != LspKindKeyword)
+		if (sym1->kind == LspCompletionKindKeyword && sym2->kind != LspCompletionKindKeyword)
 			return -1;
 
-		if (sym1->kind != LspKindKeyword && sym2->kind == LspKindKeyword)
+		if (sym1->kind != LspCompletionKindKeyword && sym2->kind == LspCompletionKindKeyword)
 			return 1;
 
-		if (sym1->kind == LspKindSnippet && sym2->kind != LspKindSnippet)
+		if (sym1->kind == LspCompletionKindSnippet && sym2->kind != LspCompletionKindSnippet)
 			return -1;
 
-		if (sym1->kind != LspKindSnippet && sym2->kind == LspKindSnippet)
+		if (sym1->kind != LspCompletionKindSnippet && sym2->kind == LspCompletionKindSnippet)
 			return 1;
 	}
 

@@ -32,6 +32,12 @@ typedef struct {
 	gpointer user_data;
 } LspSymbolUserData;
 
+typedef struct {
+	gint ft_id;
+	LspWorkspaceSymbolRequestCallback callback;
+	gpointer user_data;
+} LspWorkspaceSymbolUserData;
+
 
 extern GeanyPlugin *geany_plugin;
 
@@ -85,7 +91,8 @@ static void tm_tag_unref(TMTag *tag)
 
 /******************************************************************************/
 
-static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gchar *scope_sep)
+static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gchar *scope,
+	const gchar *scope_sep, gboolean workspace)
 {
 	GVariant *member = NULL;
 	GVariantIter iter;
@@ -97,8 +104,11 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 		TMTag *tag;
 		const gchar *name = NULL;
 		const gchar *detail = NULL;
+		const gchar *uri = NULL;
+		const gchar *container_name = NULL;
 		GVariant *loc_variant = NULL;
 		GVariant *children = NULL;
+		gchar *uri_str = NULL;
 		gint64 kind = 0;
 		gint line_num = 0;
 
@@ -123,11 +133,36 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 			if (loc)
 			{
 				line_num = loc->range.start.line;
+				if (loc->uri)
+					uri_str = g_strdup(loc->uri);
 				lsp_utils_free_lsp_location(loc);
 			}
 		}
-		else
+		else if (!workspace)
+		{
+			if (loc_variant)
+				g_variant_unref(loc_variant);
 			continue;
+		}
+
+		if (workspace)
+		{
+			JSONRPC_MESSAGE_PARSE(member, "containerName", JSONRPC_MESSAGE_GET_STRING(&container_name));
+
+			if (!uri_str)
+			{
+				if (JSONRPC_MESSAGE_PARSE(member, "location", "{",
+						"uri", JSONRPC_MESSAGE_GET_STRING(&uri),
+					"}"))
+				{
+					if (uri)
+						uri_str = g_strdup(uri);
+				}
+
+				if (!uri_str)
+					continue;
+			}
+		}
 
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 
@@ -136,9 +171,19 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 		tag->line = line_num + 1;
 		tag->type = kind;
 		tag->arglist = detail ? g_strdup(detail) : NULL;
-		tag->scope = scope ? g_strdup(scope) : NULL;
 
-		g_ptr_array_add(cached_symbols, tag);
+		if (scope)
+			tag->scope = g_strdup(scope);
+		else if (container_name)
+			tag->scope = g_strdup(container_name);
+
+		if (uri_str)
+		{
+			// TODO: total hack, just storing path "somewhere"
+			tag->inheritance = lsp_utils_get_real_path_from_uri(uri_str);
+		}
+
+		g_ptr_array_add(symbols, tag);
 
 		if (JSONRPC_MESSAGE_PARSE(member, "children", JSONRPC_MESSAGE_GET_VARIANT(&children)))
 		{
@@ -148,7 +193,7 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 				new_scope = g_strconcat(scope, scope_sep, tag->name, NULL);
 			else
 				new_scope = g_strdup(tag->name);
-			parse_symbols(children, new_scope, scope_sep);
+			parse_symbols(symbols, children, new_scope, scope_sep, FALSE);
 			g_free(new_scope);
 		}
 
@@ -156,6 +201,7 @@ static void parse_symbols(GVariant *symbol_variant, const gchar *scope, const gc
 			g_variant_unref(loc_variant);
 		if (children)
 			g_variant_unref(children);
+		g_free(uri_str);
 	}
 }
 
@@ -178,7 +224,8 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 			g_free(cached_symbols_fname);
 			cached_symbols_fname = g_strdup(data->doc->real_path);
 
-			parse_symbols(return_value, NULL, symbols_get_context_separator(data->doc->file_type->id));
+			parse_symbols(cached_symbols, return_value, NULL,
+				symbols_get_context_separator(data->doc->file_type->id), FALSE);
 		}
 
 		if (return_value)
@@ -191,7 +238,7 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 }
 
 
-GPtrArray *lsp_symbols_get_cached(GeanyDocument *doc)
+GPtrArray *lsp_symbols_doc_get_cached(GeanyDocument *doc)
 {
 	if (g_strcmp0(doc->real_path, cached_symbols_fname) == 0)
 		return cached_symbols;
@@ -213,7 +260,7 @@ static gboolean retry_cb(gpointer user_data)
 		else
 		{
 			// should be successful now
-			lsp_symbols_request(data->doc, data->callback, data->user_data);
+			lsp_symbols_doc_request(data->doc, data->callback, data->user_data);
 			g_free(data);
 			return FALSE;
 		}
@@ -225,7 +272,7 @@ static gboolean retry_cb(gpointer user_data)
 }
 
 
-void lsp_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
+void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
 	gpointer user_data)
 {
 	LspServer *server = lsp_server_get(doc);
@@ -263,5 +310,58 @@ void lsp_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
 		symbols_cb, data);
 
 	g_free(doc_uri);
+	g_variant_unref(node);
+}
+
+
+static void workspace_symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+{
+	JsonrpcClient *self = (JsonrpcClient *)object;
+	GVariant *return_value = NULL;
+	LspWorkspaceSymbolUserData *data = user_data;
+	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+
+	if (lsp_client_call_finish(self, result, &return_value))
+	{
+		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
+
+		//scope separator doesn't matter here
+		parse_symbols(ret, return_value, NULL, "", TRUE);
+
+		if (return_value)
+			g_variant_unref(return_value);
+	}
+
+	data->callback(ret, data->user_data);
+
+	g_ptr_array_free(ret, TRUE);
+	g_free(user_data);
+}
+
+
+void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query,
+	LspWorkspaceSymbolRequestCallback callback, gpointer user_data)
+{
+	LspServer *server = lsp_server_get_for_ft(ft);
+	LspWorkspaceSymbolUserData *data;
+	GVariant *node;
+
+	if (!server)
+		return;
+
+	data = g_new0(LspWorkspaceSymbolUserData, 1);
+	data->user_data = user_data;
+	data->callback = callback;
+	data->ft_id = ft->id;
+
+	node = JSONRPC_MESSAGE_NEW (
+		"query", JSONRPC_MESSAGE_PUT_STRING(query)
+	);
+
+	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
+
+	lsp_client_call_async(server->rpc_client, "workspace/symbol", node,
+		workspace_symbols_cb, data);
+
 	g_variant_unref(node);
 }

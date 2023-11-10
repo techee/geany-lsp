@@ -28,41 +28,8 @@
 #include "lsp/lsp-log.h"
 #include "lsp/lsp-semtokens.h"
 #include "lsp/lsp-progress.h"
-
-
-/* careful: also reused by ALL_SYMBOL_KINDS below - make sure that ALL_SYMBOL_KINDS
- * contains valid values when item added here */
-#define ALL_AUTOCOMPLETION_KINDS \
-	JSONRPC_MESSAGE_PUT_INT32(1),\
-	JSONRPC_MESSAGE_PUT_INT32(2),\
-	JSONRPC_MESSAGE_PUT_INT32(3),\
-	JSONRPC_MESSAGE_PUT_INT32(4),\
-	JSONRPC_MESSAGE_PUT_INT32(5),\
-	JSONRPC_MESSAGE_PUT_INT32(6),\
-	JSONRPC_MESSAGE_PUT_INT32(7),\
-	JSONRPC_MESSAGE_PUT_INT32(8),\
-	JSONRPC_MESSAGE_PUT_INT32(9),\
-	JSONRPC_MESSAGE_PUT_INT32(10),\
-	JSONRPC_MESSAGE_PUT_INT32(11),\
-	JSONRPC_MESSAGE_PUT_INT32(12),\
-	JSONRPC_MESSAGE_PUT_INT32(13),\
-	JSONRPC_MESSAGE_PUT_INT32(14),\
-	JSONRPC_MESSAGE_PUT_INT32(15),\
-	JSONRPC_MESSAGE_PUT_INT32(16),\
-	JSONRPC_MESSAGE_PUT_INT32(17),\
-	JSONRPC_MESSAGE_PUT_INT32(18),\
-	JSONRPC_MESSAGE_PUT_INT32(19),\
-	JSONRPC_MESSAGE_PUT_INT32(20),\
-	JSONRPC_MESSAGE_PUT_INT32(21),\
-	JSONRPC_MESSAGE_PUT_INT32(22),\
-	JSONRPC_MESSAGE_PUT_INT32(23),\
-	JSONRPC_MESSAGE_PUT_INT32(24),\
-	JSONRPC_MESSAGE_PUT_INT32(25),
-
-
-#define ALL_SYMBOL_KINDS \
-	ALL_AUTOCOMPLETION_KINDS \
-	JSONRPC_MESSAGE_PUT_INT32(26),
+#include "lsp/lsp-symbols.h"
+#include "lsp/lsp-symbol-kinds.h"
 
 
 typedef struct {
@@ -660,6 +627,9 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 	));
 	//ADD_KEY_VALUE(b, "rootUri", g_variant_new_string(project_base_uri));
 	ADD_KEY_VALUE(b, "capabilities", JSONRPC_MESSAGE_NEW(
+		"window", "{",
+			"workDoneProgress", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+		"}",
 		"textDocument", "{",
 			"synchronization", "{",
 				"willSave", JSONRPC_MESSAGE_PUT_BOOLEAN(FALSE),
@@ -669,7 +639,7 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 			"completion", "{",
 				"completionItemKind", "{",
 					"valueSet", "[",
-						ALL_AUTOCOMPLETION_KINDS
+						LSP_COMPLETION_KINDS,
 					"]",
 				"}",
 //				"contxtSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
@@ -682,7 +652,7 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 			"documentSymbol", "{",
 				"symbolKind", "{",
 					"valueSet", "[",
-						ALL_SYMBOL_KINDS
+						LSP_SYMBOL_KINDS,
 					"]",
 				"}",
 				"hierarchicalDocumentSymbolSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
@@ -714,8 +684,14 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 				"augmentsSyntaxTokens", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 			"}",
 		"}",
-		"window", "{",
-			"workDoneProgress", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+		"workspace", "{",
+			"symbol", "{",
+				"symbolKind", "{",
+					"valueSet", "[",
+						LSP_SYMBOL_KINDS,
+					"]",
+				"}",
+			"}",
 		"}"
 	));
 	ADD_KEY_VALUE(b, "trace", g_variant_new_string("off"));
