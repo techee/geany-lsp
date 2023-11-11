@@ -346,8 +346,12 @@ static void goto_file(const gchar *file_str)
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
-		TMTag *tag = lsp_tm_tag_new();
+		TMTag *tag;
 
+		if (!doc->file_name)
+			continue;
+
+		tag = lsp_tm_tag_new();
 		tag->name = g_path_get_basename(doc->file_name);
 		// TODO: total hack, just storing path "somewhere"
 		tag->inheritance = g_strdup(doc->real_path);
@@ -396,7 +400,12 @@ static void perform_lookup(const gchar *query)
 		if (lsp_server_get(doc))
 			lsp_symbols_doc_request(doc, doc_symbol_cb, doc);
 		else
-			goto_tm_symbol(query_str+1, doc->tm_file->tags_array, doc->file_type->lang);
+		{
+			GPtrArray *tags = doc->tm_file ? doc->tm_file->tags_array : g_ptr_array_new();
+			goto_tm_symbol(query_str+1, tags, doc->file_type->lang);
+			if (!doc->tm_file)
+				g_ptr_array_free(tags, TRUE);
+		}
 	}
 	else if (g_str_has_prefix(query_str, ":"))
 		goto_line(query_str+1);
