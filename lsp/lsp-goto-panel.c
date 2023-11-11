@@ -23,7 +23,7 @@
 # include "config.h"
 #endif
 
-#include "lsp/lsp-lookup-panel.h"
+#include "lsp/lsp-goto-panel.h"
 #include "lsp/lsp-server.h"
 #include "lsp/lsp-symbols.h"
 #include "lsp/lsp-symbol-kinds.h"
@@ -607,7 +607,7 @@ static gchar *get_current_iden(GeanyDocument *doc)
 }
 
 
-static void lookup_panel_query(const gchar *query_type, gboolean prefill)
+static void goto_panel_query(const gchar *query_type, gboolean prefill)
 {
 	GeanyDocument *doc = document_get_current();
 	gchar *query;
@@ -634,25 +634,25 @@ static void lookup_panel_query(const gchar *query_type, gboolean prefill)
 }
 
 
-void lsp_lookup_panel_for_workspace(void)
+void lsp_goto_panel_for_workspace(void)
 {
-	lookup_panel_query("#", TRUE);
+	goto_panel_query("#", TRUE);
 }
 
 
-void lsp_lookup_panel_for_doc(void)
+void lsp_goto_panel_for_doc(void)
 {
-	lookup_panel_query("@", TRUE);
+	goto_panel_query("@", TRUE);
 }
 
 
-void lsp_lookup_panel_for_line(void)
+void lsp_goto_panel_for_line(void)
 {
-	lookup_panel_query(":", FALSE);
+	goto_panel_query(":", FALSE);
 }
 
 
-void lsp_lookup_panel_for_file(void)
+void lsp_goto_panel_for_file(void)
 {
-	lookup_panel_query("", FALSE);
+	goto_panel_query("", FALSE);
 }

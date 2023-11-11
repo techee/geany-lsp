@@ -20,9 +20,9 @@
 #define LSP_LOOKUP_PANEL_H 1
 
 
-void lsp_lookup_panel_for_workspace(void);
-void lsp_lookup_panel_for_doc(void);
-void lsp_lookup_panel_for_line(void);
-void lsp_lookup_panel_for_file(void);
+void lsp_goto_panel_for_workspace(void);
+void lsp_goto_panel_for_doc(void);
+void lsp_goto_panel_for_line(void);
+void lsp_goto_panel_for_file(void);
 
 #endif  /* LSP_LOOKUP_PANEL_H */

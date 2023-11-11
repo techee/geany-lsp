@@ -30,7 +30,7 @@
 #include "lsp-signature.h"
 #include "lsp-goto.h"
 #include "lsp-symbols.h"
-#include "lsp-lookup-panel.h"
+#include "lsp-goto-panel.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -717,19 +717,19 @@ static gboolean on_kb_invoked(guint key_id)
 	switch (key_id)
 	{
 		case KB_GOTO_ANYWHERE:
-			lsp_lookup_panel_for_file();
+			lsp_goto_panel_for_file();
 			break;
 
 		case KB_GOTO_DOC_SYMBOL:
-			lsp_lookup_panel_for_doc();
+			lsp_goto_panel_for_doc();
 			break;
 
 		case KB_GOTO_WORKSPACE_SYMBOL:
-			lsp_lookup_panel_for_workspace();
+			lsp_goto_panel_for_workspace();
 			break;
 
 		case KB_GOTO_LINE:
-			lsp_lookup_panel_for_line();
+			lsp_goto_panel_for_line();
 			break;
 
 		default:
@@ -755,25 +755,25 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Go to Anywhere..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_file), NULL);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_file), NULL);
 	keybindings_set_item(group, KB_GOTO_ANYWHERE, NULL, 0, 0, "goto_anywhere",
 		_("Go to anywhere"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Go to Document Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_doc), NULL);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_doc), NULL);
 	keybindings_set_item(group, KB_GOTO_DOC_SYMBOL, NULL, 0, 0, "goto_doc_symbol",
 		_("Go to document symbol"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Go to Workspace Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_workspace), NULL);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_workspace), NULL);
 	keybindings_set_item(group, KB_GOTO_WORKSPACE_SYMBOL, NULL, 0, 0, "goto_workspace_symbol",
 		_("Go to workspace symbol"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Go to Line..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_line), NULL);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_line), NULL);
 	keybindings_set_item(group, KB_GOTO_LINE, NULL, 0, 0, "goto_line",
 		_("Go to line"), item);
 
