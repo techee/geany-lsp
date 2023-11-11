@@ -607,7 +607,7 @@ static gchar *get_current_iden(GeanyDocument *doc)
 }
 
 
-static void lookup_panel_query(const gchar *query_type)
+static void lookup_panel_query(const gchar *query_type, gboolean prefill)
 {
 	GeanyDocument *doc = document_get_current();
 	gchar *query;
@@ -618,7 +618,10 @@ static void lookup_panel_query(const gchar *query_type)
 	if (!panel_data.panel)
 		create_panel();
 
-	query = get_current_iden(doc);
+	if (prefill)
+		query = get_current_iden(doc);
+	else
+		query = g_strdup("");
 	SETPTR(query, g_strconcat(query_type, query, NULL));
 
 	gtk_entry_set_text(GTK_ENTRY(panel_data.entry), query);
@@ -633,23 +636,23 @@ static void lookup_panel_query(const gchar *query_type)
 
 void lsp_lookup_panel_for_workspace(void)
 {
-	lookup_panel_query("#");
+	lookup_panel_query("#", TRUE);
 }
 
 
 void lsp_lookup_panel_for_doc(void)
 {
-	lookup_panel_query("@");
+	lookup_panel_query("@", TRUE);
 }
 
 
 void lsp_lookup_panel_for_line(void)
 {
-	lookup_panel_query(":");
+	lookup_panel_query(":", FALSE);
 }
 
 
 void lsp_lookup_panel_for_file(void)
 {
-	lookup_panel_query("");
+	lookup_panel_query("", FALSE);
 }

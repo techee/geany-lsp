@@ -62,7 +62,10 @@ PLUGIN_SET_TRANSLATABLE_INFO(
 
 
 enum {
-  KB_FIND_WORKSPACE_SYMBOL,
+  KB_GOTO_ANYWHERE,
+  KB_GOTO_DOC_SYMBOL,
+  KB_GOTO_WORKSPACE_SYMBOL,
+  KB_GOTO_LINE,
   KB_COUNT
 };
 
@@ -709,15 +712,72 @@ static void on_show_initialize_responses(void)
 }
 
 
+static gboolean on_kb_invoked(guint key_id)
+{
+	switch (key_id)
+	{
+		case KB_GOTO_ANYWHERE:
+			lsp_lookup_panel_for_file();
+			break;
+
+		case KB_GOTO_DOC_SYMBOL:
+			lsp_lookup_panel_for_doc();
+			break;
+
+		case KB_GOTO_WORKSPACE_SYMBOL:
+			lsp_lookup_panel_for_workspace();
+			break;
+
+		case KB_GOTO_LINE:
+			lsp_lookup_panel_for_line();
+			break;
+
+		default:
+			break;
+	}
+
+	return TRUE;
+}
+
+
 static void create_menu_items()
 {
 	GtkWidget *menu, *item;
+	GeanyKeyGroup *group;
+
+	group = plugin_set_key_group(geany_plugin, "lsp", KB_COUNT, on_kb_invoked);
 
 	menu_items.parent_item = gtk_menu_item_new_with_mnemonic(_("_LSP Client"));
 	gtk_container_add(GTK_CONTAINER(geany->main_widgets->tools_menu), menu_items.parent_item);
 
 	menu = gtk_menu_new ();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_items.parent_item), menu);
+
+	item = gtk_menu_item_new_with_mnemonic(_("_Go to Anywhere..."));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_file), NULL);
+	keybindings_set_item(group, KB_GOTO_ANYWHERE, NULL, 0, 0, "goto_anywhere",
+		_("Go to anywhere"), item);
+
+	item = gtk_menu_item_new_with_mnemonic(_("_Go to Document Symbol..."));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_doc), NULL);
+	keybindings_set_item(group, KB_GOTO_DOC_SYMBOL, NULL, 0, 0, "goto_doc_symbol",
+		_("Go to document symbol"), item);
+
+	item = gtk_menu_item_new_with_mnemonic(_("_Go to Workspace Symbol..."));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_workspace), NULL);
+	keybindings_set_item(group, KB_GOTO_WORKSPACE_SYMBOL, NULL, 0, 0, "goto_workspace_symbol",
+		_("Go to workspace symbol"), item);
+
+	item = gtk_menu_item_new_with_mnemonic(_("_Go to Line..."));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_lookup_panel_for_line), NULL);
+	keybindings_set_item(group, KB_GOTO_LINE, NULL, 0, 0, "goto_line",
+		_("Go to line"), item);
+
+	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
 	menu_items.project_config = gtk_menu_item_new_with_mnemonic(_("_Project Configuration"));
 	gtk_container_add(GTK_CONTAINER(menu), menu_items.project_config);
@@ -747,32 +807,6 @@ static void create_menu_items()
 }
 
 
-static gboolean on_kb_invoked(GeanyKeyBinding *kb, guint key_id, gpointer data)
-{
-	switch (key_id)
-	{
-		case KB_FIND_WORKSPACE_SYMBOL:
-			lsp_lookup_panel_for_workspace();
-			break;
-
-		default:
-			break;
-	}
-
-	return TRUE;
-}
-
-
-static void init_keybindings(void)
-{
-	GeanyKeyGroup *group;
-
-	group = plugin_set_key_group(geany_plugin, "lsp", KB_COUNT, NULL);
-	keybindings_set_item_full(group, KB_FIND_WORKSPACE_SYMBOL, 0, 0, "find_symbol_workspace",
-		_("Find symbol in workspace"), NULL, on_kb_invoked, NULL, NULL);
-}
-
-
 void plugin_init(G_GNUC_UNUSED GeanyData * data)
 {
 	plugin_module_make_resident(geany_plugin);
@@ -781,7 +815,6 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	lsp_register(&lsp);
 	create_menu_items();
-	init_keybindings();
 }
 
 
