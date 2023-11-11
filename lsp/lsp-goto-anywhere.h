@@ -16,14 +16,13 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef LSP_LOOKUP_PANEL_H
-#define LSP_LOOKUP_PANEL_H 1
+#ifndef LSP_GOTO_ANYWHERE_H
+#define LSP_GOTO_ANYWHERE_H 1
 
-#include <glib.h>
 
-typedef void (*LspGotoPanelLookupFunction) (const char *);
+void lsp_goto_anywhere_for_workspace(void);
+void lsp_goto_anywhere_for_doc(void);
+void lsp_goto_anywhere_for_line(void);
+void lsp_goto_anywhere_for_file(void);
 
-void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func);
-void lsp_goto_panel_fill(GPtrArray *symbols);
-
-#endif  /* LSP_LOOKUP_PANEL_H */
+#endif  /* LSP_GOTO_ANYWHERE_H */
