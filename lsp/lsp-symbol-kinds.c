@@ -149,3 +149,59 @@ GdkPixbuf *lsp_symbol_kinds_get_icon_pixbuf(LspGeanyIcon icon)
 
 	return NULL;
 }
+
+
+LspSymbolKind lsp_symbol_kinds_tm_to_lsp(TMTagType type)
+{
+	switch (type)
+	{
+		case tm_tag_undef_t:
+			return LspSymbolKindVariable;
+		case tm_tag_class_t:
+			return LspSymbolKindClass;
+		case tm_tag_enum_t:
+			return LspSymbolKindEnum;
+		case tm_tag_enumerator_t:
+			return LspSymbolKindEnumMember;
+		case tm_tag_field_t:
+			return LspSymbolKindField;
+		case tm_tag_function_t:
+			return LspSymbolKindFunction;
+		case tm_tag_interface_t:
+			return LspSymbolKindInterface;
+		case tm_tag_member_t:
+			return LspSymbolKindProperty;
+		case tm_tag_method_t:
+			return LspSymbolKindMethod;
+		case tm_tag_namespace_t:
+			return LspSymbolKindNamespace;
+		case tm_tag_package_t:
+			return LspSymbolKindPackage;
+		case tm_tag_prototype_t:
+			return LspSymbolKindFunction;
+		case tm_tag_struct_t:
+			return LspSymbolKindStruct;
+		case tm_tag_typedef_t:
+			return LspSymbolKindStruct;
+		case tm_tag_union_t:
+			return LspSymbolKindStruct;
+		case tm_tag_variable_t:
+			return LspSymbolKindVariable;
+		case tm_tag_externvar_t:
+			return LspSymbolKindVariable;
+		case tm_tag_macro_t:
+			return LspSymbolKindConstant;
+		case tm_tag_macro_with_arg_t:
+			return LspSymbolKindFunction;
+		case tm_tag_local_var_t:
+			return LspSymbolKindVariable;
+		case tm_tag_other_t:
+			return LspSymbolKindVariable;
+		case tm_tag_include_t:
+			return LspSymbolKindPackage;
+		default:
+			break;
+	}
+
+	return LspSymbolKindVariable;
+}

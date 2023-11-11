@@ -20,6 +20,7 @@
 #define LSP_SYMBOL_KINDS_H 1
 
 #include <gtk/gtk.h>
+#include <geanyplugin.h>
 
 
 /* keep in sync with icons in Geany */
@@ -162,5 +163,7 @@ LspGeanyIcon lsp_symbol_kinds_get_completion_icon(LspCompletionKind kind);
 LspGeanyIcon lsp_symbol_kinds_get_symbol_icon(LspSymbolKind kind);
 
 GdkPixbuf *lsp_symbol_kinds_get_icon_pixbuf(LspGeanyIcon icon);
+
+LspSymbolKind lsp_symbol_kinds_tm_to_lsp(TMTagType type);
 
 #endif  /* LSP_SYMBOL_KINDS_H */

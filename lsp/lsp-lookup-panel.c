@@ -28,6 +28,7 @@
 #include "lsp/lsp-symbols.h"
 #include "lsp/lsp-symbol-kinds.h"
 #include "lsp/lsp-utils.h"
+#include "lsp/lsp-tm-tag.h"
 
 #include <gtk/gtk.h>
 #include <geanyplugin.h>
@@ -147,16 +148,28 @@ static void fill_store(GtkListStore *store, GPtrArray *symbols)
 
 	foreach_ptr_array(tag, i, symbols)
 	{
-		LspGeanyIcon icon = lsp_symbol_kinds_get_symbol_icon((LspSymbolKind)tag->type);
-		gchar *path = tag->inheritance;  // TODO: hack, we stored path to inheritance before
+		LspGeanyIcon icon;
+		gchar *path;
 		gchar *label;
+
+		if (tag->file)
+		{
+			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
+			icon = lsp_symbol_kinds_get_symbol_icon(kind);
+			path = tag->file->file_name;
+		}
+		else
+		{
+			icon = lsp_symbol_kinds_get_symbol_icon((LspSymbolKind)tag->type);
+			path = tag->inheritance;  // TODO: hack, we stored path to inheritance before
+		}
 
 		if (path && tag->line > 0)
 			label = g_markup_printf_escaped("%s\n<small><i>%s:%lu</i></small>",
-				tag->name, tag->inheritance, tag->line);
+				tag->name, path, tag->line);
 		else if (path)
 			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
-				tag->name, tag->inheritance);
+				tag->name, path);
 		else
 			label = g_markup_printf_escaped("%s", tag->name);
 
@@ -222,15 +235,184 @@ static void workspace_symbol_cb(GPtrArray *symbols, gpointer user_data)
 }
 
 
+/* stolen from symbols.c and modified for our needs*/
+static GPtrArray *filter_tag_list(GPtrArray *tags_array, const gchar *tag_filter, TMTagType tag_types,
+	gboolean filter_lang, TMParserType lang)
+{
+	GPtrArray *tag_names = g_ptr_array_new();;
+	guint i;
+	guint j = 0;
+	gchar **tf_strv;
+
+	if (!tags_array)
+		return tag_names;
+
+	tf_strv = g_strsplit_set(tag_filter, " ", -1);
+
+	for (i = 0; i < tags_array->len && j < 100; ++i)
+	{
+		TMTag *tag = TM_TAG(tags_array->pdata[i]);
+
+		if (tag->type & tag_types && (!filter_lang || tag->lang == lang))
+		{
+			gboolean filtered = FALSE;
+			gchar **val;
+			gchar *full_tagname = tag->name;
+			gchar *normalized_tagname = g_utf8_normalize(full_tagname, -1, G_NORMALIZE_ALL);
+
+			foreach_strv(val, tf_strv)
+			{
+				gchar *normalized_val = g_utf8_normalize(*val, -1, G_NORMALIZE_ALL);
+
+				if (normalized_tagname != NULL && normalized_val != NULL)
+				{
+					gchar *case_normalized_tagname = g_utf8_casefold(normalized_tagname, -1);
+					gchar *case_normalized_val = g_utf8_casefold(normalized_val, -1);
+
+					filtered = strstr(case_normalized_tagname, case_normalized_val) == NULL;
+					g_free(case_normalized_tagname);
+					g_free(case_normalized_val);
+				}
+				g_free(normalized_val);
+
+				if (filtered)
+					break;
+			}
+			if (!filtered)
+			{
+				g_ptr_array_add(tag_names, tag);
+				j++;
+			}
+
+			g_free(normalized_tagname);
+		}
+	}
+
+	g_strfreev(tf_strv);
+
+	return tag_names;
+}
+
+
+static void doc_symbol_cb(gpointer user_data)
+{
+	GtkTreeView *view = GTK_TREE_VIEW(panel_data.tree_view);
+	GeanyDocument *doc = document_get_current();
+	GPtrArray *symbols = lsp_symbols_doc_get_cached(doc);
+	const gchar *text = gtk_entry_get_text(GTK_ENTRY(panel_data.entry));
+	GtkTreeIter iter;
+	GPtrArray *filtered;
+	TMTag *tag;
+	guint i;
+
+	if (doc != user_data)
+		return;
+
+	gtk_list_store_clear(panel_data.store);
+
+	filtered = filter_tag_list(symbols, text[0] ? text + 1 : text, tm_tag_max_t, FALSE, 0);
+	foreach_ptr_array(tag, i, filtered)
+	{
+		// TODO: total hack, just storing path "somewhere"
+		tag->inheritance = g_strdup(doc->real_path);
+	}
+	fill_store(panel_data.store, filtered);
+
+	if (gtk_tree_model_get_iter_first(gtk_tree_view_get_model(view), &iter))
+		tree_view_set_cursor_from_iter(GTK_TREE_VIEW(panel_data.tree_view), &iter);
+
+	g_ptr_array_free(filtered, TRUE);
+}
+
+
+static void goto_line(const gchar *line_str)
+{
+	GeanyDocument *doc = document_get_current();
+	gint lineno = atoi(line_str);
+
+	gtk_list_store_clear(panel_data.store);
+
+	if (lineno > 0)
+		navqueue_goto_line(doc, doc, lineno);
+}
+
+
+static void goto_file(const gchar *file_str)
+{
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
+	GPtrArray *filtered;
+	guint i;
+
+	foreach_document(i)
+	{
+		GeanyDocument *doc = documents[i];
+		TMTag *tag = lsp_tm_tag_new();
+
+		tag->name = g_path_get_basename(doc->file_name);
+		// TODO: total hack, just storing path "somewhere"
+		tag->inheritance = g_strdup(doc->real_path);
+		tag->type = tm_tag_other_t;
+		g_ptr_array_add(arr, tag);
+	}
+
+	gtk_list_store_clear(panel_data.store);
+	filtered = filter_tag_list(arr, file_str, tm_tag_max_t, FALSE, 0);
+	fill_store(panel_data.store, filtered);
+
+	g_ptr_array_free(filtered, TRUE);
+	g_ptr_array_free(arr, TRUE);
+}
+
+
+static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lang)
+{
+	gtk_list_store_clear(panel_data.store);
+
+	if (tags)
+	{
+		GPtrArray *filtered = filter_tag_list(tags, query, tm_tag_max_t, TRUE, lang);
+		fill_store(panel_data.store, filtered);
+		g_ptr_array_free(filtered, TRUE);
+	}
+
+}
+
+
+static void perform_lookup(const gchar *query)
+{
+	GeanyDocument *doc = document_get_current();
+	const gchar *query_str = query ? query : "";
+
+	if (g_str_has_prefix(query_str, "#"))
+	{
+		if (lsp_server_get(doc))
+			lsp_symbols_workspace_request(doc->file_type, query_str+1, workspace_symbol_cb, NULL);
+		else
+			// TODO: possibly improve performance by binary searching the start and the end point
+			goto_tm_symbol(query_str+1, geany_data->app->tm_workspace->tags_array, doc->file_type->lang);
+	}
+	else if (g_str_has_prefix(query_str, "@"))
+	{
+		if (lsp_server_get(doc))
+			lsp_symbols_doc_request(doc, doc_symbol_cb, doc);
+		else
+			goto_tm_symbol(query_str+1, doc->tm_file->tags_array, doc->file_type->lang);
+	}
+	else if (g_str_has_prefix(query_str, ":"))
+		goto_line(query_str+1);
+	else
+		goto_file(query_str);
+}
+
+
 static void on_entry_text_notify(GObject *object, GParamSpec *pspec, gpointer dummy)
 {
 	GtkTreeIter iter;
 	GtkTreeView *view  = GTK_TREE_VIEW(panel_data.tree_view);
 	GtkTreeModel *model = gtk_tree_view_get_model(view);
-	GeanyDocument *doc = document_get_current();
-
 	const gchar *text = gtk_entry_get_text(GTK_ENTRY(panel_data.entry));
-	lsp_symbols_workspace_request(doc->file_type, text, workspace_symbol_cb, NULL);
+
+	perform_lookup(text);
 
 	if (gtk_tree_model_get_iter_first(model, &iter))
 		tree_view_set_cursor_from_iter(view, &iter);
@@ -251,7 +433,14 @@ static void on_panel_hide(GtkWidget *widget, gpointer dummy)
 
 static void on_panel_show(GtkWidget *widget, gpointer dummy)
 {
+	const gchar *text = gtk_entry_get_text(GTK_ENTRY(panel_data.entry));
+	gboolean select_first = TRUE;
+
+	if (text && (text[0] == ':' || text[0] == '#' || text[0] == '@'))
+		select_first = FALSE;
+
 	gtk_widget_grab_focus(panel_data.entry);
+	gtk_editable_select_region(GTK_EDITABLE(panel_data.entry), select_first ? 0 : 1, -1);
 }
 
 
@@ -274,7 +463,7 @@ static void on_view_row_activated(GtkTreeView *view, GtkTreePath *path,
 
 		doc = document_open_file(file_path, FALSE, NULL, NULL);
 
-		if (doc)
+		if (doc && line > 0)
 			navqueue_goto_line(document_get_current(), doc, line);
 
 		g_free(file_path);
@@ -418,31 +607,49 @@ static gchar *get_current_iden(GeanyDocument *doc)
 }
 
 
-void lsp_lookup_panel_for_workspace(void)
+static void lookup_panel_query(const gchar *query_type)
 {
 	GeanyDocument *doc = document_get_current();
-	LspServer *srv;
-	gchar *iden;
+	gchar *query;
 
 	if (!doc)
-		return;
-
-	srv = lsp_server_get(doc);
-	if (!srv)
 		return;
 
 	if (!panel_data.panel)
 		create_panel();
 
-	iden = get_current_iden(doc);
+	query = get_current_iden(doc);
+	SETPTR(query, g_strconcat(query_type, query, NULL));
 
-	gtk_entry_set_text(GTK_ENTRY(panel_data.entry), iden);
-	gtk_editable_select_region(GTK_EDITABLE(panel_data.entry), 0, -1);
-
+	gtk_entry_set_text(GTK_ENTRY(panel_data.entry), query);
 	gtk_list_store_clear(panel_data.store);
 	gtk_widget_show(panel_data.panel);
 
-	lsp_symbols_workspace_request(doc->file_type, iden, workspace_symbol_cb, iden);
+	perform_lookup(query);
 
-	g_free(iden);
+	g_free(query);
+}
+
+
+void lsp_lookup_panel_for_workspace(void)
+{
+	lookup_panel_query("#");
+}
+
+
+void lsp_lookup_panel_for_doc(void)
+{
+	lookup_panel_query("@");
+}
+
+
+void lsp_lookup_panel_for_line(void)
+{
+	lookup_panel_query(":");
+}
+
+
+void lsp_lookup_panel_for_file(void)
+{
+	lookup_panel_query("");
 }

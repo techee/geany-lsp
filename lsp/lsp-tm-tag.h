@@ -16,13 +16,14 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef LSP_LOOKUP_PANEL_H
-#define LSP_LOOKUP_PANEL_H 1
+#ifndef LSP_TM_TAG_H
+#define LSP_TM_TAG_H 1
+
+#include <geanyplugin.h>
 
 
-void lsp_lookup_panel_for_workspace(void);
-void lsp_lookup_panel_for_doc(void);
-void lsp_lookup_panel_for_line(void);
-void lsp_lookup_panel_for_file(void);
+TMTag *lsp_tm_tag_new(void);
+void lsp_tm_tag_unref(TMTag *tag);
 
-#endif  /* LSP_LOOKUP_PANEL_H */
+
+#endif  /* LSP_TM_TAG_H */

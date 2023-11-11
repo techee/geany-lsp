@@ -24,6 +24,7 @@
 #include "lsp/lsp-client.h"
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-sync.h"
+#include "lsp/lsp-tm-tag.h"
 
 
 typedef struct {
@@ -45,51 +46,6 @@ extern GeanyPlugin *geany_plugin;
 static GPtrArray *cached_symbols;
 static gchar *cached_symbols_fname;
 
-
-/******************************************************************************/
-/** copied from Geany, not part of public API */
-
-#define TAG_NEW(T)	((T) = g_slice_new0(TMTag))
-#define TAG_FREE(T)	g_slice_free(TMTag, (T))
-
-
-static TMTag *tm_tag_new(void)
-{
-	TMTag *tag;
-
-	TAG_NEW(tag);
-	tag->refcount = 1;
-
-	return tag;
-}
-
-/*
- Destroys a TMTag structure, i.e. frees all elements except the tag itself.
- @param tag The TMTag structure to destroy
- @see tm_tag_free()
-*/
-static void tm_tag_destroy(TMTag *tag)
-{
-	g_free(tag->name);
-	g_free(tag->arglist);
-	g_free(tag->scope);
-	g_free(tag->inheritance);
-	g_free(tag->var_type);
-}
-
-
-static void tm_tag_unref(TMTag *tag)
-{
-	/* be NULL-proof because tm_tag_free() was NULL-proof and we indent to be a
-	 * drop-in replacment of it */
-	if (NULL != tag && g_atomic_int_dec_and_test(&tag->refcount))
-	{
-		tm_tag_destroy(tag);
-		TAG_FREE(tag);
-	}
-}
-
-/******************************************************************************/
 
 static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gchar *scope,
 	const gchar *scope_sep, gboolean workspace)
@@ -166,7 +122,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 
-		tag = tm_tag_new();
+		tag = lsp_tm_tag_new();
 		tag->name = g_strdup(name);
 		tag->line = line_num + 1;
 		tag->type = kind;
@@ -220,7 +176,7 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 		{
 			if (cached_symbols)
 				g_ptr_array_free(cached_symbols, TRUE);
-			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
 			g_free(cached_symbols_fname);
 			cached_symbols_fname = g_strdup(data->doc->real_path);
 
@@ -319,7 +275,7 @@ static void workspace_symbols_cb(GObject *object, GAsyncResult *result, gpointer
 	JsonrpcClient *self = (JsonrpcClient *)object;
 	GVariant *return_value = NULL;
 	LspWorkspaceSymbolUserData *data = user_data;
-	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
 
 	if (lsp_client_call_finish(self, result, &return_value))
 	{
