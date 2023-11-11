@@ -23,9 +23,14 @@
 #include "lsp/lsp-goto.h"
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
+#include "lsp/lsp-goto-panel.h"
 
 
 extern GeanyData *geany_data;
+
+
+// TODO: free on plugin unload
+GPtrArray *last_result;
 
 
 static void goto_location(GeanyDocument *old_doc, LspLocation *loc)
@@ -37,6 +42,20 @@ static void goto_location(GeanyDocument *old_doc, LspLocation *loc)
 		navqueue_goto_line(old_doc, doc, loc->range.start.line + 1);
 
 	g_free(fname);
+}
+
+
+static void filter_symbols(const gchar *filter)
+{
+	GPtrArray *filtered;
+
+	if (!last_result)
+		return;
+
+	filtered = lsp_goto_panel_filter(last_result, filter);
+	lsp_goto_panel_fill(filtered);
+
+	g_ptr_array_free(filtered, TRUE);
 }
 
 
@@ -71,11 +90,33 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				g_variant_iter_init(&iter, return_value);
 
 				locations = lsp_utils_parse_locations(&iter);
-				// possible TODO: show popup for more locations - but clangd at least
-				// seems to always return the single "right" location based on the true
-				// visibility of the symbol at the given place
 				if (locations && locations->len > 0)
-					goto_location(old_doc, locations->pdata[0]);
+				{
+					if (locations->len == 1)
+						goto_location(old_doc, locations->pdata[0]);
+					else
+					{
+						LspLocation *loc;
+						guint i;
+
+						if (last_result)
+							g_ptr_array_free(last_result, TRUE);
+
+						last_result = g_ptr_array_new_full(0, (GDestroyNotify)lsp_goto_panel_symbol_free);
+
+						foreach_ptr_array(loc, i, locations)
+						{
+							LspGotoPanelSymbol *sym = g_new0(LspGotoPanelSymbol, 1);
+							sym->file = lsp_utils_get_real_path_from_uri(loc->uri);
+							sym->label = g_path_get_basename(sym->file);
+							sym->line = loc->range.start.line;
+							sym->icon = TM_ICON_OTHER;
+							g_ptr_array_add(last_result, sym);
+						}
+
+						lsp_goto_panel_show("", filter_symbols);
+					}
+				}
 
 				g_ptr_array_free(locations, TRUE);
 			}
