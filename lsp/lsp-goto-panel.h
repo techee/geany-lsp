@@ -19,11 +19,25 @@
 #ifndef LSP_LOOKUP_PANEL_H
 #define LSP_LOOKUP_PANEL_H 1
 
+#include "lsp/lsp-symbol-kinds.h"
+
 #include <glib.h>
+
+
+typedef struct
+{
+	LspGeanyIcon icon;
+	gchar *label;
+	gchar *file;
+	gint line;
+} LspGotoPanelSymbol;
 
 typedef void (*LspGotoPanelLookupFunction) (const char *);
 
+
 void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func);
 void lsp_goto_panel_fill(GPtrArray *symbols);
+
+void lsp_goto_panel_symbol_free(LspGotoPanelSymbol *symbol);
 
 #endif  /* LSP_LOOKUP_PANEL_H */

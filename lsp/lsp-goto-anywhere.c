@@ -40,68 +40,94 @@ typedef struct
 extern GeanyData *geany_data;
 
 
-static void workspace_symbol_cb(GPtrArray *symbols, gpointer user_data)
+static GPtrArray *tag_array_to_symbol_array(GPtrArray *tag_array)
 {
-	lsp_goto_panel_fill(symbols);
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_goto_panel_symbol_free);
+	TMTag *tag;
+	guint i;
+
+	foreach_ptr_array(tag, i, tag_array)
+	{
+		LspGotoPanelSymbol *sym = g_new0(LspGotoPanelSymbol, 1);
+
+		sym->label = g_strdup(tag->name);
+		sym->line = tag->line;
+		if (tag->file)
+		{
+			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
+			sym->icon = lsp_symbol_kinds_get_symbol_icon(kind);
+			sym->file = g_strdup(tag->file->file_name);
+		}
+		else
+		{
+			sym->icon = lsp_symbol_kinds_get_symbol_icon((LspSymbolKind)tag->type);
+			sym->file = g_strdup(tag->inheritance);  // TODO: hack, we stored path to inheritance before
+		}
+
+		g_ptr_array_add(arr, sym);
+	}
+
+	return arr;
 }
 
 
-/* stolen from symbols.c and modified for our needs*/
-static GPtrArray *filter_tag_list(GPtrArray *tags_array, const gchar *tag_filter, TMTagType tag_types,
-	gboolean filter_lang, TMParserType lang)
+static void workspace_symbol_cb(GPtrArray *symbols, gpointer user_data)
 {
-	GPtrArray *tag_names = g_ptr_array_new();;
+	GPtrArray *sym_arr = tag_array_to_symbol_array(symbols);
+	lsp_goto_panel_fill(sym_arr);
+	g_ptr_array_free(sym_arr, TRUE);
+}
+
+
+static GPtrArray *filter_symbols(GPtrArray *symbols, const gchar *filter)
+{
+	GPtrArray *ret = g_ptr_array_new();
+	gchar **tf_strv;
 	guint i;
 	guint j = 0;
-	gchar **tf_strv;
 
-	if (!tags_array)
-		return tag_names;
+	if (!symbols)
+		return ret;
 
-	tf_strv = g_strsplit_set(tag_filter, " ", -1);
+	tf_strv = g_strsplit_set(filter, " ", -1);
 
-	for (i = 0; i < tags_array->len && j < 100; ++i)
+	for (i = 0; i < symbols->len && j < 100; ++i)
 	{
-		TMTag *tag = TM_TAG(tags_array->pdata[i]);
+		LspGotoPanelSymbol *symbol = symbols->pdata[i];
+		gchar *normalized_name = g_utf8_normalize(symbol->label, -1, G_NORMALIZE_ALL);
+		gboolean filtered = FALSE;
+		gchar **val;
 
-		if (tag->type & tag_types && (!filter_lang || tag->lang == lang))
+		foreach_strv(val, tf_strv)
 		{
-			gboolean filtered = FALSE;
-			gchar **val;
-			gchar *full_tagname = tag->name;
-			gchar *normalized_tagname = g_utf8_normalize(full_tagname, -1, G_NORMALIZE_ALL);
+			gchar *normalized_val = g_utf8_normalize(*val, -1, G_NORMALIZE_ALL);
 
-			foreach_strv(val, tf_strv)
+			if (normalized_name != NULL && normalized_val != NULL)
 			{
-				gchar *normalized_val = g_utf8_normalize(*val, -1, G_NORMALIZE_ALL);
+				gchar *case_normalized_name = g_utf8_casefold(normalized_name, -1);
+				gchar *case_normalized_val = g_utf8_casefold(normalized_val, -1);
 
-				if (normalized_tagname != NULL && normalized_val != NULL)
-				{
-					gchar *case_normalized_tagname = g_utf8_casefold(normalized_tagname, -1);
-					gchar *case_normalized_val = g_utf8_casefold(normalized_val, -1);
-
-					filtered = strstr(case_normalized_tagname, case_normalized_val) == NULL;
-					g_free(case_normalized_tagname);
-					g_free(case_normalized_val);
-				}
-				g_free(normalized_val);
-
-				if (filtered)
-					break;
+				filtered = strstr(case_normalized_name, case_normalized_val) == NULL;
+				g_free(case_normalized_name);
+				g_free(case_normalized_val);
 			}
-			if (!filtered)
-			{
-				g_ptr_array_add(tag_names, tag);
-				j++;
-			}
+			g_free(normalized_val);
 
-			g_free(normalized_tagname);
+			if (filtered)
+				break;
 		}
+		if (!filtered)
+		{
+			g_ptr_array_add(ret, symbol);
+			j++;
+		}
+
+		g_free(normalized_name);
 	}
 
 	g_strfreev(tf_strv);
 
-	return tag_names;
+	return ret;
 }
 
 
@@ -109,67 +135,98 @@ static void doc_symbol_cb(gpointer user_data)
 {
 	DocQueryData *data = user_data;
 	GeanyDocument *doc = document_get_current();
-	GPtrArray *symbols = lsp_symbols_doc_get_cached(doc);
+	GPtrArray *tags = lsp_symbols_doc_get_cached(doc);
+	GPtrArray *symbols;
 	gchar *text = data->query;
 	GPtrArray *filtered;
-	TMTag *tag;
+	LspGotoPanelSymbol *symbol;
 	guint i;
 
 	if (doc != data->doc)
 		return;
 
-	filtered = filter_tag_list(symbols, text[0] ? text + 1 : text, tm_tag_max_t, FALSE, 0);
-	foreach_ptr_array(tag, i, filtered)
+	symbols = tag_array_to_symbol_array(tags);
+	filtered = filter_symbols(symbols, text[0] ? text + 1 : text);
+	foreach_ptr_array(symbol, i, filtered)
 	{
-		// TODO: total hack, just storing path "somewhere"
-		tag->inheritance = g_strdup(doc->real_path);
+		symbol->file = g_strdup(doc->real_path);
 	}
+
 	lsp_goto_panel_fill(filtered);
 
+	g_ptr_array_free(symbols, TRUE);
 	g_ptr_array_free(filtered, TRUE);
 	g_free(data->query);
 	g_free(data);
 }
 
 
-static void goto_line(const gchar *line_str)
+static void goto_line(GeanyDocument *doc, const gchar *line_str)
 {
-	GeanyDocument *doc = document_get_current();
-	GPtrArray *empty_arr = g_ptr_array_new();
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_goto_panel_symbol_free);
 	gint lineno = atoi(line_str);
+	LspGotoPanelSymbol *symbol;
+	gint linenum = sci_get_line_count(doc->editor->sci);
+	guint i;
 
-	lsp_goto_panel_fill(empty_arr);
+	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
+	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
+	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
+
+	foreach_ptr_array(symbol, i, arr)
+	{
+		symbol->file = g_strdup(doc->real_path);
+		symbol->icon = TM_ICON_OTHER;
+		switch (i)
+		{
+			case 0:
+				symbol->label = g_strdup(_("start"));
+				symbol->line = 1;
+				break;
+
+			case 1:
+				symbol->label = g_strdup(_("middle"));
+				symbol->line = linenum / 2;
+				break;
+
+			case 2:
+				symbol->label = g_strdup(_("end"));
+				symbol->line = linenum;
+				break;
+		}
+	}
+
+	lsp_goto_panel_fill(arr);
 
 	if (lineno > 0)
 		navqueue_goto_line(doc, doc, lineno);
 
-	g_ptr_array_free(empty_arr, TRUE);
+	g_ptr_array_free(arr, TRUE);
 }
 
 
 static void goto_file(const gchar *file_str)
 {
-	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_goto_panel_symbol_free);
 	GPtrArray *filtered;
 	guint i;
 
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
-		TMTag *tag;
+		LspGotoPanelSymbol *symbol;
 
 		if (!doc->file_name)
 			continue;
 
-		tag = lsp_tm_tag_new();
-		tag->name = g_path_get_basename(doc->file_name);
-		// TODO: total hack, just storing path "somewhere"
-		tag->inheritance = g_strdup(doc->real_path);
-		tag->type = tm_tag_other_t;
-		g_ptr_array_add(arr, tag);
+		symbol = g_new0(LspGotoPanelSymbol, 1);
+		symbol->label = g_path_get_basename(doc->file_name);
+		symbol->file = g_strdup(doc->real_path);
+		symbol->icon = TM_ICON_OTHER;
+		g_ptr_array_add(arr, symbol);
 	}
 
-	filtered = filter_tag_list(arr, file_str, tm_tag_max_t, FALSE, 0);
+	filtered = filter_symbols(arr, file_str);
 	lsp_goto_panel_fill(filtered);
 
 	g_ptr_array_free(filtered, TRUE);
@@ -179,10 +236,28 @@ static void goto_file(const gchar *file_str)
 
 static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lang)
 {
-	GPtrArray *filtered = tags ? filter_tag_list(tags, query, tm_tag_max_t, TRUE, lang) : 
-		g_ptr_array_new();
+	GPtrArray *filtered_lang = g_ptr_array_new();
+	GPtrArray *filtered;
+	GPtrArray *symbols;
+	TMTag *tag;
+	guint i;
+
+	if (tags)
+	{
+		foreach_ptr_array(tag, i, tags)
+		{
+			if (tag->lang == lang && tag->type != tm_tag_local_var_t)
+				g_ptr_array_add(filtered_lang, tag);
+		}
+	}
+	symbols = tag_array_to_symbol_array(filtered_lang);
+	filtered = filter_symbols(symbols, query);
+
 	lsp_goto_panel_fill(filtered);
+
 	g_ptr_array_free(filtered, TRUE);
+	g_ptr_array_free(symbols, TRUE);
+	g_ptr_array_free(filtered_lang, TRUE);
 }
 
 
@@ -217,7 +292,7 @@ static void perform_lookup(const gchar *query)
 		}
 	}
 	else if (g_str_has_prefix(query_str, ":"))
-		goto_line(query_str+1);
+		goto_line(doc, query_str+1);
 	else
 		goto_file(query_str);
 }

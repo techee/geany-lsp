@@ -146,43 +146,29 @@ void lsp_goto_panel_fill(GPtrArray *symbols)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(panel_data.tree_view);
 	GtkTreeIter iter;
-	TMTag *tag;
+	LspGotoPanelSymbol *symbol;
 	guint i;
 
 	gtk_list_store_clear(panel_data.store);
 
-	foreach_ptr_array(tag, i, symbols)
+	foreach_ptr_array(symbol, i, symbols)
 	{
-		LspGeanyIcon icon;
-		gchar *path;
 		gchar *label;
 
-		if (tag->file)
-		{
-			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
-			icon = lsp_symbol_kinds_get_symbol_icon(kind);
-			path = tag->file->file_name;
-		}
-		else
-		{
-			icon = lsp_symbol_kinds_get_symbol_icon((LspSymbolKind)tag->type);
-			path = tag->inheritance;  // TODO: hack, we stored path to inheritance before
-		}
-
-		if (path && tag->line > 0)
-			label = g_markup_printf_escaped("%s\n<small><i>%s:%lu</i></small>",
-				tag->name, path, tag->line);
-		else if (path)
+		if (symbol->file && symbol->line > 0)
+			label = g_markup_printf_escaped("%s\n<small><i>%s:%d</i></small>",
+				symbol->label, symbol->file, symbol->line);
+		else if (symbol->file)
 			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
-				tag->name, path);
+				symbol->label, symbol->file);
 		else
-			label = g_markup_printf_escaped("%s", tag->name);
+			label = g_markup_printf_escaped("%s", symbol->label);
 
 		gtk_list_store_insert_with_values(panel_data.store, NULL, -1,
-			COL_ICON, lsp_symbol_kinds_get_icon_pixbuf(icon),
+			COL_ICON, lsp_symbol_kinds_get_icon_pixbuf(symbol->icon),
 			COL_LABEL, label,
-			COL_PATH, path,
-			COL_LINENO, tag->line,
+			COL_PATH, symbol->file,
+			COL_LINENO, symbol->line,
 			-1);
 
 		g_free(label);
@@ -398,4 +384,12 @@ void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func)
 
 	lookup_function = func;
 	lookup_function(query);
+}
+
+
+void lsp_goto_panel_symbol_free(LspGotoPanelSymbol *symbol)
+{
+	g_free(symbol->label);
+	g_free(symbol->file);
+	g_free(symbol);
 }
