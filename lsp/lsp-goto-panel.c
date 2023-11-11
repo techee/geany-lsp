@@ -205,14 +205,23 @@ static gboolean on_panel_key_press_event(GtkWidget *widget, GdkEventKey *event,
 
 		case GDK_KEY_Page_Up:
 		case GDK_KEY_Page_Down:
+		case GDK_KEY_KP_Page_Up:
+		case GDK_KEY_KP_Page_Down:
+		{
+			gboolean up = event->keyval == GDK_KEY_Page_Up || event->keyval == GDK_KEY_KP_Page_Up;
 			tree_view_move_focus(GTK_TREE_VIEW(panel_data.tree_view),
-				GTK_MOVEMENT_PAGES, event->keyval == GDK_KEY_Page_Up ? -1 : 1);
+				GTK_MOVEMENT_PAGES, up ? -1 : 1);
 		  return TRUE;
+		}
 
 		case GDK_KEY_Up:
-		case GDK_KEY_Down: {
+		case GDK_KEY_Down:
+		case GDK_KEY_KP_Up:
+		case GDK_KEY_KP_Down:
+		{
+			gboolean up = event->keyval == GDK_KEY_Up || event->keyval == GDK_KEY_KP_Up;
 			tree_view_move_focus(GTK_TREE_VIEW(panel_data.tree_view),
-				GTK_MOVEMENT_DISPLAY_LINES, event->keyval == GDK_KEY_Up ? -1 : 1);
+				GTK_MOVEMENT_DISPLAY_LINES, up ? -1 : 1);
 			return TRUE;
 		}
 	}
