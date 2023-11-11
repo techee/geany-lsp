@@ -79,58 +79,6 @@ static void workspace_symbol_cb(GPtrArray *symbols, gpointer user_data)
 }
 
 
-static GPtrArray *filter_symbols(GPtrArray *symbols, const gchar *filter)
-{
-	GPtrArray *ret = g_ptr_array_new();
-	gchar **tf_strv;
-	guint i;
-	guint j = 0;
-
-	if (!symbols)
-		return ret;
-
-	tf_strv = g_strsplit_set(filter, " ", -1);
-
-	for (i = 0; i < symbols->len && j < 100; ++i)
-	{
-		LspGotoPanelSymbol *symbol = symbols->pdata[i];
-		gchar *normalized_name = g_utf8_normalize(symbol->label, -1, G_NORMALIZE_ALL);
-		gboolean filtered = FALSE;
-		gchar **val;
-
-		foreach_strv(val, tf_strv)
-		{
-			gchar *normalized_val = g_utf8_normalize(*val, -1, G_NORMALIZE_ALL);
-
-			if (normalized_name != NULL && normalized_val != NULL)
-			{
-				gchar *case_normalized_name = g_utf8_casefold(normalized_name, -1);
-				gchar *case_normalized_val = g_utf8_casefold(normalized_val, -1);
-
-				filtered = strstr(case_normalized_name, case_normalized_val) == NULL;
-				g_free(case_normalized_name);
-				g_free(case_normalized_val);
-			}
-			g_free(normalized_val);
-
-			if (filtered)
-				break;
-		}
-		if (!filtered)
-		{
-			g_ptr_array_add(ret, symbol);
-			j++;
-		}
-
-		g_free(normalized_name);
-	}
-
-	g_strfreev(tf_strv);
-
-	return ret;
-}
-
-
 static void doc_symbol_cb(gpointer user_data)
 {
 	DocQueryData *data = user_data;
@@ -146,7 +94,7 @@ static void doc_symbol_cb(gpointer user_data)
 		return;
 
 	symbols = tag_array_to_symbol_array(tags);
-	filtered = filter_symbols(symbols, text[0] ? text + 1 : text);
+	filtered = lsp_goto_panel_filter(symbols, text[0] ? text + 1 : text);
 	foreach_ptr_array(symbol, i, filtered)
 	{
 		symbol->file = g_strdup(doc->real_path);
@@ -226,7 +174,7 @@ static void goto_file(const gchar *file_str)
 		g_ptr_array_add(arr, symbol);
 	}
 
-	filtered = filter_symbols(arr, file_str);
+	filtered = lsp_goto_panel_filter(arr, file_str);
 	lsp_goto_panel_fill(filtered);
 
 	g_ptr_array_free(filtered, TRUE);
@@ -251,7 +199,7 @@ static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lan
 		}
 	}
 	symbols = tag_array_to_symbol_array(filtered_lang);
-	filtered = filter_symbols(symbols, query);
+	filtered = lsp_goto_panel_filter(symbols, query);
 
 	lsp_goto_panel_fill(filtered);
 
