@@ -66,6 +66,8 @@ enum {
   KB_GOTO_DOC_SYMBOL,
   KB_GOTO_WORKSPACE_SYMBOL,
   KB_GOTO_LINE,
+  KB_GOTO_TYPE_DEFINITION,
+  KB_GOTO_IMPLEMENTATIONS,
   KB_COUNT
 };
 
@@ -75,6 +77,10 @@ struct
 	GtkWidget *parent_item;
 	GtkWidget *project_config;
 	GtkWidget *user_config;
+	// context menu
+	GtkWidget *goto_type_def;
+	GtkWidget *goto_impl;
+	GtkWidget *separator;
 } menu_items;
 
 
@@ -601,7 +607,7 @@ static void goto_perform(GeanyDocument *doc, gboolean definition)
 	if (!srv)
 		return;
 
-	lsp_goto_send_request(srv, doc, definition);
+	lsp_goto_definition_declaration(srv, doc, definition);
 }
 
 
@@ -732,6 +738,14 @@ static gboolean on_kb_invoked(guint key_id)
 			lsp_goto_panel_for_line();
 			break;
 
+		case KB_GOTO_TYPE_DEFINITION:
+			lsp_goto_type_definition();
+			break;
+
+		case KB_GOTO_IMPLEMENTATIONS:
+			lsp_goto_implementations();
+			break;
+
 		default:
 			break;
 	}
@@ -753,25 +767,39 @@ static void create_menu_items()
 	menu = gtk_menu_new ();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_items.parent_item), menu);
 
-	item = gtk_menu_item_new_with_mnemonic(_("_Go to Anywhere..."));
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_type_definition), NULL);
+	keybindings_set_item(group, KB_GOTO_TYPE_DEFINITION, NULL, 0, 0, "goto_type_definition",
+		_("Go to type definition"), item);
+
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Implementations"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_implementations), NULL);
+	keybindings_set_item(group, KB_GOTO_IMPLEMENTATIONS, NULL, 0, 0, "goto_implementations",
+		_("Go to implementations"), item);
+
+	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
+
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Anywhere..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_file), NULL);
 	keybindings_set_item(group, KB_GOTO_ANYWHERE, NULL, 0, 0, "goto_anywhere",
 		_("Go to anywhere"), item);
 
-	item = gtk_menu_item_new_with_mnemonic(_("_Go to Document Symbol..."));
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Document Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_doc), NULL);
 	keybindings_set_item(group, KB_GOTO_DOC_SYMBOL, NULL, 0, 0, "goto_doc_symbol",
 		_("Go to document symbol"), item);
 
-	item = gtk_menu_item_new_with_mnemonic(_("_Go to Workspace Symbol..."));
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Workspace Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_workspace), NULL);
 	keybindings_set_item(group, KB_GOTO_WORKSPACE_SYMBOL, NULL, 0, 0, "goto_workspace_symbol",
 		_("Go to workspace symbol"), item);
 
-	item = gtk_menu_item_new_with_mnemonic(_("_Go to Line..."));
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Line..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_panel_for_line), NULL);
 	keybindings_set_item(group, KB_GOTO_LINE, NULL, 0, 0, "goto_line",
@@ -804,6 +832,21 @@ static void create_menu_items()
 	g_signal_connect((gpointer) item, "activate", G_CALLBACK(on_restart_all_servers), NULL);
 
 	gtk_widget_show_all(menu_items.parent_item);
+
+	/* context menu */
+	menu_items.separator = gtk_separator_menu_item_new();
+	gtk_widget_show(menu_items.separator);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator);
+
+	menu_items.goto_impl = gtk_menu_item_new_with_mnemonic(_("Go to _Implementations"));
+	gtk_widget_show(menu_items.goto_impl);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_impl);
+	g_signal_connect((gpointer) menu_items.goto_impl, "activate", G_CALLBACK(lsp_goto_implementations), NULL);
+
+	menu_items.goto_type_def = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition"));
+	gtk_widget_show(menu_items.goto_type_def);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_type_def);
+	g_signal_connect((gpointer) menu_items.goto_type_def, "activate", G_CALLBACK(lsp_goto_type_definition), NULL);
 }
 
 
@@ -821,6 +864,10 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 void plugin_cleanup(void)
 {
 	gtk_widget_destroy(menu_items.parent_item);
+	gtk_widget_destroy(menu_items.goto_type_def);
+	gtk_widget_destroy(menu_items.goto_impl);
+	gtk_widget_destroy(menu_items.separator);
+
 	lsp_unregister(&lsp);
 	lsp_server_stop_all(TRUE);
 }

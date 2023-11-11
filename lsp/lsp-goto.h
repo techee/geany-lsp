@@ -24,6 +24,8 @@
 #include <glib.h>
 
 
-void lsp_goto_send_request(LspServer *server, GeanyDocument *doc, gboolean definition);
+void lsp_goto_definition_declaration(LspServer *server, GeanyDocument *doc, gboolean definition);
+void lsp_goto_type_definition(void);
+void lsp_goto_implementations(void);
 
 #endif  /* LSP_GOTO_H */

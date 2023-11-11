@@ -99,14 +99,13 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 }
 
 
-void lsp_goto_send_request(LspServer *server, GeanyDocument *doc, gboolean definition)
+static void perform_goto(LspServer *server, GeanyDocument *doc, const gchar *request)
 {
 	GVariant *node;
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
-	const gchar *request = definition ? "textDocument/definition" : "textDocument/declaration";
 
 	node = JSONRPC_MESSAGE_NEW (
 		"textDocument", "{",
@@ -122,4 +121,34 @@ void lsp_goto_send_request(LspServer *server, GeanyDocument *doc, gboolean defin
 
 	g_free(doc_uri);
 	g_variant_unref(node);
+}
+
+
+void lsp_goto_definition_declaration(LspServer *server, GeanyDocument *doc, gboolean definition)
+{
+	perform_goto(server, doc, definition ? "textDocument/definition" : "textDocument/declaration");
+}
+
+
+void lsp_goto_type_definition(void)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	perform_goto(srv, doc, "textDocument/typeDefinition");
+}
+
+
+void lsp_goto_implementations(void)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	perform_goto(srv, doc, "textDocument/implementation");
 }
