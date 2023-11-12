@@ -126,7 +126,10 @@ const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
 static gchar *process_tokens(GArray *tokens, ScintillaObject *sci, guint64 token_mask)
 {
 	GHashTable *type_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-	guint delta_line, delta_char, len, token_type;
+	guint delta_line = 0;
+	guint delta_char = 0;
+	guint len = 0;
+	guint token_type = 0;
 	LspPosition last_pos = {0, 0};
 	gboolean first = TRUE;
 	GList *keys, *item;

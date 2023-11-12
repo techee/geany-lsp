@@ -113,7 +113,7 @@ void lsp_progress_end(LspServer *server, LspProgressToken token, const gchar *me
 			if (message)
 				ui_set_statusbar(FALSE, "%s: %s", p->title, message ? message : "");
 			else
-				ui_set_statusbar(FALSE, "");
+				ui_set_statusbar(FALSE, "%s", "");
 
 			server->progress_ops = g_slist_remove_link(server->progress_ops, node);
 			g_slist_free_full(node, (GDestroyNotify)progress_free);
