@@ -479,6 +479,18 @@ static gboolean use_incremental_sync(GVariant *node)
 }
 
 
+static void update_config(GVariant *variant, gboolean *option, const gchar *key)
+{
+	gboolean val = FALSE;
+	JSONRPC_MESSAGE_PARSE(variant,
+		"capabilities", "{",
+			key, JSONRPC_MESSAGE_GET_BOOLEAN(&val),
+		"}");
+	if (!val)
+		*option = FALSE;
+}
+
+
 static LspServer *get_server(gint ft_id)
 {
 	LspServer *s;
@@ -506,20 +518,31 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 		if (s && s->rpc_client == self)
 		{
 			GeanyDocument *current_doc = document_get_current();
+			gboolean hover_enabled = FALSE;
+			gboolean goto_enabled = FALSE;
 			guint i;
 
 			g_free(s->autocomplete_trigger_chars);
 			s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
+			if (!*s->autocomplete_trigger_chars)
+				s->config.autocomplete_enable = FALSE;
 
 			g_free(s->signature_trigger_chars);
 			s->signature_trigger_chars = get_signature_trigger_chars(return_value);
+			if (!*s->signature_trigger_chars)
+				s->config.signature_enable = FALSE;
+
+			update_config(return_value, &s->config.hover_enable, "hoverProvider");
+			update_config(return_value, &s->config.goto_enable, "definitionProvider");
+			update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
 
 			s->use_incremental_sync = use_incremental_sync(return_value);
 
 			s->initialize_response = lsp_utils_json_pretty_print(return_value);
 			//printf("%s\n", lsp_utils_json_pretty_print(return_value));
 
-			s->supports_semantic_tokens = supports_semantic_tokens(return_value);
+			if (!supports_semantic_tokens(return_value))
+				s->config.semantic_tokens_enable = FALSE;
 			s->semantic_token_mask = get_semantic_token_mask(return_value);
 
 			msgwin_status_add("LSP server %s initialized", s->cmd);
