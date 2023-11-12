@@ -130,7 +130,7 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 		{
 			case 0:
 				symbol->label = g_strdup(_("line typed above"));
-				symbol->line = lineno > 0 ? lineno : 1;
+				symbol->line = lineno > 0 ? lineno : (sci_get_current_line(doc->editor->sci) + 1);
 				break;
 
 			case 1:
