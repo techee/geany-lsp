@@ -26,6 +26,12 @@
 #include "lsp/lsp-goto-panel.h"
 
 
+typedef struct {
+	GeanyDocument *doc;
+	gboolean show_in_msgwin;
+} GotoData;
+
+
 extern GeanyData *geany_data;
 
 
@@ -66,13 +72,13 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 
 	if (lsp_client_call_finish(self, result, &return_value))
 	{
-		GeanyDocument *old_doc = user_data;
+		GotoData *data = user_data;
 		gboolean doc_exists = FALSE;
 		gint i;
 
 		foreach_document(i)
 		{
-			if (old_doc == documents[i])
+			if (data->doc == documents[i])
 			{
 				doc_exists = TRUE;
 				break;
@@ -93,7 +99,22 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				if (locations && locations->len > 0)
 				{
 					if (locations->len == 1)
-						goto_location(old_doc, locations->pdata[0]);
+						goto_location(data->doc, locations->pdata[0]);
+					else if (data->show_in_msgwin)
+					{
+						LspLocation *loc;
+						guint i;
+
+						msgwin_clear_tab(MSG_MESSAGE);
+						msgwin_switch_tab(MSG_MESSAGE, TRUE);
+
+						foreach_ptr_array(loc, i, locations)
+						{
+							gchar *fname = lsp_utils_get_real_path_from_uri(loc->uri);
+							msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%ld:", fname, loc->range.start.line+1);
+							g_free(fname);
+						}
+					}
 					else
 					{
 						LspLocation *loc;
@@ -109,7 +130,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 							LspGotoPanelSymbol *sym = g_new0(LspGotoPanelSymbol, 1);
 							sym->file = lsp_utils_get_real_path_from_uri(loc->uri);
 							sym->label = g_path_get_basename(sym->file);
-							sym->line = loc->range.start.line;
+							sym->line = loc->range.start.line+1;
 							sym->icon = TM_ICON_OTHER;
 							g_ptr_array_add(last_result, sym);
 						}
@@ -126,7 +147,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				LspLocation *loc = lsp_utils_parse_location(return_value);
 
 				if (loc)
-					goto_location(old_doc, loc);
+					goto_location(data->doc, loc);
 
 				lsp_utils_free_lsp_location(loc);
 			}
@@ -137,16 +158,20 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 		if (return_value)
 			g_variant_unref(return_value);
 	}
+
+	g_free(user_data);
 }
 
 
-static void perform_goto(LspServer *server, GeanyDocument *doc, const gchar *request)
+static void perform_goto(LspServer *server, GeanyDocument *doc, const gchar *request,
+	gboolean show_in_msgwin)
 {
 	GVariant *node;
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
+	GotoData *data = g_new0(GotoData, 1);
 
 	node = JSONRPC_MESSAGE_NEW (
 		"textDocument", "{",
@@ -158,16 +183,36 @@ static void perform_goto(LspServer *server, GeanyDocument *doc, const gchar *req
 		"}"
 	);
 
-	lsp_client_call_async(server->rpc_client, request, node, goto_cb, doc);
+	data->doc = doc;
+	data->show_in_msgwin = show_in_msgwin;
+	lsp_client_call_async(server->rpc_client, request, node, goto_cb, data);
 
 	g_free(doc_uri);
 	g_variant_unref(node);
 }
 
 
-void lsp_goto_definition_declaration(LspServer *server, GeanyDocument *doc, gboolean definition)
+void lsp_goto_definition(void)
 {
-	perform_goto(server, doc, definition ? "textDocument/definition" : "textDocument/declaration");
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	perform_goto(srv, doc, "textDocument/definition", FALSE);
+}
+
+
+void lsp_goto_declaration(void)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	perform_goto(srv, doc, "textDocument/declaration", FALSE);
 }
 
 
@@ -179,7 +224,7 @@ void lsp_goto_type_definition(void)
 	if (!srv)
 		return;
 
-	perform_goto(srv, doc, "textDocument/typeDefinition");
+	perform_goto(srv, doc, "textDocument/typeDefinition", FALSE);
 }
 
 
@@ -191,5 +236,17 @@ void lsp_goto_implementations(void)
 	if (!srv)
 		return;
 
-	perform_goto(srv, doc, "textDocument/implementation");
+	perform_goto(srv, doc, "textDocument/implementation", TRUE);
+}
+
+
+void lsp_goto_references(void)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	perform_goto(srv, doc, "textDocument/references", TRUE);
 }
