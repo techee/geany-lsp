@@ -74,6 +74,8 @@ enum {
   KB_FIND_IMPLEMENTATIONS,
   KB_FIND_REFERENCES,
 
+  KB_SHOW_HOVER_POPUP,
+
   KB_COUNT
 };
 
@@ -723,6 +725,16 @@ static void on_show_initialize_responses(void)
 }
 
 
+static void show_hover_popup(void)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (srv)
+		lsp_hover_send_request(srv, doc, sci_get_current_position(doc->editor->sci));
+}
+
+
 static gboolean on_kb_invoked(guint key_id)
 {
 	switch (key_id)
@@ -755,6 +767,10 @@ static gboolean on_kb_invoked(guint key_id)
 			break;
 		case KB_FIND_IMPLEMENTATIONS:
 			lsp_goto_implementations();
+			break;
+
+		case KB_SHOW_HOVER_POPUP:
+			show_hover_popup();
 			break;
 
 		default:
@@ -835,6 +851,14 @@ static void create_menu_items()
 	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_implementations), NULL);
 	keybindings_set_item(group, KB_FIND_IMPLEMENTATIONS, NULL, 0, 0, "find_implementations",
 		_("Find implementations"), item);
+
+	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
+
+	item = gtk_menu_item_new_with_mnemonic(_("Show _Hover Popup"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect((gpointer) item, "activate", G_CALLBACK(show_hover_popup), NULL);
+	keybindings_set_item(group, KB_SHOW_HOVER_POPUP, NULL, 0, 0, "show_hover_popup",
+		_("Show hover popup"), item);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
