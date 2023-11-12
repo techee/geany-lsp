@@ -219,10 +219,11 @@ static void perform_lookup(const gchar *query)
 {
 	GeanyDocument *doc = document_get_current();
 	const gchar *query_str = query ? query : "";
+	LspServer *srv = lsp_server_get(doc);
 
 	if (g_str_has_prefix(query_str, "#"))
 	{
-		if (lsp_server_get(doc))
+		if (srv && srv->supports_workspace_symbols)
 			lsp_symbols_workspace_request(doc->file_type, query_str+1, workspace_symbol_cb, NULL);
 		else
 			// TODO: possibly improve performance by binary searching the start and the end point
@@ -230,7 +231,7 @@ static void perform_lookup(const gchar *query)
 	}
 	else if (g_str_has_prefix(query_str, "@"))
 	{
-		if (lsp_server_get(doc))
+		if (srv && srv->config.document_symbols_enable)
 		{
 			DocQueryData *data = g_new0(DocQueryData, 1);
 			data->query = g_strdup(query_str);

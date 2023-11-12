@@ -518,8 +518,6 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 		if (s && s->rpc_client == self)
 		{
 			GeanyDocument *current_doc = document_get_current();
-			gboolean hover_enabled = FALSE;
-			gboolean goto_enabled = FALSE;
 			guint i;
 
 			g_free(s->autocomplete_trigger_chars);
@@ -535,6 +533,9 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 			update_config(return_value, &s->config.hover_enable, "hoverProvider");
 			update_config(return_value, &s->config.goto_enable, "definitionProvider");
 			update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
+
+			s->supports_workspace_symbols = TRUE;
+			update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
 
 			s->use_incremental_sync = use_incremental_sync(return_value);
 

@@ -86,8 +86,8 @@ typedef struct LspServer
 	gchar *signature_trigger_chars;
 	gchar *initialize_response;
 	gboolean use_incremental_sync;
+	gboolean supports_workspace_symbols;
 
-	gboolean supports_semantic_tokens;
 	guint64 semantic_token_mask;
 } LspServer;
 
