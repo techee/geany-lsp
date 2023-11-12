@@ -120,6 +120,7 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
 	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
 	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
+	g_ptr_array_add(arr, g_new0(LspGotoPanelSymbol, 1));
 
 	foreach_ptr_array(symbol, i, arr)
 	{
@@ -128,16 +129,21 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 		switch (i)
 		{
 			case 0:
+				symbol->label = g_strdup(_("line typed above"));
+				symbol->line = lineno > 0 ? lineno : 1;
+				break;
+
+			case 1:
 				symbol->label = g_strdup(_("start"));
 				symbol->line = 1;
 				break;
 
-			case 1:
+			case 2:
 				symbol->label = g_strdup(_("middle"));
 				symbol->line = linenum / 2;
 				break;
 
-			case 2:
+			case 3:
 				symbol->label = g_strdup(_("end"));
 				symbol->line = linenum;
 				break;
