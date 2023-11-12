@@ -649,7 +649,7 @@ static gboolean symbol_highlight_available(GeanyDocument *doc)
 	if (!cfg)
 		return FALSE;
 
-	return lsp_server_is_usable(doc) && cfg->symbol_highlight_enable;
+	return lsp_server_is_usable(doc) && cfg->semantic_tokens_enable;
 }
 
 

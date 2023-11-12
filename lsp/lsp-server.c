@@ -861,7 +861,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
 	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");
-	get_bool(&s->config.symbol_highlight_enable, kf, section, "symbol_highlight_enable");
+	get_bool(&s->config.semantic_tokens_enable, kf, section, "semantic_tokens_enable");
 }
 
 
