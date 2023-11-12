@@ -367,7 +367,9 @@ static gboolean retry_cb(gpointer user_data)
 	if (data->doc == document_get_current())
 	{
 		LspServer *srv = lsp_server_get(data->doc);
-		if (!srv)
+		if (!lsp_server_is_usable(data->doc))
+			;  // server died or misconfigured
+		else if (!srv)
 			return TRUE;  // retry
 		else
 		{

@@ -744,6 +744,12 @@ static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer 
 }
 
 
+static gboolean is_dead(LspServer *server)
+{
+	return server->restarts > 5;
+}
+
+
 static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 {
 	GInputStream *input_stream;
@@ -752,7 +758,7 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 	gchar ** argv;
 	gint flags = G_SUBPROCESS_FLAGS_STDIN_PIPE | G_SUBPROCESS_FLAGS_STDOUT_PIPE;
 
-	if (server->restarts > 5)
+	if (is_dead(server))
 		return;
 
 	argv = g_strsplit_set(server->cmd, " ", -1);
@@ -938,7 +944,7 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 	if (s->not_used)
 		return NULL;
 
-	if (s->restarts > 5)
+	if (is_dead(s))
 	{
 		msgwin_status_add("LSP server %s terminated more than 5 times, giving up", s->cmd);
 		return NULL;
@@ -1011,6 +1017,30 @@ LspServerConfig *lsp_server_get_config(GeanyDocument *doc)
 }
 
 
+gboolean lsp_server_is_usable(GeanyDocument *doc)
+{
+	LspServer *s;
+
+	if (lsp_utils_is_lsp_disabled_for_project())
+		return FALSE;
+
+	if (!doc || !lsp_servers)
+		return TRUE;  // we don't know yet, assume the server can be used
+
+	s = lsp_servers->pdata[doc->file_type->id];
+
+	if (s->ref_lang)
+	{
+		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
+
+		if (ft)
+			s = lsp_servers->pdata[ft->id];
+	}
+
+	return !s->not_used && !is_dead(s);
+}
+
+
 void lsp_server_stop_all(gboolean wait)
 {
 	if (lsp_servers)
@@ -1057,8 +1087,6 @@ void lsp_server_init_all(void)
 
 		load_filetype_only_config(kf_global, ft->name, s);
 		load_filetype_only_config(kf, ft->name, s);
-
-		s->config.active = s->cmd || s->ref_lang;
 	}
 
 	g_key_file_free(kf);

@@ -27,8 +27,6 @@
 
 typedef struct
 {
-	gboolean active;
-
 	gboolean show_server_stderr;
 	gchar *rpc_log;
 	gchar *initialization_options_file;
@@ -99,6 +97,7 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft);
 LspLogInfo lsp_server_get_log_info(JsonrpcClient *client);
 LspServer *lsp_server_get_if_running(GeanyDocument *doc);
 LspServerConfig *lsp_server_get_config(GeanyDocument *doc);
+gboolean lsp_server_is_usable(GeanyDocument *doc);
 
 void lsp_server_stop_all(gboolean wait);
 void lsp_server_init_all(void);
