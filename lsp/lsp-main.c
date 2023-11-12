@@ -838,12 +838,12 @@ static void create_menu_items()
 	gtk_widget_show(menu_items.separator);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator);
 
-	menu_items.goto_impl = gtk_menu_item_new_with_mnemonic(_("Go to _Implementations"));
+	menu_items.goto_impl = gtk_menu_item_new_with_mnemonic(_("Go to _Implementations (LSP)"));
 	gtk_widget_show(menu_items.goto_impl);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_impl);
 	g_signal_connect((gpointer) menu_items.goto_impl, "activate", G_CALLBACK(lsp_goto_implementations), NULL);
 
-	menu_items.goto_type_def = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition"));
+	menu_items.goto_type_def = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition (LSP)"));
 	gtk_widget_show(menu_items.goto_type_def);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_type_def);
 	g_signal_connect((gpointer) menu_items.goto_type_def, "activate", G_CALLBACK(lsp_goto_type_definition), NULL);
