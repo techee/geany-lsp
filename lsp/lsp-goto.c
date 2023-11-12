@@ -98,9 +98,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				locations = lsp_utils_parse_locations(&iter);
 				if (locations && locations->len > 0)
 				{
-					if (locations->len == 1)
-						goto_location(data->doc, locations->pdata[0]);
-					else if (data->show_in_msgwin)
+					if (data->show_in_msgwin)
 					{
 						LspLocation *loc;
 						guint i;
@@ -115,6 +113,8 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 							g_free(fname);
 						}
 					}
+					else if (locations->len == 1)
+						goto_location(data->doc, locations->pdata[0]);
 					else
 					{
 						LspLocation *loc;
