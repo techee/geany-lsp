@@ -49,7 +49,7 @@ GeanyData *geany_data;
 
 LspProjectConfigurationType project_configuration_type;
 gchar *project_configuration_file;
-
+gint last_click_pos;
 
 PLUGIN_VERSION_CHECK(246)  //TODO
 PLUGIN_SET_TRANSLATABLE_INFO(
@@ -533,6 +533,13 @@ static void on_project_save(G_GNUC_UNUSED GObject *obj, GKeyFile *kf,
 }
 
 
+static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
+	const gchar *word, gint pos, GeanyDocument *doc, gpointer user_data)
+{
+	last_click_pos = pos;
+	return FALSE;
+}
+
 
 PluginCallback plugin_callbacks[] = {
 	{"document-new", (GCallback) &on_document_new, TRUE, NULL},
@@ -544,6 +551,7 @@ PluginCallback plugin_callbacks[] = {
 //	{"document-before-save-as", (GCallback) &on_document_before_save_as, TRUE, NULL},
 	{"document-filetype-set", (GCallback) &on_document_filetype_set, TRUE, NULL},
 	{"editor-notify", (GCallback) &on_editor_notify, TRUE, NULL},
+	{"update-editor-menu", (GCallback) &on_update_editor_menu, FALSE, NULL},
 	{"project-open", (GCallback) &on_project_open, TRUE, NULL},
 	{"project-close", (GCallback) &on_project_close, TRUE, NULL},
 	{"project-save", (GCallback) &on_project_save, TRUE, NULL},
@@ -609,12 +617,12 @@ static gboolean goto_available(GeanyDocument *doc)
 }
 
 
-static void goto_perform(GeanyDocument *doc, gboolean definition)
+static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition)
 {
 	if (definition)
-		lsp_goto_definition();
+		lsp_goto_definition(pos);
 	else
-		lsp_goto_declaration();
+		lsp_goto_declaration(pos);
 }
 
 
@@ -735,18 +743,25 @@ static void show_hover_popup(void)
 }
 
 
-static gboolean on_kb_invoked(guint key_id)
+static void invoke_kb(guint key_id, gint pos)
 {
+	GeanyDocument *doc = document_get_current();
+
+	if (!doc)
+		return;
+
+	pos = pos >= 0 ? pos : sci_get_current_position(doc->editor->sci);
+
 	switch (key_id)
 	{
 		case KB_GOTO_DEFINITION:
-			lsp_goto_definition();
+			lsp_goto_definition(pos);
 			break;
 		case KB_GOTO_DECLARATION:
-			lsp_goto_declaration();
+			lsp_goto_declaration(pos);
 			break;
 		case KB_GOTO_TYPE_DEFINITION:
-			lsp_goto_type_definition();
+			lsp_goto_type_definition(pos);
 			break;
 
 		case KB_GOTO_ANYWHERE:
@@ -763,10 +778,10 @@ static gboolean on_kb_invoked(guint key_id)
 			break;
 
 		case KB_FIND_REFERENCES:
-			lsp_goto_references();
+			lsp_goto_references(pos);
 			break;
 		case KB_FIND_IMPLEMENTATIONS:
-			lsp_goto_implementations();
+			lsp_goto_implementations(pos);
 			break;
 
 		case KB_SHOW_HOVER_POPUP:
@@ -776,8 +791,27 @@ static gboolean on_kb_invoked(guint key_id)
 		default:
 			break;
 	}
+}
 
+
+static gboolean on_kb_invoked(guint key_id)
+{
+	invoke_kb(key_id, -1);
 	return TRUE;
+}
+
+
+static void on_menu_invoked(GtkWidget *widget, gpointer user_data)
+{
+	guint key_id = GPOINTER_TO_UINT(user_data);
+	invoke_kb(key_id, -1);
+}
+
+
+static void on_context_menu_invoked(GtkWidget *widget, gpointer user_data)
+{
+	guint key_id = GPOINTER_TO_UINT(user_data);
+	invoke_kb(key_id, last_click_pos);
 }
 
 
@@ -796,19 +830,22 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Definition"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_definition), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_DEFINITION));
 	keybindings_set_item(group, KB_GOTO_DEFINITION, NULL, 0, 0, "goto_definition",
 		_("Go to definition"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to D_eclaration"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_declaration), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_DECLARATION));
 	keybindings_set_item(group, KB_GOTO_DECLARATION, NULL, 0, 0, "goto_declaration",
 		_("Go to declaration"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_type_definition), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_TYPE_DEFINITION));
 	keybindings_set_item(group, KB_GOTO_TYPE_DEFINITION, NULL, 0, 0, "goto_type_definition",
 		_("Go to type definition"), item);
 
@@ -816,25 +853,25 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Anywhere..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_anywhere_for_file), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_file), NULL);
 	keybindings_set_item(group, KB_GOTO_ANYWHERE, NULL, 0, 0, "goto_anywhere",
 		_("Go to anywhere"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Document Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_anywhere_for_doc), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_doc), NULL);
 	keybindings_set_item(group, KB_GOTO_DOC_SYMBOL, NULL, 0, 0, "goto_doc_symbol",
 		_("Go to document symbol"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Workspace Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_anywhere_for_workspace), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_workspace), NULL);
 	keybindings_set_item(group, KB_GOTO_WORKSPACE_SYMBOL, NULL, 0, 0, "goto_workspace_symbol",
 		_("Go to workspace symbol"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Line..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_anywhere_for_line), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_line), NULL);
 	keybindings_set_item(group, KB_GOTO_LINE, NULL, 0, 0, "goto_line",
 		_("Go to line"), item);
 
@@ -842,13 +879,15 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("Find _References"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_references), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_FIND_REFERENCES));
 	keybindings_set_item(group, KB_FIND_REFERENCES, NULL, 0, 0, "find_references",
 		_("Find references"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Find _Implementations"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(lsp_goto_implementations), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_FIND_IMPLEMENTATIONS));
 	keybindings_set_item(group, KB_FIND_IMPLEMENTATIONS, NULL, 0, 0, "find_implementations",
 		_("Find implementations"), item);
 
@@ -856,7 +895,7 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("Show _Hover Popup"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(show_hover_popup), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(show_hover_popup), NULL);
 	keybindings_set_item(group, KB_SHOW_HOVER_POPUP, NULL, 0, 0, "show_hover_popup",
 		_("Show hover popup"), item);
 
@@ -864,27 +903,27 @@ static void create_menu_items()
 
 	menu_items.project_config = gtk_menu_item_new_with_mnemonic(_("_Project Configuration"));
 	gtk_container_add(GTK_CONTAINER(menu), menu_items.project_config);
-	g_signal_connect((gpointer) menu_items.project_config, "activate", G_CALLBACK(on_open_project_config), NULL);
+	g_signal_connect(menu_items.project_config, "activate", G_CALLBACK(on_open_project_config), NULL);
 
 	menu_items.user_config = gtk_menu_item_new_with_mnemonic(_("_User Configuration"));
 	gtk_container_add(GTK_CONTAINER(menu), menu_items.user_config);
-	g_signal_connect((gpointer) menu_items.user_config, "activate", G_CALLBACK(on_open_user_config), NULL);
+	g_signal_connect(menu_items.user_config, "activate", G_CALLBACK(on_open_user_config), NULL);
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Global Configuration"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(on_open_global_config), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_open_global_config), NULL);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Server Initialize Responses"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(on_show_initialize_responses), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_show_initialize_responses), NULL);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Restart All Servers"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect((gpointer) item, "activate", G_CALLBACK(on_restart_all_servers), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_restart_all_servers), NULL);
 
 	gtk_widget_show_all(menu_items.parent_item);
 
@@ -896,12 +935,14 @@ static void create_menu_items()
 	menu_items.goto_impl = gtk_menu_item_new_with_mnemonic(_("Find _Implementations (LSP)"));
 	gtk_widget_show(menu_items.goto_impl);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_impl);
-	g_signal_connect((gpointer) menu_items.goto_impl, "activate", G_CALLBACK(lsp_goto_implementations), NULL);
+	g_signal_connect(menu_items.goto_impl, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_FIND_IMPLEMENTATIONS));
 
 	menu_items.goto_ref = gtk_menu_item_new_with_mnemonic(_("Find _References (LSP)"));
 	gtk_widget_show(menu_items.goto_ref);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_ref);
-	g_signal_connect((gpointer) menu_items.goto_ref, "activate", G_CALLBACK(lsp_goto_references), NULL);
+	g_signal_connect(menu_items.goto_ref, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_FIND_REFERENCES));
 
 	menu_items.separator = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_items.separator);
@@ -910,7 +951,8 @@ static void create_menu_items()
 	menu_items.goto_type_def = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition (LSP)"));
 	gtk_widget_show(menu_items.goto_type_def);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_type_def);
-	g_signal_connect((gpointer) menu_items.goto_type_def, "activate", G_CALLBACK(lsp_goto_type_definition), NULL);
+	g_signal_connect(menu_items.goto_type_def, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_TYPE_DEFINITION));
 }
 
 

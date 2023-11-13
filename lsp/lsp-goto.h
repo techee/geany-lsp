@@ -24,10 +24,10 @@
 #include <glib.h>
 
 
-void lsp_goto_definition(void);
-void lsp_goto_declaration(void);
-void lsp_goto_type_definition(void);
-void lsp_goto_implementations(void);
-void lsp_goto_references(void);
+void lsp_goto_definition(gint pos);
+void lsp_goto_declaration(gint pos);
+void lsp_goto_type_definition(gint pos);
+void lsp_goto_implementations(gint pos);
+void lsp_goto_references(gint pos);
 
 #endif  /* LSP_GOTO_H */
