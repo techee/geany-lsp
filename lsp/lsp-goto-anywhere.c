@@ -170,11 +170,11 @@ static void goto_file(const gchar *file_str)
 		GeanyDocument *doc = documents[i];
 		LspGotoPanelSymbol *symbol;
 
-		if (!doc->file_name)
+		if (!doc->real_path)
 			continue;
 
 		symbol = g_new0(LspGotoPanelSymbol, 1);
-		symbol->label = g_path_get_basename(doc->file_name);
+		symbol->label = g_path_get_basename(doc->real_path);
 		symbol->file = g_strdup(doc->real_path);
 		symbol->icon = TM_ICON_OTHER;
 		g_ptr_array_add(arr, symbol);

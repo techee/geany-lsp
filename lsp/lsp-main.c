@@ -328,7 +328,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 
 		srv = lsp_server_get_if_running(doc);
 
-		if (!srv || !doc->file_name)
+		if (!srv || !doc->real_path)
 			return FALSE;
 
 		// BEFORE insert, BEFORE delete - send the original document
