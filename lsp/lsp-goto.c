@@ -65,6 +65,14 @@ static void filter_symbols(const gchar *filter)
 }
 
 
+static void show_in_msgwin(LspLocation *loc)
+{
+	gchar *fname = lsp_utils_get_real_path_from_uri(loc->uri);
+	msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%ld:", fname, loc->range.start.line+1);
+	g_free(fname);
+}
+
+
 static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 {
 	JsonrpcClient *self = (JsonrpcClient *)object;
@@ -87,6 +95,12 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 
 		if (doc_exists)
 		{
+			if (data->show_in_msgwin)
+			{
+				msgwin_clear_tab(MSG_MESSAGE);
+				msgwin_switch_tab(MSG_MESSAGE, TRUE);
+			}
+
 			// array of locations
 			if (g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
 			{
@@ -96,6 +110,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				g_variant_iter_init(&iter, return_value);
 
 				locations = lsp_utils_parse_locations(&iter);
+
 				if (locations && locations->len > 0)
 				{
 					if (data->show_in_msgwin)
@@ -103,14 +118,9 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 						LspLocation *loc;
 						guint i;
 
-						msgwin_clear_tab(MSG_MESSAGE);
-						msgwin_switch_tab(MSG_MESSAGE, TRUE);
-
 						foreach_ptr_array(loc, i, locations)
 						{
-							gchar *fname = lsp_utils_get_real_path_from_uri(loc->uri);
-							msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%ld:", fname, loc->range.start.line+1);
-							g_free(fname);
+							show_in_msgwin(loc);
 						}
 					}
 					else if (locations->len == 1)
@@ -147,7 +157,12 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				LspLocation *loc = lsp_utils_parse_location(return_value);
 
 				if (loc)
-					goto_location(data->doc, loc);
+				{
+					if (data->show_in_msgwin)
+						show_in_msgwin(loc);
+					else
+						goto_location(data->doc, loc);
+				}
 
 				lsp_utils_free_lsp_location(loc);
 			}
