@@ -31,6 +31,7 @@
 #include "lsp-goto.h"
 #include "lsp-symbols.h"
 #include "lsp-goto-anywhere.h"
+#include "lsp-format.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -76,6 +77,8 @@ enum {
 
   KB_SHOW_HOVER_POPUP,
 
+  KB_FORMAT_CODE,
+
   KB_COUNT
 };
 
@@ -87,8 +90,8 @@ struct
 	GtkWidget *user_config;
 	// context menu
 	GtkWidget *goto_type_def;
-	GtkWidget *goto_impl;
 	GtkWidget *goto_ref;
+	GtkWidget *format_code;
 	GtkWidget *separator;
 } menu_items;
 
@@ -788,6 +791,10 @@ static void invoke_kb(guint key_id, gint pos)
 			show_hover_popup();
 			break;
 
+		case KB_FORMAT_CODE:
+			lsp_format_perform();
+			break;
+
 		default:
 			break;
 	}
@@ -893,6 +900,15 @@ static void create_menu_items()
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
+	item = gtk_menu_item_new_with_mnemonic(_("_Format Code"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_FORMAT_CODE));
+	keybindings_set_item(group, KB_FORMAT_CODE, NULL, 0, 0, "format_code",
+		_("Format code"), item);
+
+	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
+
 	item = gtk_menu_item_new_with_mnemonic(_("Show _Hover Popup"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(show_hover_popup), NULL);
@@ -932,27 +948,23 @@ static void create_menu_items()
 	gtk_widget_show(menu_items.separator);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator);
 
-	menu_items.goto_impl = gtk_menu_item_new_with_mnemonic(_("Find _Implementations (LSP)"));
-	gtk_widget_show(menu_items.goto_impl);
-	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_impl);
-	g_signal_connect(menu_items.goto_impl, "activate", G_CALLBACK(on_context_menu_invoked),
-		GUINT_TO_POINTER(KB_FIND_IMPLEMENTATIONS));
-
-	menu_items.goto_ref = gtk_menu_item_new_with_mnemonic(_("Find _References (LSP)"));
-	gtk_widget_show(menu_items.goto_ref);
-	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_ref);
-	g_signal_connect(menu_items.goto_ref, "activate", G_CALLBACK(on_context_menu_invoked),
-		GUINT_TO_POINTER(KB_FIND_REFERENCES));
-
-	menu_items.separator = gtk_separator_menu_item_new();
-	gtk_widget_show(menu_items.separator);
-	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator);
+	menu_items.format_code = gtk_menu_item_new_with_mnemonic(_("_Format Code (LSP)"));
+	gtk_widget_show(menu_items.format_code);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.format_code);
+	g_signal_connect(menu_items.format_code, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_FORMAT_CODE));
 
 	menu_items.goto_type_def = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition (LSP)"));
 	gtk_widget_show(menu_items.goto_type_def);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_type_def);
 	g_signal_connect(menu_items.goto_type_def, "activate", G_CALLBACK(on_context_menu_invoked),
 		GUINT_TO_POINTER(KB_GOTO_TYPE_DEFINITION));
+
+	menu_items.goto_ref = gtk_menu_item_new_with_mnemonic(_("Find _References (LSP)"));
+	gtk_widget_show(menu_items.goto_ref);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_ref);
+	g_signal_connect(menu_items.goto_ref, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_FIND_REFERENCES));
 }
 
 
@@ -971,7 +983,7 @@ void plugin_cleanup(void)
 {
 	gtk_widget_destroy(menu_items.parent_item);
 	gtk_widget_destroy(menu_items.goto_type_def);
-	gtk_widget_destroy(menu_items.goto_impl);
+	gtk_widget_destroy(menu_items.format_code);
 	gtk_widget_destroy(menu_items.goto_ref);
 	gtk_widget_destroy(menu_items.separator);
 

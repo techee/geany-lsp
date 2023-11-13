@@ -96,5 +96,6 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 
 gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart);
 
+GVariant *lsp_utils_parse_json_file(const gchar *fname);
 
 #endif  /* LSP_UTILS_H */

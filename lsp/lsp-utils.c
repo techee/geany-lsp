@@ -479,3 +479,31 @@ gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart)
 	}
 	return ret;
 }
+
+
+GVariant *lsp_utils_parse_json_file(const gchar *fname)
+{
+	JsonNode *json_node = json_from_string("{}", NULL);
+	GVariant *variant = json_gvariant_deserialize(json_node, NULL, NULL);
+	gchar *file_contents;
+
+	json_node_free(json_node);
+
+	if (!fname)
+		return variant;
+
+	if (!g_file_get_contents(fname, &file_contents, NULL, NULL))
+		return variant;
+
+	json_node = json_from_string(file_contents, NULL);
+
+	if (json_node)
+	{
+		g_variant_unref(variant);
+		variant = json_gvariant_deserialize(json_node, NULL, NULL);
+	}
+
+	g_free(file_contents);
+
+	return variant;
+}

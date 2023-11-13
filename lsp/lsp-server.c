@@ -150,6 +150,7 @@ static void stop_server(LspServer *s)
 	g_free(cfg->diagnostics_warning_style);
 	g_free(cfg->diagnostics_info_style);
 	g_free(cfg->diagnostics_hint_style);
+	g_free(cfg->formatting_options_file);
 }
 
 
@@ -587,34 +588,6 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 }
 
 
-static GVariant *get_init_options(LspServer *server)
-{
-	JsonNode *json_node = json_from_string("{}", NULL);
-	GVariant *variant = json_gvariant_deserialize(json_node, NULL, NULL);
-	gchar *file_contents;
-
-	json_node_free(json_node);
-
-	if (!server->config.initialization_options_file)
-		return variant;
-
-	if (!g_file_get_contents(server->config.initialization_options_file, &file_contents, NULL, NULL))
-		return variant;
-
-	json_node = json_from_string(file_contents, NULL);
-
-	if (json_node)
-	{
-		g_variant_unref(variant);
-		variant = json_gvariant_deserialize(json_node, NULL, NULL);
-	}
-
-	g_free(file_contents);
-
-	return variant;
-}
-
-
 #define ADD_KEY_VALUE(b, k, v) \
 	g_variant_builder_add((b), "{sv}", (k), (v));
 
@@ -719,7 +692,8 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 		"}"
 	));
 	ADD_KEY_VALUE(b, "trace", g_variant_new_string("off"));
-	ADD_KEY_VALUE(b, "initializationOptions", get_init_options(server));
+	ADD_KEY_VALUE(b, "initializationOptions",
+		lsp_utils_parse_json_file(server->config.initialization_options_file));
 
 	node = g_variant_builder_end(b);
 	g_variant_ref_sink(node);
@@ -886,6 +860,8 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");
 	get_bool(&s->config.semantic_tokens_enable, kf, section, "semantic_tokens_enable");
+
+	get_str(&s->config.formatting_options_file, kf, section, "formatting_options_file");
 }
 
 

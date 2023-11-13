@@ -44,6 +44,8 @@ typedef struct
 	gchar *diagnostics_info_style;
 	gchar *diagnostics_hint_style;
 
+	gchar *formatting_options_file;
+
 	gboolean hover_enable;
 
 	gboolean signature_enable;
