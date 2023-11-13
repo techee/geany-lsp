@@ -81,6 +81,13 @@ void lsp_semtokens_init(gint ft_id)
 }
 
 
+void lsp_semtokens_destroy(void)
+{
+	g_hash_table_destroy(cached_tokens);
+	cached_tokens = NULL;
+}
+
+
 static SemanticTokensEdit *sem_tokens_edit_new(void)
 {
 	SemanticTokensEdit *edit = g_new0(SemanticTokensEdit, 1);

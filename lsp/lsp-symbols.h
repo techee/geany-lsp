@@ -34,4 +34,6 @@ typedef void (*LspWorkspaceSymbolRequestCallback) (GPtrArray *arr, gpointer user
 void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query, LspWorkspaceSymbolRequestCallback callback,
 	gpointer user_data);
 
+void lsp_symbols_destroy(void);
+
 #endif  /* LSP_SYMBOLS_H */

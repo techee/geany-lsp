@@ -935,6 +935,9 @@ void plugin_cleanup(void)
 
 	lsp_unregister(&lsp);
 	lsp_server_stop_all(TRUE);
+	lsp_diagnostics_destroy();
+	lsp_semtokens_destroy();
+	lsp_symbols_destroy();
 }
 
 

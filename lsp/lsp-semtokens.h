@@ -28,7 +28,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 
 const gchar *lsp_semtokens_get_cached(GeanyDocument *doc);
 
-
 void lsp_semtokens_init(gint ft_id);
+void lsp_semtokens_destroy(void);
 
 #endif  /* LSP_SEMTOKENS_H */

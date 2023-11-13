@@ -47,6 +47,16 @@ static GPtrArray *cached_symbols;
 static gchar *cached_symbols_fname;
 
 
+void lsp_symbols_destroy(void)
+{
+	if (cached_symbols)
+		g_ptr_array_free(cached_symbols, TRUE);
+	cached_symbols = NULL;
+	g_free(cached_symbols_fname);
+	cached_symbols_fname = NULL;
+}
+
+
 static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gchar *scope,
 	const gchar *scope_sep, gboolean workspace)
 {
@@ -174,10 +184,8 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 
 		if (data->doc == document_get_current())
 		{
-			if (cached_symbols)
-				g_ptr_array_free(cached_symbols, TRUE);
+			lsp_symbols_destroy();
 			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
-			g_free(cached_symbols_fname);
 			cached_symbols_fname = g_strdup(data->doc->real_path);
 
 			parse_symbols(cached_symbols, return_value, NULL,

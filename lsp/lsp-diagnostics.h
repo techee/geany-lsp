@@ -23,7 +23,8 @@
 
 #include <glib.h>
 
-void lsp_diagnostics_init();
+void lsp_diagnostics_init(void);
+void lsp_diagnostics_destroy(void);
 
 void lsp_diagnostics_show_calltip(gint pos);
 void lsp_diagnostics_hide_calltip(GeanyDocument *doc);

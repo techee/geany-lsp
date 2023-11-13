@@ -67,12 +67,20 @@ static void array_free(GPtrArray *arr)
 }
 
 
-void lsp_diagnostics_init()
+void lsp_diagnostics_init(void)
 {
-	//TODO: free diag_table
 	if (!diag_table)
 		diag_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)array_free);
 	g_hash_table_remove_all(diag_table);
+}
+
+
+void lsp_diagnostics_destroy(void)
+{
+	if (diag_table)
+		g_hash_table_destroy(diag_table);
+	diag_table = NULL;
+	calltip_sci = NULL;
 }
 
 
