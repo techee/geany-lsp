@@ -152,9 +152,6 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 
 	lsp_goto_panel_fill(arr);
 
-	if (lineno > 0)
-		navqueue_goto_line(doc, doc, lineno);
-
 	g_ptr_array_free(arr, TRUE);
 }
 
