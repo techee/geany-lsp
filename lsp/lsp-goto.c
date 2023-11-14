@@ -41,7 +41,7 @@ GPtrArray *last_result;
 
 static void goto_location(GeanyDocument *old_doc, LspLocation *loc)
 {
-	gchar *fname = lsp_utils_get_real_path_from_uri(loc->uri);
+	gchar *fname = lsp_utils_get_real_path_from_uri_locale(loc->uri);
 	GeanyDocument *doc = document_open_file(fname, FALSE, NULL, NULL);
 
 	if (doc)
@@ -67,7 +67,7 @@ static void filter_symbols(const gchar *filter)
 
 static void show_in_msgwin(LspLocation *loc)
 {
-	gchar *fname = lsp_utils_get_real_path_from_uri(loc->uri);
+	gchar *fname = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
 	msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%ld:", fname, loc->range.start.line+1);
 	g_free(fname);
 }
@@ -138,7 +138,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 						foreach_ptr_array(loc, i, locations)
 						{
 							LspGotoPanelSymbol *sym = g_new0(LspGotoPanelSymbol, 1);
-							sym->file = lsp_utils_get_real_path_from_uri(loc->uri);
+							sym->file = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
 							sym->label = g_path_get_basename(sym->file);
 							sym->line = loc->range.start.line+1;
 							sym->icon = TM_ICON_OTHER;

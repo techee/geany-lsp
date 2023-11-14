@@ -147,7 +147,7 @@ gchar *lsp_utils_get_doc_uri(GeanyDocument *doc)
 }
 
 
-gchar *lsp_utils_get_real_path_from_uri(const gchar *uri)
+gchar *lsp_utils_get_real_path_from_uri_locale(const gchar *uri)
 {
 	gchar *fname;
 
@@ -162,6 +162,18 @@ gchar *lsp_utils_get_real_path_from_uri(const gchar *uri)
 	g_return_val_if_fail(fname, NULL);
 
 	return fname;
+}
+
+
+gchar *lsp_utils_get_real_path_from_uri_utf8(const gchar *uri)
+{
+	gchar *locale_fname = lsp_utils_get_real_path_from_uri_locale(uri);
+
+	if (!locale_fname)
+		return NULL;
+
+	SETPTR(locale_fname, utils_get_utf8_from_locale(locale_fname));
+	return locale_fname;
 }
 
 

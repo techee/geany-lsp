@@ -56,7 +56,7 @@ static GPtrArray *tag_array_to_symbol_array(GPtrArray *tag_array)
 		{
 			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
 			sym->icon = lsp_symbol_kinds_get_symbol_icon(kind);
-			sym->file = g_strdup(tag->file->file_name);
+			sym->file = utils_get_utf8_from_locale(tag->file->file_name);
 		}
 		else
 		{
@@ -97,7 +97,7 @@ static void doc_symbol_cb(gpointer user_data)
 	filtered = lsp_goto_panel_filter(symbols, text[0] ? text + 1 : text);
 	foreach_ptr_array(symbol, i, filtered)
 	{
-		symbol->file = g_strdup(doc->real_path);
+		symbol->file = utils_get_utf8_from_locale(doc->real_path);
 	}
 
 	lsp_goto_panel_fill(filtered);
@@ -124,7 +124,7 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 
 	foreach_ptr_array(symbol, i, arr)
 	{
-		symbol->file = g_strdup(doc->real_path);
+		symbol->file = utils_get_utf8_from_locale(doc->real_path);
 		symbol->icon = TM_ICON_OTHER;
 		switch (i)
 		{
@@ -177,7 +177,7 @@ static void goto_file(const gchar *file_str)
 
 		symbol = g_new0(LspGotoPanelSymbol, 1);
 		symbol->label = g_path_get_basename(doc->real_path);
-		symbol->file = g_strdup(doc->real_path);
+		symbol->file = utils_get_utf8_from_locale(doc->real_path);
 		symbol->icon = TM_ICON_OTHER;
 		g_ptr_array_add(arr, symbol);
 	}

@@ -146,7 +146,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 		if (uri_str)
 		{
 			// TODO: total hack, just storing path "somewhere"
-			tag->inheritance = lsp_utils_get_real_path_from_uri(uri_str);
+			tag->inheritance = lsp_utils_get_real_path_from_uri_utf8(uri_str);
 		}
 
 		g_ptr_array_add(symbols, tag);

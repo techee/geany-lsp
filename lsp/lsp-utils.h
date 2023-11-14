@@ -68,7 +68,8 @@ gint lsp_utils_lsp_pos_to_scintilla(ScintillaObject *sci, LspPosition lsp_pos);
 
 gchar *lsp_utils_get_doc_uri(GeanyDocument *doc);
 gchar *lsp_utils_get_lsp_lang_name(GeanyDocument *doc);
-gchar *lsp_utils_get_real_path_from_uri(const gchar *uri);
+gchar *lsp_utils_get_real_path_from_uri_locale(const gchar *uri);
+gchar *lsp_utils_get_real_path_from_uri_utf8(const gchar *uri);
 
 gchar *lsp_utils_get_locale(void);
 gchar *lsp_utils_json_pretty_print(GVariant *variant);

@@ -291,7 +291,7 @@ void lsp_diagnostics_received(GVariant* diags)
 	if (!iter)
 		return;
 
-	real_path = lsp_utils_get_real_path_from_uri(uri);
+	real_path = lsp_utils_get_real_path_from_uri_locale(uri);
 
 	if (!real_path)
 	{

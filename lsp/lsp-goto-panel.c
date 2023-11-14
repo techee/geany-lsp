@@ -280,6 +280,7 @@ static void on_view_row_activated(GtkTreeView *view, GtkTreePath *path,
 			COL_LINENO, &line,
 			-1);
 
+		SETPTR(file_path, utils_get_locale_from_utf8(file_path));
 		doc = document_open_file(file_path, FALSE, NULL, NULL);
 
 		if (doc && line > 0)
