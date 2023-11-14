@@ -65,11 +65,40 @@ static void filter_symbols(const gchar *filter)
 }
 
 
-static void show_in_msgwin(LspLocation *loc)
+static void show_in_msgwin(LspLocation *loc, GHashTable *sci_table)
 {
 	gchar *fname = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
-	msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%ld:", fname, loc->range.start.line+1);
+	GeanyDocument *doc = document_find_by_filename(fname);
+	ScintillaObject *sci = NULL;
+	gint lineno = loc->range.start.line;
+	gchar *line_str;
+
+	if (doc)
+		sci = doc->editor->sci;
+	else
+	{
+		if (sci_table)
+			sci = g_hash_table_lookup(sci_table, fname);
+		if (!sci)
+		{
+			sci = lsp_utils_new_sci_from_file(fname);
+			if (sci && sci_table)
+				g_hash_table_insert(sci_table, g_strdup(fname), g_object_ref_sink(sci));
+		}
+	}
+
+	line_str = sci ? sci_get_line(sci, lineno) : g_strdup("");
+	g_strstrip(line_str);
+
+	msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%d:  %s", fname, lineno + 1, line_str);
+
+	g_free(line_str);
 	g_free(fname);
+	if (!sci_table && !doc)
+	{
+		g_object_ref_sink(sci);
+		g_object_unref(sci);
+	}
 }
 
 
@@ -115,13 +144,17 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				{
 					if (data->show_in_msgwin)
 					{
+						GHashTable *sci_table = g_hash_table_new_full(g_str_hash,
+							g_str_equal, g_free, (GDestroyNotify)g_object_unref);
 						LspLocation *loc;
 						guint i;
 
 						foreach_ptr_array(loc, i, locations)
 						{
-							show_in_msgwin(loc);
+							show_in_msgwin(loc, sci_table);
 						}
+
+						g_hash_table_destroy(sci_table);
 					}
 					else if (locations->len == 1)
 						goto_location(data->doc, locations->pdata[0]);
@@ -159,7 +192,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				if (loc)
 				{
 					if (data->show_in_msgwin)
-						show_in_msgwin(loc);
+						show_in_msgwin(loc, NULL);
 					else
 						goto_location(data->doc, loc);
 				}

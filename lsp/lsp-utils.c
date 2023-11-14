@@ -528,3 +528,37 @@ GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname)
 
 	return variant;
 }
+
+
+ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname)
+{
+	ScintillaObject *sci;
+	gchar *file_contents;
+	gchar *fname;
+	gboolean success;
+
+	if (!utf8_fname)
+		return NULL;
+
+	fname = utils_get_locale_from_utf8(utf8_fname);
+	if (!fname)
+		return NULL;
+
+	success = g_file_get_contents(fname, &file_contents, NULL, NULL);
+	g_free(fname);
+
+	if (!success)
+		return NULL;
+
+	sci = SCINTILLA(scintilla_object_new());
+
+	gtk_widget_set_direction(GTK_WIDGET(sci), GTK_TEXT_DIR_LTR);
+
+	SSM(sci, SCI_SETCODEPAGE, (uptr_t) SC_CP_UTF8, 0);
+	SSM(sci, SCI_SETWRAPMODE, SC_WRAP_NONE, 0);
+
+	sci_set_text(sci, file_contents);
+
+	g_free(file_contents);
+	return sci;
+}
