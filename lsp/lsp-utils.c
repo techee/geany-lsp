@@ -493,18 +493,27 @@ gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart)
 }
 
 
-GVariant *lsp_utils_parse_json_file(const gchar *fname)
+GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname)
 {
 	JsonNode *json_node = json_from_string("{}", NULL);
 	GVariant *variant = json_gvariant_deserialize(json_node, NULL, NULL);
 	gchar *file_contents;
+	gchar *fname;
+	gboolean success;
 
 	json_node_free(json_node);
 
+	if (!utf8_fname)
+		return variant;
+
+	fname = utils_get_locale_from_utf8(utf8_fname);
 	if (!fname)
 		return variant;
 
-	if (!g_file_get_contents(fname, &file_contents, NULL, NULL))
+	success = g_file_get_contents(fname, &file_contents, NULL, NULL);
+	g_free(fname);
+
+	if (!success)
 		return variant;
 
 	json_node = json_from_string(file_contents, NULL);
