@@ -41,10 +41,10 @@ static void hover_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 
 	if (lsp_client_call_finish(self, result, &return_value))
 	{
-		GeanyDocument *current_doc = document_get_current();
+		GeanyDocument *doc = document_get_current();
 		LspHoverData *data = user_data;
 
-		if (current_doc == data->doc)
+		if (doc == data->doc && gtk_widget_has_focus(GTK_WIDGET(doc->editor->sci)))
 		{
 			const gchar *str = NULL;
 
@@ -76,6 +76,7 @@ void lsp_hover_send_request(LspServer *server, GeanyDocument *doc, gint pos)
 	ScintillaObject *sci = doc->editor->sci;
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
+	LspHoverData *data = g_new0(LspHoverData, 1);
 
 	node = JSONRPC_MESSAGE_NEW (
 		"textDocument", "{",
@@ -89,7 +90,6 @@ void lsp_hover_send_request(LspServer *server, GeanyDocument *doc, gint pos)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	LspHoverData *data = g_new0(LspHoverData, 1);
 	data->doc = doc;
 	data->pos = pos;
 
