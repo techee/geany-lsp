@@ -1010,7 +1010,7 @@ json_parser_load (JsonParser   *parser,
   JsonScanner *scanner;
   gboolean done;
   gboolean retval = TRUE;
-  gchar *data = input_data;
+  const gchar *data = input_data;
 
   json_parser_clear (parser);
 
