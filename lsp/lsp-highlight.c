@@ -33,12 +33,19 @@ typedef struct {
 
 
 static gint indicator;
+static gboolean dirty;
 
 
-static void clear_indicators(ScintillaObject *sci)
+void lsp_highlight_clear(GeanyDocument *doc)
 {
-	sci_indicator_set(sci, indicator);
-	sci_indicator_clear(sci, 0, sci_get_length(sci));
+	if (dirty)
+	{
+		ScintillaObject *sci = doc->editor->sci;
+
+		sci_indicator_set(sci, indicator);
+		sci_indicator_clear(sci, 0, sci_get_length(sci));
+		dirty = FALSE;
+	}
 }
 
 
@@ -48,7 +55,10 @@ void lsp_highlight_style_current_doc(LspServer *server)
 	ScintillaObject *sci = doc->editor->sci;
 
 	if (indicator > 0)
-		clear_indicators(sci);
+	{
+		dirty = TRUE;
+		lsp_highlight_clear(doc);
+	}
 	indicator = lsp_utils_set_indicator_style(sci, server->config.highlighting_style);
 }
 
@@ -59,8 +69,8 @@ static void highlight_range(GeanyDocument *doc, LspRange range)
 	gint start_pos = lsp_utils_lsp_pos_to_scintilla(sci, range.start);
 	gint end_pos = lsp_utils_lsp_pos_to_scintilla(sci, range.end);
 
-//	printf("%d   %d\n", start_pos, end_pos);
 	editor_indicator_set_on_range(doc->editor, indicator, start_pos, end_pos);
+	dirty = TRUE;
 }
 
 
@@ -78,7 +88,7 @@ static void highlight_cb(GObject *object, GAsyncResult *result, gpointer user_da
 		{
 			//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
-			clear_indicators(doc->editor->sci);
+			lsp_highlight_clear(doc);
 
 			if (g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
 			{
@@ -155,7 +165,7 @@ void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc)
 			highlight_cb, data);
 	}
 	else
-		clear_indicators(doc->editor->sci);
+		lsp_highlight_clear(doc);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

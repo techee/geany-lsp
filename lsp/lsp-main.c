@@ -412,6 +412,11 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		}
 		ignore_selection_change = FALSE;
 	}
+	else if (nt->nmhdr.code == SCN_CHARADDED)
+	{
+		// don't hightlight while typing
+		lsp_highlight_clear(doc);
+	}
 
 	return FALSE;
 }
