@@ -68,6 +68,7 @@ static void filter_symbols(const gchar *filter)
 static void show_in_msgwin(LspLocation *loc, GHashTable *sci_table)
 {
 	gchar *fname = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
+	gchar *base_path = lsp_utils_get_project_base_path();
 	GeanyDocument *doc = document_find_by_filename(fname);
 	ScintillaObject *sci = NULL;
 	gint lineno = loc->range.start.line;
@@ -90,10 +91,24 @@ static void show_in_msgwin(LspLocation *loc, GHashTable *sci_table)
 	line_str = sci ? sci_get_line(sci, lineno) : g_strdup("");
 	g_strstrip(line_str);
 
+	if (base_path)
+	{
+		gchar *rel_path = lsp_utils_get_relative_path(base_path, fname);
+		gchar *locale_base_path = utils_get_locale_from_utf8(base_path);
+
+		if (!g_str_has_prefix(rel_path, ".."))
+			SETPTR(fname, g_strdup(rel_path));
+
+		msgwin_set_messages_dir(locale_base_path);
+
+		g_free(locale_base_path);
+		g_free(rel_path);
+	}
 	msgwin_msg_add(COLOR_BLACK, -1, NULL, "%s:%d:  %s", fname, lineno + 1, line_str);
 
 	g_free(line_str);
 	g_free(fname);
+	g_free(base_path);
 	if (!sci_table && !doc)
 	{
 		g_object_ref_sink(sci);

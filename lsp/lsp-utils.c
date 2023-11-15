@@ -666,3 +666,28 @@ gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str)
 
 	return indicator;
 }
+
+
+/* utf8 */
+gchar *lsp_utils_get_relative_path(const gchar *utf8_parent, const gchar *utf8_descendant)
+{
+	GFile *gf_parent, *gf_descendant;
+	gchar *locale_parent, *locale_descendant;
+	gchar *locale_ret, *utf8_ret;
+
+	locale_parent = utils_get_locale_from_utf8(utf8_parent);
+	locale_descendant = utils_get_locale_from_utf8(utf8_descendant);
+	gf_parent = g_file_new_for_path(locale_parent);
+	gf_descendant = g_file_new_for_path(locale_descendant);
+
+	locale_ret = g_file_get_relative_path(gf_parent, gf_descendant);
+	utf8_ret = utils_get_utf8_from_locale(locale_ret);
+
+	g_object_unref(gf_parent);
+	g_object_unref(gf_descendant);
+	g_free(locale_parent);
+	g_free(locale_descendant);
+	g_free(locale_ret);
+
+	return utf8_ret;
+}

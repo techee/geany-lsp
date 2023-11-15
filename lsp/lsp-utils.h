@@ -105,4 +105,6 @@ gchar *lsp_utils_get_current_iden(GeanyDocument *doc);
 
 gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str);
 
+gchar *lsp_utils_get_relative_path(const gchar *utf8_parent, const gchar *utf8_descendant);
+
 #endif  /* LSP_UTILS_H */
