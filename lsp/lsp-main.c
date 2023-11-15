@@ -32,6 +32,7 @@
 #include "lsp-symbols.h"
 #include "lsp-goto-anywhere.h"
 #include "lsp-format.h"
+#include "lsp-highlight.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -50,7 +51,10 @@ GeanyData *geany_data;
 
 LspProjectConfigurationType project_configuration_type;
 gchar *project_configuration_file;
-gint last_click_pos;
+
+static gint last_click_pos;
+static gboolean ignore_selection_change;
+
 
 PLUGIN_VERSION_CHECK(246)  //TODO
 PLUGIN_SET_TRANSLATABLE_INFO(
@@ -247,6 +251,7 @@ static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 
 	lsp_diagnostics_style_current_doc(srv);
 	lsp_diagnostics_redraw_current_doc(srv);
+	lsp_highlight_style_current_doc(srv);
 }
 
 
@@ -262,6 +267,9 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 
 		if (!srv || !srv->config.autocomplete_enable)
 			return FALSE;
+
+		// ignore cursor position change as a result of autocomplete (for highlighting)
+		ignore_selection_change = TRUE;
 
 		sci_start_undo_action(editor->sci);
 		lsp_autocomplete_item_selected(srv, doc, SSM(sci, SCI_AUTOCGETCURRENT, 0, 0));
@@ -381,19 +389,28 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 				lsp_signature_show_next();
 		}
 	}
-	else if (nt->nmhdr.code == SCN_UPDATEUI &&
-		(nt->updated & (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL | SC_UPDATE_SELECTION /* when caret moves */)))
+	else if (nt->nmhdr.code == SCN_UPDATEUI)
 	{
 		LspServer *srv = lsp_server_get_if_running(doc);
 
 		if (!srv)
 			return FALSE;
 
-		lsp_signature_hide_calltip(doc);
-		lsp_hover_hide_calltip(doc);
-		lsp_diagnostics_hide_calltip(doc);
+		if (nt->updated & (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL | SC_UPDATE_SELECTION /* when caret moves */))
+		{
+			lsp_signature_hide_calltip(doc);
+			lsp_hover_hide_calltip(doc);
+			lsp_diagnostics_hide_calltip(doc);
 
-		SSM(sci, SCI_AUTOCCANCEL, 0, 0);
+			SSM(sci, SCI_AUTOCCANCEL, 0, 0);
+		}
+
+		if (srv->config.highlighting_enable && !ignore_selection_change &&
+			(nt->updated & SC_UPDATE_SELECTION))
+		{
+			lsp_highlight_send_request(srv, doc);
+		}
+		ignore_selection_change = FALSE;
 	}
 
 	return FALSE;

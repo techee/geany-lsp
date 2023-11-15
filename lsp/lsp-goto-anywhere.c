@@ -255,59 +255,6 @@ static void perform_lookup(const gchar *query)
 }
 
 
-static gchar *get_current_iden(GeanyDocument *doc)
-{
-	//TODO: use configured wordchars (also change in Geany)
-	const gchar *wordchars = GEANY_WORDCHARS;
-	GeanyFiletypeID ft = doc->file_type->id;
-	ScintillaObject *sci = doc->editor->sci;
-	gint current_pos = sci_get_current_position(sci);
-	gint start_pos, end_pos, pos;
-
-	if (ft == GEANY_FILETYPES_LATEX)
-		wordchars = GEANY_WORDCHARS"\\"; /* add \ to word chars if we are in a LaTeX file */
-	else if (ft == GEANY_FILETYPES_CSS)
-		wordchars = GEANY_WORDCHARS"-"; /* add - because they are part of property names */
-
-	pos = current_pos;
-	while (TRUE)
-	{
-		gint new_pos = SSM(sci, SCI_POSITIONBEFORE, pos, 0);
-		if (new_pos == pos)
-			break;
-		if (pos - new_pos == 1)
-		{
-			gchar c = sci_get_char_at(sci, new_pos);
-			if (!strchr(wordchars, c))
-				break;
-		}
-		pos = new_pos;
-	}
-	start_pos = pos;
-
-	pos = current_pos;
-	while (TRUE)
-	{
-		gint new_pos = SSM(sci, SCI_POSITIONAFTER, pos, 0);
-		if (new_pos == pos)
-			break;
-		if (new_pos - pos == 1)
-		{
-			gchar c = sci_get_char_at(sci, pos);
-			if (!strchr(wordchars, c))
-				break;
-		}
-		pos = new_pos;
-	}
-	end_pos = pos;
-
-	if (start_pos == end_pos)
-		return g_strdup("");
-
-	return sci_get_contents_range(sci, start_pos, end_pos);
-}
-
-
 static void goto_panel_query(const gchar *query_type, gboolean prefill)
 {
 	GeanyDocument *doc = document_get_current();
@@ -317,7 +264,7 @@ static void goto_panel_query(const gchar *query_type, gboolean prefill)
 		return;
 
 	if (prefill)
-		query = get_current_iden(doc);
+		query = lsp_utils_get_current_iden(doc);
 	else
 		query = g_strdup("");
 	SETPTR(query, g_strconcat(query_type, query, NULL));

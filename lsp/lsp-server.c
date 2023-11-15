@@ -30,6 +30,7 @@
 #include "lsp/lsp-progress.h"
 #include "lsp/lsp-symbols.h"
 #include "lsp/lsp-symbol-kinds.h"
+#include "lsp/lsp-highlight.h"
 
 
 typedef struct {
@@ -150,6 +151,7 @@ static void stop_server(LspServer *s)
 	g_free(cfg->diagnostics_warning_style);
 	g_free(cfg->diagnostics_info_style);
 	g_free(cfg->diagnostics_hint_style);
+	g_free(cfg->highlighting_style);
 	g_free(cfg->formatting_options_file);
 }
 
@@ -534,6 +536,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 			update_config(return_value, &s->config.hover_enable, "hoverProvider");
 			update_config(return_value, &s->config.goto_enable, "definitionProvider");
 			update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
+			update_config(return_value, &s->config.highlighting_enable, "documentHighlightProvider");
 
 			s->supports_workspace_symbols = TRUE;
 			update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
@@ -566,6 +569,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 					{
 						lsp_diagnostics_style_current_doc(s);
 						lsp_diagnostics_redraw_current_doc(s);
+						lsp_highlight_style_current_doc(s);
 					}
 				}
 			}
@@ -862,6 +866,9 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 	get_bool(&s->config.semantic_tokens_enable, kf, section, "semantic_tokens_enable");
 
 	get_str(&s->config.formatting_options_file, kf, section, "formatting_options_file");
+
+	get_bool(&s->config.highlighting_enable, kf, section, "highlighting_enable");
+	get_str(&s->config.highlighting_style, kf, section, "highlighting_style");
 }
 
 

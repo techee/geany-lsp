@@ -55,6 +55,10 @@ typedef struct
 	gboolean document_symbols_enable;
 
 	gboolean semantic_tokens_enable;
+
+	gboolean highlighting_enable;
+	gchar *highlighting_style;
+
 } LspServerConfig;
 
 

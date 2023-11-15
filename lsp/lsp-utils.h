@@ -101,4 +101,8 @@ GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname);
 
 ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname);
 
+gchar *lsp_utils_get_current_iden(GeanyDocument *doc);
+
+gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str);
+
 #endif  /* LSP_UTILS_H */

@@ -26,9 +26,6 @@
 #include <jsonrpc-glib.h>
 
 
-#define LSP_INDICATOR_START 12
-
-
 static GHashTable *diag_table = NULL;
 static ScintillaObject *calltip_sci;
 
@@ -50,6 +47,9 @@ typedef enum {
 	LspHint,
 	LSP_DIAG_SEVERITY_MAX
 } LspDiagSeverity;
+
+
+static gint style_indices[LSP_DIAG_SEVERITY_MAX];
 
 
 static void diag_free(LspDiag *diag)
@@ -172,7 +172,7 @@ static void clear_indicators(ScintillaObject *sci)
 
 	for (severity = LSP_DIAG_SEVERITY_MIN; severity < LSP_DIAG_SEVERITY_MAX; severity++)
 	{
-		sci_indicator_set(sci, LSP_INDICATOR_START + severity);
+		sci_indicator_set(sci, style_indices[severity]);
 		sci_indicator_clear(sci, 0, sci_get_length(sci));
 	}
 }
@@ -209,54 +209,9 @@ void lsp_diagnostics_redraw_current_doc(LspServer *server)
 			end_pos = SSM(sci, SCI_POSITIONAFTER, end_pos, 0);
 		}
 
-		editor_indicator_set_on_range(doc->editor, LSP_INDICATOR_START + diag->severity,
+		editor_indicator_set_on_range(doc->editor, style_indices[diag->severity],
 			start_pos, end_pos);
 	}
-}
-
-
-static void set_style(ScintillaObject *sci, const gchar *style_str, gint indicator)
-{
-	gchar **comps = g_strsplit(style_str, ";", -1);
-	GdkColor color;
-	gint alpha_fill = 255;
-	gint alpha_outline = 255;
-	gint style = 0;
-	gint i = 0;
-
-	gdk_color_parse("red", &color);
-
-	for (i = 0; comps && comps[i]; i++)
-	{
-		switch (i)
-		{
-			case 0:
-			{
-				if (!gdk_color_parse(comps[i], &color))
-					gdk_color_parse("red", &color);
-				break;
-			}
-			case 1:
-				alpha_fill = CLAMP(atoi(comps[i]), 0, 255);
-				break;
-			case 2:
-				alpha_outline = CLAMP(atoi(comps[i]), 0, 255);
-				break;
-			case 3:
-				style = CLAMP(atoi(comps[i]), 0, 22);
-				break;
-		}
-	}
-
-	SSM(sci, SCI_INDICSETSTYLE, indicator, style);
-	SSM(sci, SCI_INDICSETFORE, indicator,
-		((color.red * 255) / 65535) |
-		(((color.green * 255) / 65535) << 8) |
-		(((color.blue * 255) / 65535) << 16));
-	SSM(sci, SCI_INDICSETALPHA, indicator, alpha_fill);
-	SSM(sci, SCI_INDICSETOUTLINEALPHA, indicator, alpha_outline);
-
-	g_strfreev(comps);
 }
 
 
@@ -265,10 +220,10 @@ void lsp_diagnostics_style_current_doc(LspServer *server)
 	GeanyDocument *doc = document_get_current();
 	ScintillaObject *sci = doc->editor->sci;
 
-	set_style(sci, server->config.diagnostics_error_style, LSP_INDICATOR_START + LspError);
-	set_style(sci, server->config.diagnostics_warning_style, LSP_INDICATOR_START + LspWarning);
-	set_style(sci, server->config.diagnostics_info_style, LSP_INDICATOR_START + LspInfo);
-	set_style(sci, server->config.diagnostics_hint_style, LSP_INDICATOR_START + LspHint);
+	style_indices[LspError] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_error_style);
+	style_indices[LspWarning] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_warning_style);
+	style_indices[LspInfo] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_info_style);
+	style_indices[LspHint] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_hint_style);
 
 	SSM(sci, SCI_SETMOUSEDWELLTIME, 500, 0);
 }

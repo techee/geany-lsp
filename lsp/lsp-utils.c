@@ -562,3 +562,107 @@ ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname)
 	g_free(file_contents);
 	return sci;
 }
+
+
+gchar *lsp_utils_get_current_iden(GeanyDocument *doc)
+{
+	//TODO: use configured wordchars (also change in Geany)
+	const gchar *wordchars = GEANY_WORDCHARS;
+	GeanyFiletypeID ft = doc->file_type->id;
+	ScintillaObject *sci = doc->editor->sci;
+	gint current_pos = sci_get_current_position(sci);
+	gint start_pos, end_pos, pos;
+
+	if (ft == GEANY_FILETYPES_LATEX)
+		wordchars = GEANY_WORDCHARS"\\"; /* add \ to word chars if we are in a LaTeX file */
+	else if (ft == GEANY_FILETYPES_CSS)
+		wordchars = GEANY_WORDCHARS"-"; /* add - because they are part of property names */
+
+	pos = current_pos;
+	while (TRUE)
+	{
+		gint new_pos = SSM(sci, SCI_POSITIONBEFORE, pos, 0);
+		if (new_pos == pos)
+			break;
+		if (pos - new_pos == 1)
+		{
+			gchar c = sci_get_char_at(sci, new_pos);
+			if (!strchr(wordchars, c))
+				break;
+		}
+		pos = new_pos;
+	}
+	start_pos = pos;
+
+	pos = current_pos;
+	while (TRUE)
+	{
+		gint new_pos = SSM(sci, SCI_POSITIONAFTER, pos, 0);
+		if (new_pos == pos)
+			break;
+		if (new_pos - pos == 1)
+		{
+			gchar c = sci_get_char_at(sci, pos);
+			if (!strchr(wordchars, c))
+				break;
+		}
+		pos = new_pos;
+	}
+	end_pos = pos;
+
+	if (start_pos == end_pos)
+		return g_strdup("");
+
+	return sci_get_contents_range(sci, start_pos, end_pos);
+}
+
+
+gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str)
+{
+	gchar **comps = g_strsplit(style_str, ";", -1);
+	GdkColor color;
+	gint indicator = 13;
+	gint alpha_fill = 255;
+	gint alpha_outline = 255;
+	gint style = 0;
+	gint i = 0;
+
+	gdk_color_parse("red", &color);
+
+	for (i = 0; comps && comps[i]; i++)
+	{
+		switch (i)
+		{
+			case 0:
+				indicator = CLAMP(atoi(comps[i]), 8, 31);
+				break;
+			case 1:
+			{
+				if (!gdk_color_parse(comps[i], &color))
+					gdk_color_parse("red", &color);
+				break;
+			}
+			case 2:
+				alpha_fill = CLAMP(atoi(comps[i]), 0, 255);
+				break;
+			case 3:
+				alpha_outline = CLAMP(atoi(comps[i]), 0, 255);
+				break;
+			case 4:
+				style = CLAMP(atoi(comps[i]), 0, 22);
+				break;
+		}
+	}
+
+	SSM(sci, SCI_INDICSETSTYLE, indicator, style);
+	SSM(sci, SCI_INDICSETFORE, indicator,
+		((color.red * 255) / 65535) |
+		(((color.green * 255) / 65535) << 8) |
+		(((color.blue * 255) / 65535) << 16));
+	SSM(sci, SCI_INDICSETALPHA, indicator, alpha_fill);
+	SSM(sci, SCI_INDICSETOUTLINEALPHA, indicator, alpha_outline);
+
+	g_strfreev(comps);
+
+	return indicator;
+}
