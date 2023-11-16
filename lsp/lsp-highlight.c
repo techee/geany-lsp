@@ -154,7 +154,7 @@ void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	if (iden)
+	if (!sci_has_selection(sci) && iden)
 	{
 		LspHighlightData *data = g_new0(LspHighlightData, 1);
 
