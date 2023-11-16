@@ -101,10 +101,12 @@ GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname);
 
 ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname);
 
-gchar *lsp_utils_get_current_iden(GeanyDocument *doc);
+gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos);
 
 gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str);
 
 gchar *lsp_utils_get_relative_path(const gchar *utf8_parent, const gchar *utf8_descendant);
+
+void lsp_utils_save_all_docs(void);
 
 #endif  /* LSP_UTILS_H */

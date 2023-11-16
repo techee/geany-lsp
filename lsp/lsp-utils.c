@@ -564,13 +564,12 @@ ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname)
 }
 
 
-gchar *lsp_utils_get_current_iden(GeanyDocument *doc)
+gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos)
 {
 	//TODO: use configured wordchars (also change in Geany)
 	const gchar *wordchars = GEANY_WORDCHARS;
 	GeanyFiletypeID ft = doc->file_type->id;
 	ScintillaObject *sci = doc->editor->sci;
-	gint current_pos = sci_get_current_position(sci);
 	gint start_pos, end_pos, pos;
 
 	if (ft == GEANY_FILETYPES_LATEX)
@@ -611,7 +610,7 @@ gchar *lsp_utils_get_current_iden(GeanyDocument *doc)
 	end_pos = pos;
 
 	if (start_pos == end_pos)
-		return g_strdup("");
+		return NULL;
 
 	return sci_get_contents_range(sci, start_pos, end_pos);
 }
@@ -690,4 +689,18 @@ gchar *lsp_utils_get_relative_path(const gchar *utf8_parent, const gchar *utf8_d
 	g_free(locale_ret);
 
 	return utf8_ret;
+}
+
+
+void lsp_utils_save_all_docs(void)
+{
+	guint i;
+
+	foreach_document(i)
+	{
+		GeanyDocument *doc = documents[i];
+
+		if (doc->changed)
+			document_save_file(doc, FALSE);
+	}
 }

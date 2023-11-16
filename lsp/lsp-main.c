@@ -33,6 +33,7 @@
 #include "lsp-goto-anywhere.h"
 #include "lsp-format.h"
 #include "lsp-highlight.h"
+#include "lsp-rename.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -82,6 +83,7 @@ enum {
   KB_SHOW_HOVER_POPUP,
 
   KB_RENAME_IN_FILE,
+  KB_RENAME_IN_PROJECT,
   KB_FORMAT_CODE,
 
   KB_COUNT
@@ -97,6 +99,7 @@ struct
 	GtkWidget *goto_type_def;
 	GtkWidget *goto_ref;
 	GtkWidget *rename_in_file;
+	GtkWidget *rename_in_project;
 	GtkWidget *format_code;
 	GtkWidget *separator1;
 	GtkWidget *separator2;
@@ -139,12 +142,34 @@ static void on_document_close(G_GNUC_UNUSED GObject * obj, GeanyDocument *doc,
 }
 
 
+static void destroy_all(void)
+{
+	lsp_diagnostics_destroy();
+	lsp_semtokens_destroy();
+	lsp_symbols_destroy();
+}
+
+
 static void stop_and_init_all_servers(void)
 {
 	lsp_server_stop_all(FALSE);
 	lsp_server_init_all();
+
+	destroy_all();
+
 	lsp_sync_init();
 	lsp_diagnostics_init();
+}
+
+
+static void restart_all_servers(void)
+{
+	GeanyDocument *doc = document_get_current();
+
+	stop_and_init_all_servers();
+
+	if (doc)
+		lsp_server_get(doc);
 }
 
 
@@ -466,7 +491,7 @@ static void on_project_dialog_confirmed(G_GNUC_UNUSED GObject *obj, GtkWidget *n
 	gtk_widget_set_sensitive(menu_items.project_config, have_project_config);
 	gtk_widget_set_sensitive(menu_items.user_config, !have_project_config);
 
-	stop_and_init_all_servers();
+	restart_all_servers();
 }
 
 
@@ -747,12 +772,6 @@ static void on_open_global_config(void)
 }
 
 
-static void on_restart_all_servers(void)
-{
-	stop_and_init_all_servers();
-}
-
-
 static void on_show_initialize_responses(void)
 {
 	gchar *resps = lsp_server_get_initialize_responses();
@@ -768,6 +787,15 @@ static void show_hover_popup(void)
 
 	if (srv)
 		lsp_hover_send_request(srv, doc, sci_get_current_position(doc->editor->sci));
+}
+
+
+static void on_rename_done(void)
+{
+	// TODO: workaround strange behavior of clangd: it doesn't seem to reflect changes
+	// in non-open files unless all files are saved and the server is restarted
+	lsp_utils_save_all_docs();
+	restart_all_servers();
 }
 
 
@@ -818,6 +846,10 @@ static void invoke_kb(guint key_id, gint pos)
 
 		case KB_RENAME_IN_FILE:
 			lsp_highlight_rename(pos);
+			break;
+
+		case KB_RENAME_IN_PROJECT:
+			lsp_rename_send_request(pos, on_rename_done);
 			break;
 
 		case KB_FORMAT_CODE:
@@ -936,6 +968,13 @@ static void create_menu_items()
 	keybindings_set_item(group, KB_RENAME_IN_FILE, NULL, 0, 0, "rename_in_file",
 		_("Rename in file"), item);
 
+	item = gtk_menu_item_new_with_mnemonic(_("Rename in _Project..."));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_RENAME_IN_PROJECT));
+	keybindings_set_item(group, KB_RENAME_IN_PROJECT, NULL, 0, 0, "rename_in_project",
+		_("Rename in project"), item);
+
 	item = gtk_menu_item_new_with_mnemonic(_("_Format Code"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
@@ -975,7 +1014,7 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Restart All Servers"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(on_restart_all_servers), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(restart_all_servers), NULL);
 
 	gtk_widget_show_all(menu_items.parent_item);
 
@@ -989,6 +1028,12 @@ static void create_menu_items()
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.format_code);
 	g_signal_connect(menu_items.format_code, "activate", G_CALLBACK(on_context_menu_invoked),
 		GUINT_TO_POINTER(KB_FORMAT_CODE));
+
+	menu_items.rename_in_project = gtk_menu_item_new_with_mnemonic(_("Rename in _Project (LSP)..."));
+	gtk_widget_show(menu_items.rename_in_project);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.rename_in_project);
+	g_signal_connect(menu_items.rename_in_project, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_RENAME_IN_PROJECT));
 
 	menu_items.rename_in_file = gtk_menu_item_new_with_mnemonic(_("_Rename in File (LSP)"));
 	gtk_widget_show(menu_items.rename_in_file);
@@ -1031,15 +1076,14 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(menu_items.goto_type_def);
 	gtk_widget_destroy(menu_items.format_code);
 	gtk_widget_destroy(menu_items.rename_in_file);
+	gtk_widget_destroy(menu_items.rename_in_project);
 	gtk_widget_destroy(menu_items.goto_ref);
 	gtk_widget_destroy(menu_items.separator1);
 	gtk_widget_destroy(menu_items.separator2);
 
 	lsp_unregister(&lsp);
 	lsp_server_stop_all(TRUE);
-	lsp_diagnostics_destroy();
-	lsp_semtokens_destroy();
-	lsp_symbols_destroy();
+	destroy_all();
 }
 
 

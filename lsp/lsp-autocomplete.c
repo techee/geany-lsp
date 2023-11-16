@@ -366,7 +366,7 @@ static void autocomplete_cb(GObject *object, GAsyncResult *result, gpointer user
 	JsonrpcClient *self = (JsonrpcClient *)object;
 	GVariant *return_value = NULL;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		GeanyDocument *current_doc = document_get_current();
 		LspAutocompleteAsyncData *data = user_data;

@@ -31,7 +31,7 @@ static void format_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 	JsonrpcClient *self = (JsonrpcClient *)object;
 	GVariant *return_value = NULL;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		GeanyDocument *doc = document_get_current();
 

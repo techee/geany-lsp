@@ -28,7 +28,7 @@ void lsp_client_close(JsonrpcClient *self);
 void lsp_client_call_async(JsonrpcClient *self, const gchar *method, GVariant *params,
 	GAsyncReadyCallback callback, gpointer user_data);
 gboolean lsp_client_call_finish(JsonrpcClient *self, GAsyncResult *result,
-	GVariant **return_value);
+	GVariant **return_value, GError **error);
 
 void lsp_client_notify_async(JsonrpcClient *self, const gchar *method, GVariant *params,
 	GAsyncReadyCallback callback, gpointer user_data);

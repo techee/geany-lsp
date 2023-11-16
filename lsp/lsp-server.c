@@ -91,7 +91,7 @@ static void shutdown_cb(GObject *object, GAsyncResult *result, gpointer user_dat
 	GVariant *return_value = NULL;
 	ShutdownServerInfo *info = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		msgwin_status_add("Sending exit notification to LSP server %s", info->cmd);
 		lsp_client_notify_async(info->rpc_client, "exit", NULL, exit_cb, info);
@@ -514,7 +514,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 	GVariant *return_value = NULL;
 	gint filetype_id = GPOINTER_TO_INT(user_data);
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		LspServer *s = get_server(filetype_id);
 

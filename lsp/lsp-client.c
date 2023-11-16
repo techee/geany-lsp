@@ -64,9 +64,10 @@ void lsp_client_call_async(JsonrpcClient *self, const gchar *method, GVariant *p
 
 
 gboolean lsp_client_call_finish(JsonrpcClient *self, GAsyncResult *result,
-	GVariant **return_value)
+	GVariant **return_value, GError **error)
 {
-	gboolean ret = jsonrpc_client_call_finish(self, result, return_value, NULL);
+	// TODO: log errors
+	gboolean ret = jsonrpc_client_call_finish(self, result, return_value, error);
 
 	if (ret)
 		lsp_log(lsp_server_get_log_info(self), LspLogClientMessageReceived, NULL, *return_value);

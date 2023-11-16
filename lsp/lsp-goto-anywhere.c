@@ -258,14 +258,15 @@ static void perform_lookup(const gchar *query)
 static void goto_panel_query(const gchar *query_type, gboolean prefill)
 {
 	GeanyDocument *doc = document_get_current();
-	gchar *query;
+	gint pos = sci_get_current_position(doc->editor->sci);
+	gchar *query = NULL;
 
 	if (!doc)
 		return;
 
 	if (prefill)
-		query = lsp_utils_get_current_iden(doc);
-	else
+		query = lsp_utils_get_current_iden(doc, pos);
+	if (!query)
 		query = g_strdup("");
 	SETPTR(query, g_strconcat(query_type, query, NULL));
 

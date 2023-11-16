@@ -83,7 +83,8 @@ void lsp_semtokens_init(gint ft_id)
 
 void lsp_semtokens_destroy(void)
 {
-	g_hash_table_destroy(cached_tokens);
+	if (cached_tokens)
+		g_hash_table_destroy(cached_tokens);
 	cached_tokens = NULL;
 }
 
@@ -328,7 +329,7 @@ static void semtokens_cb(GObject *object, GAsyncResult *result, gpointer user_da
 	GVariant *return_value = NULL;
 	LspSemtokensUserData *data = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		GeanyDocument *doc = data->doc;
 		gboolean doc_exists = FALSE;

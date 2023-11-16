@@ -81,7 +81,7 @@ static void highlight_cb(GObject *object, GAsyncResult *result, gpointer user_da
 	GVariant *return_value = NULL;
 	LspHighlightData *data = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		GeanyDocument *doc = document_get_current();
 
@@ -157,7 +157,9 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 	ScintillaObject *sci = doc->editor->sci;
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
-	gchar *iden = lsp_utils_get_current_iden(doc);
+	gchar *iden = lsp_utils_get_current_iden(doc, pos);
+	gchar *selection = sci_get_selection_contents(sci);
+	gboolean valid_rename;
 
 	node = JSONRPC_MESSAGE_NEW (
 		"textDocument", "{",
@@ -171,13 +173,16 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	if (!sci_has_selection(sci) && iden)
+	valid_rename = (!sci_has_selection(sci) && iden) ||
+		(sci_has_selection(sci) && g_strcmp0(iden, selection) == 0);
+
+	if ((highlight && !sci_has_selection(sci) && iden) || (!highlight && valid_rename))
 	{
 		LspHighlightData *data = g_new0(LspHighlightData, 1);
 
 		data->doc = doc;
 		data->pos = pos;
-		data->identifier = iden;
+		data->identifier = g_strdup(iden);
 		data->highlight = highlight;
 		lsp_client_call_async(server->rpc_client, "textDocument/documentHighlight", node,
 			highlight_cb, data);
@@ -185,6 +190,8 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 	else
 		lsp_highlight_clear(doc);
 
+	g_free(selection);
+	g_free(iden);
 	g_free(doc_uri);
 	g_variant_unref(node);
 }

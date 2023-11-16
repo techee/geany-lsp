@@ -178,7 +178,7 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 	GVariant *return_value = NULL;
 	LspSymbolUserData *data = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
@@ -285,7 +285,7 @@ static void workspace_symbols_cb(GObject *object, GAsyncResult *result, gpointer
 	LspWorkspaceSymbolUserData *data = user_data;
 	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 

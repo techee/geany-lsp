@@ -122,7 +122,7 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 	JsonrpcClient *self = (JsonrpcClient *)object;
 	GVariant *return_value = NULL;
 
-	if (lsp_client_call_finish(self, result, &return_value))
+	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
 		GotoData *data = user_data;
 		gboolean doc_exists = FALSE;
