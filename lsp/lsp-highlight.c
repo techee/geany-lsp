@@ -29,6 +29,7 @@ typedef struct {
 	GeanyDocument *doc;
 	gint pos;
 	gchar *identifier;
+	gboolean highlight;
 } LspHighlightData;
 
 
@@ -84,44 +85,61 @@ static void highlight_cb(GObject *object, GAsyncResult *result, gpointer user_da
 	{
 		GeanyDocument *doc = document_get_current();
 
-		if (doc == data->doc)
+		if (doc == data->doc && g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
 		{
+			GVariant *member = NULL;
+			GVariantIter iter;
+			gint sel_id = 0;
+			gint main_sel_id = 0;
+			gboolean first_sel = TRUE;
+
 			//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
 			lsp_highlight_clear(doc);
 
-			if (g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
+			g_variant_iter_init(&iter, return_value);
+
+			while (g_variant_iter_loop(&iter, "v", &member))
 			{
-				GVariant *member = NULL;
-				GVariantIter iter;
+				GVariant *range = NULL;
 
-				g_variant_iter_init(&iter, return_value);
+				JSONRPC_MESSAGE_PARSE(member,
+					"range", JSONRPC_MESSAGE_GET_VARIANT(&range)
+					);
 
-				while (g_variant_iter_loop(&iter, "v", &member))
+				if (range)
 				{
-					GVariant *range = NULL;
+					LspRange r = lsp_utils_parse_range(range);
+					gint start_pos = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, r.start);
+					gint end_pos = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, r.end);
+					gchar *ident = sci_get_contents_range(doc->editor->sci, start_pos, end_pos);
 
-					JSONRPC_MESSAGE_PARSE(member,
-						"range", JSONRPC_MESSAGE_GET_VARIANT(&range)
-						);
-
-					if (range)
+					//clangd returns highlight for 'editor' in 'doc-|>editor' where
+					//'|' is the caret position and also other cases, which is strange
+					//restrict to identifiers only
+					if (g_strcmp0(ident, data->identifier) == 0)
 					{
-						LspRange r = lsp_utils_parse_range(range);
-						gint start_pos = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, r.start);
-						gint end_pos = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, r.end);
-						gchar *ident = sci_get_contents_range(doc->editor->sci, start_pos, end_pos);
-
-						//clangd returns highlight for 'editor' in 'doc-|>editor' where
-						//'|' is the caret position and also other cases, which is strange
-						//restrict to identifiers only
-						if (g_strcmp0(ident, data->identifier) == 0)
+						if (data->highlight)
 							highlight_range(doc, r);
-						g_free(ident);
-						g_variant_unref(range);
+						else
+						{
+							SSM(doc->editor->sci, first_sel ? SCI_SETSELECTION : SCI_ADDSELECTION,
+								start_pos, end_pos);
+							if (data->pos >= start_pos && data->pos <= end_pos)
+								main_sel_id = sel_id;
+
+							first_sel = FALSE;
+							sel_id++;
+						}
 					}
+
+					g_free(ident);
+					g_variant_unref(range);
 				}
 			}
+
+			if (!data->highlight)
+				SSM(doc->editor->sci, SCI_SETMAINSELECTION, main_sel_id, 0);
 		}
 
 		if (return_value)
@@ -133,11 +151,10 @@ static void highlight_cb(GObject *object, GAsyncResult *result, gpointer user_da
 }
 
 
-void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc)
+static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboolean highlight)
 {
 	GVariant *node;
 	ScintillaObject *sci = doc->editor->sci;
-	gint pos = sci_get_current_position(sci);
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
 	gchar *iden = lsp_utils_get_current_iden(doc);
@@ -161,6 +178,7 @@ void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc)
 		data->doc = doc;
 		data->pos = pos;
 		data->identifier = iden;
+		data->highlight = highlight;
 		lsp_client_call_async(server->rpc_client, "textDocument/documentHighlight", node,
 			highlight_cb, data);
 	}
@@ -169,4 +187,24 @@ void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc)
 
 	g_free(doc_uri);
 	g_variant_unref(node);
+}
+
+
+void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc)
+{
+	gint pos = sci_get_current_position(doc->editor->sci);
+
+	send_request(server, doc, pos, TRUE);
+}
+
+
+void lsp_highlight_rename(gint pos)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	send_request(srv, doc, pos, FALSE);
 }

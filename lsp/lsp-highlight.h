@@ -27,6 +27,8 @@ void lsp_highlight_style_current_doc(LspServer *server);
 
 void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc);
 
+void lsp_highlight_rename(gint pos);
+
 void lsp_highlight_clear(GeanyDocument *doc);
 
 #endif  /* LSP_HIGHLIGHT_H */

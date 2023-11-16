@@ -81,6 +81,7 @@ enum {
 
   KB_SHOW_HOVER_POPUP,
 
+  KB_RENAME_IN_FILE,
   KB_FORMAT_CODE,
 
   KB_COUNT
@@ -95,8 +96,10 @@ struct
 	// context menu
 	GtkWidget *goto_type_def;
 	GtkWidget *goto_ref;
+	GtkWidget *rename_in_file;
 	GtkWidget *format_code;
-	GtkWidget *separator;
+	GtkWidget *separator1;
+	GtkWidget *separator2;
 } menu_items;
 
 
@@ -813,6 +816,10 @@ static void invoke_kb(guint key_id, gint pos)
 			show_hover_popup();
 			break;
 
+		case KB_RENAME_IN_FILE:
+			lsp_highlight_rename(pos);
+			break;
+
 		case KB_FORMAT_CODE:
 			lsp_format_perform();
 			break;
@@ -922,6 +929,13 @@ static void create_menu_items()
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
+	item = gtk_menu_item_new_with_mnemonic(_("_Rename in File"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_RENAME_IN_FILE));
+	keybindings_set_item(group, KB_RENAME_IN_FILE, NULL, 0, 0, "rename_in_file",
+		_("Rename in file"), item);
+
 	item = gtk_menu_item_new_with_mnemonic(_("_Format Code"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
@@ -966,15 +980,25 @@ static void create_menu_items()
 	gtk_widget_show_all(menu_items.parent_item);
 
 	/* context menu */
-	menu_items.separator = gtk_separator_menu_item_new();
-	gtk_widget_show(menu_items.separator);
-	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator);
+	menu_items.separator1 = gtk_separator_menu_item_new();
+	gtk_widget_show(menu_items.separator1);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator1);
 
 	menu_items.format_code = gtk_menu_item_new_with_mnemonic(_("_Format Code (LSP)"));
 	gtk_widget_show(menu_items.format_code);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.format_code);
 	g_signal_connect(menu_items.format_code, "activate", G_CALLBACK(on_context_menu_invoked),
 		GUINT_TO_POINTER(KB_FORMAT_CODE));
+
+	menu_items.rename_in_file = gtk_menu_item_new_with_mnemonic(_("_Rename in File (LSP)"));
+	gtk_widget_show(menu_items.rename_in_file);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.rename_in_file);
+	g_signal_connect(menu_items.rename_in_file, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_RENAME_IN_FILE));
+
+	menu_items.separator2 = gtk_separator_menu_item_new();
+	gtk_widget_show(menu_items.separator2);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator2);
 
 	menu_items.goto_type_def = gtk_menu_item_new_with_mnemonic(_("Go to _Type Definition (LSP)"));
 	gtk_widget_show(menu_items.goto_type_def);
@@ -1006,8 +1030,10 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(menu_items.parent_item);
 	gtk_widget_destroy(menu_items.goto_type_def);
 	gtk_widget_destroy(menu_items.format_code);
+	gtk_widget_destroy(menu_items.rename_in_file);
 	gtk_widget_destroy(menu_items.goto_ref);
-	gtk_widget_destroy(menu_items.separator);
+	gtk_widget_destroy(menu_items.separator1);
+	gtk_widget_destroy(menu_items.separator2);
 
 	lsp_unregister(&lsp);
 	lsp_server_stop_all(TRUE);
