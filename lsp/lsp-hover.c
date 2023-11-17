@@ -57,8 +57,12 @@ static void hover_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 
 			if (str && strlen(str) > 0)
 			{
+				gchar *s = g_strdup(str);
+
+				lsp_utils_wrap_string(s, -1);
 				calltip_sci = data->doc->editor->sci;
-				SSM(calltip_sci, SCI_CALLTIPSHOW, data->pos, (sptr_t) str);
+				SSM(calltip_sci, SCI_CALLTIPSHOW, data->pos, (sptr_t) s);
+				g_free(s);
 			}
 		}
 
