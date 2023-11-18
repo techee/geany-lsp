@@ -417,6 +417,96 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 }
 
 
+static void apply_edits_in_file(const gchar *uri, GPtrArray *edits)
+{
+	gchar *fname = lsp_utils_get_real_path_from_uri_utf8(uri);
+	gchar *fname_locale = lsp_utils_get_real_path_from_uri_locale(uri);
+
+	if (fname && fname_locale)
+	{
+		GeanyDocument *doc = document_find_by_filename(fname);
+		ScintillaObject *sci = NULL;
+
+		if (doc)
+			sci = doc->editor->sci;
+		else
+			sci = lsp_utils_new_sci_from_file(fname);
+
+		sci_start_undo_action(sci);
+		lsp_utils_apply_text_edits(sci, NULL, edits);
+		sci_end_undo_action(sci);
+
+		if (doc)
+			// clangd rename doesn't refresh the file when not saved after the operation
+			document_save_file(doc, FALSE);
+		else
+		{
+			gchar *contents = sci_get_contents(sci, -1);
+
+			g_file_set_contents(fname, contents, -1, NULL);
+
+#if 0
+			GVariant *node;
+			node = JSONRPC_MESSAGE_NEW (
+				"changes", "[", "{",
+					"uri", JSONRPC_MESSAGE_PUT_STRING(uri),
+					"type", JSONRPC_MESSAGE_PUT_INT32(2),  //changed
+				"}", "]"
+			);
+
+			lsp_client_notify(client, "workspace/didChangeWatchedFiles", node);
+			g_variant_unref(node);
+#endif
+
+			g_free(contents);
+			g_object_ref_sink(sci);
+			g_object_unref(sci);
+		}
+	}
+	g_free(fname);
+	g_free(fname_locale);
+}
+
+
+gboolean lsp_utils_apply_workspace_edit(GVariant *workspace_edit)
+{
+	GVariant *changes = NULL;
+	gboolean ret = FALSE;
+
+	JSONRPC_MESSAGE_PARSE(workspace_edit,
+		"changes", JSONRPC_MESSAGE_GET_VARIANT(&changes)
+		);
+
+	if (changes && g_variant_is_of_type(changes, G_VARIANT_TYPE("a{sv}")))
+	{
+		GVariantIter iter;
+		GVariant *text_edits;
+		gchar *uri;
+
+		g_variant_iter_init(&iter, changes);
+		while (g_variant_iter_loop(&iter, "{sv}", &uri, &text_edits))
+		{
+			GVariantIter iter2;
+			GPtrArray *edits;
+
+			g_variant_iter_init(&iter2, text_edits);
+
+			edits = lsp_utils_parse_text_edits(&iter2);
+			apply_edits_in_file(uri,  edits);
+
+			g_ptr_array_free(edits, TRUE);
+		}
+
+		ret = TRUE;
+	}
+
+	if (changes)
+		g_variant_unref(changes);
+
+	return ret;
+}
+
+
 void lsp_utils_free_lsp_location(LspLocation *e)
 {
 	if (!e)
