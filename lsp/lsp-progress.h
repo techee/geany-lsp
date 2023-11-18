@@ -37,6 +37,8 @@ void lsp_progress_begin(LspServer *server, LspProgressToken token, const gchar *
 void lsp_progress_report(LspServer *server, LspProgressToken token,	const gchar *message);
 void lsp_progress_end(LspServer *server, LspProgressToken token, const gchar *message);
 
+void lsp_progress_process_notification(LspServer *srv, GVariant *params);
+
 void lsp_progress_free_all(LspServer *server);
 
 #endif  /* LSP_PROGRESS_H */

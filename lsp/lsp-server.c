@@ -237,64 +237,7 @@ static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *pa
 	else if (g_str_has_prefix(method, "$/"))
 	{
 		LspServer *srv = srv_from_rpc_client(self);
-		gboolean have_token = FALSE;
-		gint64 token_int = 0;
-		const gchar *token_str = NULL;
-		const gchar *kind = NULL;
-		const gchar *title = NULL;
-		const gchar *message = NULL;
-		gchar buf[50];
-
-		have_token = JSONRPC_MESSAGE_PARSE(params,
-			"token", JSONRPC_MESSAGE_GET_STRING(&token_str)
-		);
-		if (!have_token)
-		{
-			have_token = JSONRPC_MESSAGE_PARSE(params,
-				"token", JSONRPC_MESSAGE_GET_INT64(&token_int)
-			);
-		}
-		JSONRPC_MESSAGE_PARSE(params,
-			"value", "{",
-				"kind", JSONRPC_MESSAGE_GET_STRING(&kind),
-			"}"
-		);
-		JSONRPC_MESSAGE_PARSE(params,
-			"value", "{",
-				"title", JSONRPC_MESSAGE_GET_STRING(&title),
-			"}"
-		);
-		JSONRPC_MESSAGE_PARSE(params,
-			"value", "{",
-				"message", JSONRPC_MESSAGE_GET_STRING(&message),
-			"}"
-		);
-
-		if (!message)
-		{
-			gint64 percentage;
-			gboolean have_percentage = JSONRPC_MESSAGE_PARSE(params,
-				"value", "{",
-					"percentage", JSONRPC_MESSAGE_GET_INT64(&percentage),
-				"}"
-			);
-			if (have_percentage)
-			{
-				g_snprintf(buf, 30, "%ld%%", percentage);
-				message = buf;
-			}
-		}
-
-		if (srv && have_token && kind)
-		{
-			LspProgressToken token = {token_int, (gchar *)token_str};
-			if (g_strcmp0(kind, "begin") == 0)
-				lsp_progress_begin(srv, token, title, message);
-			else if (g_strcmp0(kind, "report") == 0)
-				lsp_progress_report(srv, token, message);
-			else if (g_strcmp0(kind, "end") == 0)
-				lsp_progress_end(srv, token, message);
-		}
+		lsp_progress_process_notification(srv, params);
 	}
 	else
 	{
