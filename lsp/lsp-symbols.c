@@ -222,6 +222,8 @@ static gboolean retry_cb(gpointer user_data)
 		if (!lsp_server_is_usable(data->doc))
 			;  // server died or misconfigured
 		else if (!srv)
+			return TRUE;  // retry
+		else
 		{
 			// should be successful now
 			lsp_symbols_doc_request(data->doc, data->callback, data->user_data);
