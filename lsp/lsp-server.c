@@ -437,16 +437,25 @@ static void update_config(GVariant *variant, gboolean *option, const gchar *key)
 }
 
 
-static LspServer *get_server(gint ft_id)
+static LspServer *server_get_configured_for_ft(gint ft_id)
 {
 	LspServer *s;
 
-	if (!lsp_servers || lsp_servers->len <= ft_id)
+	if (!lsp_servers || lsp_utils_is_lsp_disabled_for_project())
 		return NULL;
 
 	s = lsp_servers->pdata[ft_id];
-	if (s && s->referenced)
-		s = s->referenced;
+
+	if (s->ref_lang)
+	{
+		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
+
+		if (ft)
+			s = lsp_servers->pdata[ft->id];
+		else
+			return NULL;
+	}
+
 	return s;
 }
 
@@ -459,7 +468,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 
 	if (lsp_client_call_finish(self, result, &return_value, NULL))
 	{
-		LspServer *s = get_server(filetype_id);
+		LspServer *s = server_get_configured_for_ft(filetype_id);
 
 		if (s && s->rpc_client == self)
 		{
@@ -523,7 +532,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 	}
 	else
 	{
-		LspServer *s = get_server(filetype_id);
+		LspServer *s = server_get_configured_for_ft(filetype_id);
 
 		if (s && s->rpc_client == self)
 		{
@@ -678,7 +687,7 @@ static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer 
 {
 	GSubprocess *process = (GSubprocess *)source_object;
 	GeanyFiletypeID filetype_id = GPOINTER_TO_INT(data);
-	LspServer *s = get_server(filetype_id);
+	LspServer *s = server_get_configured_for_ft(filetype_id);
 
 	if (s && s->process == process)
 	{
@@ -703,6 +712,7 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 	gchar ** argv;
 	gint flags = G_SUBPROCESS_FLAGS_STDIN_PIPE | G_SUBPROCESS_FLAGS_STDOUT_PIPE;
 
+	server->restarts++;
 	if (is_dead(server))
 		return;
 
@@ -712,7 +722,6 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 		flags |= G_SUBPROCESS_FLAGS_STDERR_SILENCE;
 	server->process = g_subprocess_newv((const gchar * const *)argv, flags, &error);
 
-	server->restarts++;
 	g_strfreev(argv);
 
 	if (!server->process)
@@ -778,6 +787,9 @@ static void get_int(gint *dest, GKeyFile *kf, const gchar *section, const gchar 
 static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 {
 	gchar *str_val;
+
+	get_bool(&s->config.use_outside_project_dir, kf, section, "lsp_use_outside_project_dir");
+	get_bool(&s->config.use_without_project, kf, section, "lsp_use_without_project");
 
 	get_bool(&s->config.autocomplete_enable, kf, section, "autocomplete_enable");
 
@@ -853,28 +865,7 @@ LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
 }
 
 
-LspServer *lsp_server_get_if_running(GeanyDocument *doc)
-{
-	LspServer *s;
-
-	if (!doc || !lsp_servers || lsp_utils_is_lsp_disabled_for_project())
-		return NULL;
-
-	s = lsp_servers->pdata[doc->file_type->id];
-	if (s->startup_shutdown)
-		return NULL;
-
-	if (s->process)
-		return s;
-
-	if (s->referenced && s->referenced->process)
-		return s->referenced;
-
-	return NULL;
-}
-
-
-LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
+static LspServer *server_get_or_start_for_ft(GeanyFiletype *ft, gboolean launch_server)
 {
 	LspServer *s, *s2 = NULL;
 
@@ -882,14 +873,14 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 		return NULL;
 
 	s = lsp_servers->pdata[ft->id];
+	if (s->referenced)
+		s = s->referenced;
+
 	if (s->startup_shutdown)
 		return NULL;
 
 	if (s->process)
 		return s;
-
-	if (s->referenced && s->referenced->process)
-		return s->referenced;
 
 	if (s->not_used)
 		return NULL;
@@ -899,6 +890,9 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 		msgwin_status_add("LSP server %s terminated more than 5 times, giving up", s->cmd);
 		return NULL;
 	}
+
+	if (!launch_server)
+		return NULL;
 
 	if (s->ref_lang)
 	{
@@ -935,33 +929,92 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 }
 
 
-LspServer *lsp_server_get(GeanyDocument *doc)
+LspServer *lsp_server_get_for_ft(GeanyFiletype *ft)
 {
+	return server_get_or_start_for_ft(ft, TRUE);
+}
+
+
+static gboolean is_lsp_valid_for_doc(LspServerConfig *cfg, GeanyDocument *doc)
+{
+	gchar *base_path, *real_path, *rel_path;
+	gboolean inside_project;
+
+	if (!cfg->use_without_project && !geany_data->app->project)
+		return FALSE;
+
+	if (!doc || !doc->real_path)
+		return FALSE;
+
+	if (cfg->use_outside_project_dir || !geany_data->app->project)
+		return TRUE;
+
+	base_path = lsp_utils_get_project_base_path();
+	real_path = utils_get_utf8_from_locale(doc->real_path);
+	rel_path = lsp_utils_get_relative_path(base_path, real_path);
+
+	inside_project = rel_path && !g_str_has_prefix(rel_path, "..");
+
+	g_free(rel_path);
+	g_free(real_path);
+	g_free(base_path);
+
+	return inside_project;
+}
+
+
+static LspServer *server_get_for_doc(GeanyDocument *doc, gboolean launch_server)
+{
+	LspServer *srv;
+
 	if (!doc)
 		return NULL;
 
-	return lsp_server_get_for_ft(doc->file_type);
+	srv = server_get_or_start_for_ft(doc->file_type, launch_server);
+
+	if (!srv || !is_lsp_valid_for_doc(&srv->config, doc))
+		return NULL;
+
+	return srv;
+}
+
+
+LspServer *lsp_server_get(GeanyDocument *doc)
+{
+	return server_get_for_doc(doc, TRUE);
+}
+
+
+LspServer *lsp_server_get_if_running(GeanyDocument *doc)
+{
+	return server_get_for_doc(doc, FALSE);
+}
+
+
+static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
+{
+	LspServer *s;
+
+	if (!doc)
+		return NULL;
+
+	s = server_get_configured_for_ft(doc->file_type->id);
+	if (!s)
+		return NULL;
+
+	if (!is_lsp_valid_for_doc(&s->config, doc))
+		return NULL;
+
+	return s;
 }
 
 
 LspServerConfig *lsp_server_get_config(GeanyDocument *doc)
 {
-	LspServer *s;
+	LspServer *s = server_get_configured_for_doc(doc);
 
-	if (!doc || !lsp_servers || lsp_utils_is_lsp_disabled_for_project())
+	if (!s)
 		return NULL;
-
-	s = lsp_servers->pdata[doc->file_type->id];
-
-	if (s->ref_lang)
-	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
-
-		if (ft)
-			s = lsp_servers->pdata[ft->id];
-		else
-			return NULL;
-	}
 
 	return &s->config;
 }
@@ -969,23 +1022,10 @@ LspServerConfig *lsp_server_get_config(GeanyDocument *doc)
 
 gboolean lsp_server_is_usable(GeanyDocument *doc)
 {
-	LspServer *s;
+	LspServer *s = server_get_configured_for_doc(doc);
 
-	if (lsp_utils_is_lsp_disabled_for_project())
+	if (!s)
 		return FALSE;
-
-	if (!doc || !lsp_servers)
-		return TRUE;  // we don't know yet, assume the server can be used
-
-	s = lsp_servers->pdata[doc->file_type->id];
-
-	if (s->ref_lang)
-	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
-
-		if (ft)
-			s = lsp_servers->pdata[ft->id];
-	}
 
 	return !s->not_used && !is_dead(s);
 }

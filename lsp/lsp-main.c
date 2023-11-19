@@ -316,10 +316,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	}
 	else if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
-		LspServerConfig *cfg = lsp_server_get_config(doc);
-
-		if (!cfg)
-			return FALSE;
+		LspServer *srv = lsp_server_get_if_running(doc);
 
 		// also delivered when other window has focus
 		if (!gtk_widget_has_focus(GTK_WIDGET(sci)))
@@ -331,16 +328,15 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		if (nt->position < 0 || nt->y == 0)
 			return FALSE;
 
+		if (!srv)
+			return FALSE;
+
 		if (lsp_signature_showing_calltip(doc))
 			;  /* don't cancel signature calltips by accidental hovers */
-		else if (cfg->diagnostics_enable && lsp_diagnostics_has_diag(nt->position))
+		else if (srv->config.diagnostics_enable && lsp_diagnostics_has_diag(nt->position))
 			lsp_diagnostics_show_calltip(nt->position);
-		else if (cfg->hover_enable)
-		{
-			LspServer *srv = lsp_server_get_if_running(doc);
-			if (srv)
-				lsp_hover_send_request(srv, doc, nt->position);
-		}
+		else if (srv->config.hover_enable)
+			lsp_hover_send_request(srv, doc, nt->position);
 
 		return FALSE;
 	}

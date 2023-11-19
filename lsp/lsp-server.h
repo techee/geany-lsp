@@ -30,6 +30,8 @@ typedef struct
 	gboolean show_server_stderr;
 	gchar *rpc_log;
 	gchar *initialization_options_file;
+	gboolean use_outside_project_dir;
+	gboolean use_without_project;
 
 	gboolean autocomplete_enable;
 	gchar **autocomplete_trigger_sequences;
