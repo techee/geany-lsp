@@ -131,13 +131,20 @@ static void stop_process(LspServer *s)
 
 static void stop_server(LspServer *s)
 {
-	LspServerConfig *cfg = &s->config;
-
 	if (s->process)
 	{
 		s->startup_shutdown = TRUE;
 		stop_process(s);
 	}
+}
+
+
+static void free_server(gpointer data)
+{
+	LspServer *s = data;
+	LspServerConfig *cfg = &s->config;
+
+	stop_server(s);
 
 	g_free(s->cmd);
 	g_free(s->ref_lang);
@@ -153,13 +160,7 @@ static void stop_server(LspServer *s)
 	g_free(cfg->diagnostics_hint_style);
 	g_free(cfg->highlighting_style);
 	g_free(cfg->formatting_options_file);
-}
 
-
-static void free_server(gpointer data)
-{
-	LspServer *s = data;
-	stop_server(s);
 	g_free(s);
 }
 
@@ -219,6 +220,30 @@ static LspServer *srv_from_rpc_client(JsonrpcClient *client)
 	}
 
 	return NULL;
+}
+
+
+LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
+{
+	LspLogInfo empty = {0, NULL};
+	LspServer *s;
+	gint i;
+
+	if (servers_in_shutdown)
+	{
+		for (i = 0; i < servers_in_shutdown->len; i++)
+		{
+			ShutdownServerInfo *s = servers_in_shutdown->pdata[i];
+			if (s->rpc_client == client)
+				return s->log;
+		}
+	}
+
+	s = srv_from_rpc_client(client);
+	if (s)
+		return s->log;
+
+	return empty;
 }
 
 
@@ -496,7 +521,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 			s->use_incremental_sync = use_incremental_sync(return_value);
 
 			s->initialize_response = lsp_utils_json_pretty_print(return_value);
-			//printf("%s\n", lsp_utils_json_pretty_print(return_value));
+			//printf("%s\n", s->initialize_response);
 
 			if (!supports_semantic_tokens(return_value))
 				s->config.semantic_tokens_enable = FALSE;
@@ -516,12 +541,18 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 				// see on_document_activate() for detailed comment
 				if (doc->file_type->id == filetype_id && (doc->changed || doc == current_doc))
 				{
-					lsp_sync_text_document_did_open(s, doc);
-					if (doc == current_doc)
+					// returns NULL if e.g. configured not to use LSP outside project dir
+					LspServer *s2 = lsp_server_get_if_running(doc);
+
+					if (s2)
 					{
-						lsp_diagnostics_style_current_doc(s);
-						lsp_diagnostics_redraw_current_doc(s);
-						lsp_highlight_style_current_doc(s);
+						lsp_sync_text_document_did_open(s, doc);
+						if (doc == current_doc)
+						{
+							lsp_diagnostics_style_current_doc(s);
+							lsp_diagnostics_redraw_current_doc(s);
+							lsp_highlight_style_current_doc(s);
+						}
 					}
 				}
 			}
@@ -833,35 +864,6 @@ static void load_filetype_only_config(GKeyFile *kf, gchar *section, LspServer *s
 	get_str(&s->ref_lang, kf, section, "use");
 	get_str(&s->config.rpc_log, kf, section, "rpc_log");
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
-}
-
-
-LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
-{
-	LspLogInfo empty = {0, NULL};
-	gint i;
-
-	if (servers_in_shutdown)
-	{
-		for (i = 0; i < servers_in_shutdown->len; i++)
-		{
-			ShutdownServerInfo *s = servers_in_shutdown->pdata[i];
-			if (s->rpc_client == client)
-				return s->log;
-		}
-	}
-
-	if (lsp_servers)
-	{
-		for (i = 0; i < lsp_servers->len; i++)
-		{
-			LspServer *s = lsp_servers->pdata[i];
-			if (s->rpc_client == client)
-				return s->log;
-		}
-	}
-
-	return empty;
 }
 
 
