@@ -49,6 +49,7 @@ typedef struct
 	gchar *formatting_options_file;
 
 	gboolean hover_enable;
+	gint hover_popup_max_lines;
 
 	gboolean signature_enable;
 

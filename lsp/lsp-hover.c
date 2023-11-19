@@ -57,9 +57,20 @@ static void hover_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 
 			if (str && strlen(str) > 0)
 			{
+				LspServerConfig *cfg = lsp_server_get_config(doc);
 				gchar *s = g_strdup(str);
+				gchar *p = s;
+				guint i;
 
 				lsp_utils_wrap_string(s, -1);
+				for (i = 0; p && i < cfg->hover_popup_max_lines; i++)
+				{
+					if (p != s)
+						p++;
+					p = strchr(p, '\n');
+				}
+				if (p)
+					*p = '\0';
 				calltip_sci = data->doc->editor->sci;
 				SSM(calltip_sci, SCI_CALLTIPSHOW, data->pos, (sptr_t) s);
 				g_free(s);
