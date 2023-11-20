@@ -49,7 +49,9 @@ static void show_calltip(GeanyDocument *doc, gint pos, const gchar *calltip)
 		gchar *q;
 		if (p != s)
 			p++;
+
 		q = strchr(p, '\n');
+
 		if (q)
 		{
 			gchar *line;
@@ -65,14 +67,18 @@ static void show_calltip(GeanyDocument *doc, gint pos, const gchar *calltip)
 
 			g_free(line);
 		}
+
 		p = q;
 	}
+
 	if (p)
+	{
 		*p = '\0';
-	calltip_sci = doc->editor->sci;
-	g_strstrip(s);
-	if (p || quit)
+		g_strstrip(s);
 		SETPTR(s, g_strconcat(s, "\n...", NULL));
+	}
+
+	calltip_sci = doc->editor->sci;
 	SSM(calltip_sci, SCI_CALLTIPSHOW, pos, (sptr_t) s);
 	g_free(s);
 }
