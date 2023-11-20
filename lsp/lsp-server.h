@@ -50,6 +50,7 @@ typedef struct
 
 	gboolean hover_enable;
 	gint hover_popup_max_lines;
+	gint hover_popup_max_paragraphs;
 
 	gboolean signature_enable;
 

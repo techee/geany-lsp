@@ -60,18 +60,40 @@ static void hover_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 				LspServerConfig *cfg = lsp_server_get_config(doc);
 				gchar *s = g_strdup(str);
 				gchar *p = s;
+				gboolean quit = FALSE;
+				gint paragraph_no = 0;
 				guint i;
 
 				lsp_utils_wrap_string(s, -1);
-				for (i = 0; p && i < cfg->hover_popup_max_lines; i++)
+				for (i = 0; p && !quit && i < cfg->hover_popup_max_lines; i++)
 				{
+					gchar *q;
 					if (p != s)
 						p++;
-					p = strchr(p, '\n');
+					q = strchr(p, '\n');
+					if (q)
+					{
+						gchar *line;
+
+						*q = '\0';
+						line = g_strdup(p);
+						g_strstrip(line);
+						if (line[0] == '\0')
+							paragraph_no++;
+						if (paragraph_no == cfg->hover_popup_max_paragraphs)
+							quit = TRUE;
+						*q = '\n';
+
+						g_free(line);
+					}
+					p = q;
 				}
 				if (p)
 					*p = '\0';
 				calltip_sci = data->doc->editor->sci;
+				g_strstrip(s);
+				if (p || quit)
+					SETPTR(s, g_strconcat(s, "\n...", NULL));
 				SSM(calltip_sci, SCI_CALLTIPSHOW, data->pos, (sptr_t) s);
 				g_free(s);
 			}

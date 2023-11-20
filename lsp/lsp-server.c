@@ -835,6 +835,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 
 	get_bool(&s->config.hover_enable, kf, section, "hover_enable");
 	get_int(&s->config.hover_popup_max_lines, kf, section, "hover_popup_max_lines");
+	get_int(&s->config.hover_popup_max_paragraphs, kf, section, "hover_popup_max_paragraphs");
 	get_bool(&s->config.signature_enable, kf, section, "signature_enable");
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
 	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
