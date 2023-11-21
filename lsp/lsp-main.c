@@ -280,6 +280,7 @@ static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	lsp_diagnostics_style_current_doc(srv);
 	lsp_diagnostics_redraw_current_doc(srv);
 	lsp_highlight_style_current_doc(srv);
+	lsp_semtokens_style_current_doc(srv);
 }
 
 

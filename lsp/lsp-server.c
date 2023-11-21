@@ -154,6 +154,7 @@ static void free_server(gpointer data)
 	lsp_progress_free_all(s);
 
 	g_strfreev(cfg->autocomplete_trigger_sequences);
+	g_free(cfg->semantic_tokens_type_style);
 	g_free(cfg->diagnostics_error_style);
 	g_free(cfg->diagnostics_warning_style);
 	g_free(cfg->diagnostics_info_style);
@@ -552,6 +553,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 							lsp_diagnostics_style_current_doc(s);
 							lsp_diagnostics_redraw_current_doc(s);
 							lsp_highlight_style_current_doc(s);
+							lsp_semtokens_style_current_doc(s);
 						}
 					}
 				}
@@ -840,7 +842,9 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
 	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");
+
 	get_bool(&s->config.semantic_tokens_enable, kf, section, "semantic_tokens_enable");
+	get_str(&s->config.semantic_tokens_type_style, kf, section, "semantic_tokens_type_style");
 
 	get_str(&s->config.formatting_options_file, kf, section, "formatting_options_file");
 

@@ -52,6 +52,9 @@ typedef struct {
 	gchar *result_id;
 } CachedData;
 
+
+static gint style_index;
+
 //TODO: destroy on plugin unload
 static GHashTable *cached_tokens;
 
@@ -78,6 +81,17 @@ void lsp_semtokens_init(gint ft_id)
 		g_hash_table_foreach_remove(cached_tokens, should_remove, GINT_TO_POINTER(ft_id));
 	else
 		cached_tokens = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)cached_data_free);
+}
+
+
+void lsp_semtokens_style_current_doc(LspServer *server)
+{
+	GeanyDocument *doc = document_get_current();
+	ScintillaObject *sci = doc->editor->sci;
+
+	style_index = 0;
+	if (server->config.semantic_tokens_type_style)
+		style_index = lsp_utils_set_indicator_style(sci, server->config.semantic_tokens_type_style);
 }
 
 
@@ -116,7 +130,7 @@ const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
 {
 	CachedData *data;
 
-	if (!cached_tokens)
+	if (!cached_tokens || style_index > 0)
 		return "";
 
 	data = g_hash_table_lookup(cached_tokens, doc->real_path);
@@ -127,9 +141,10 @@ const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
 }
 
 
-static gchar *process_tokens(GArray *tokens, ScintillaObject *sci, guint64 token_mask)
+static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, guint64 token_mask)
 {
 	GHashTable *type_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	ScintillaObject *sci = doc->editor->sci;
 	guint delta_line = 0;
 	guint delta_char = 0;
 	guint len = 0;
@@ -177,6 +192,10 @@ static gchar *process_tokens(GArray *tokens, ScintillaObject *sci, guint64 token
 				end_pos.character += len;
 				sci_pos_start = lsp_utils_lsp_pos_to_scintilla(sci, last_pos);
 				sci_pos_end = lsp_utils_lsp_pos_to_scintilla(sci, end_pos);
+
+				if (style_index > 0)
+					editor_indicator_set_on_range(doc->editor, style_index, sci_pos_start, sci_pos_end);
+
 				str = sci_get_contents_range(sci, sci_pos_start, sci_pos_end);
 				if (str)
 					g_hash_table_add(type_table, str);
@@ -236,7 +255,7 @@ static void process_full_result(GeanyDocument *doc, GVariant *result, guint64 to
 		}
 
 		g_free(data->tokens_str);
-		data->tokens_str = process_tokens(data->tokens, doc->editor->sci, token_mask);
+		data->tokens_str = process_tokens(data->tokens, doc, token_mask);
 
 		g_variant_iter_free(iter);
 	}
@@ -311,7 +330,7 @@ static void process_delta_result(GeanyDocument *doc, GVariant *result, guint64 t
 			sem_tokens_edit_apply(data, edit);
 
 		g_free(data->tokens_str);
-		data->tokens_str = process_tokens(data->tokens, doc->editor->sci, token_mask);
+		data->tokens_str = process_tokens(data->tokens, doc, token_mask);
 
 		g_ptr_array_free(edits, TRUE);
 		g_variant_iter_free(iter);
