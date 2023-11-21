@@ -108,7 +108,7 @@ static void shutdown_cb(GObject *object, GAsyncResult *result, gpointer user_dat
 }
 
 
-static void stop_process(LspServer *s)
+static void stop_process(LspServer *s, gboolean terminate)
 {
 	ShutdownServerInfo *info = g_new0(ShutdownServerInfo, 1);
 
@@ -124,8 +124,14 @@ static void stop_process(LspServer *s)
 
 	g_ptr_array_add(servers_in_shutdown, info);
 
-	msgwin_status_add("Sending shutdown request to LSP server %s", s->cmd);
-	lsp_client_call_async(info->rpc_client, "shutdown", NULL, shutdown_cb, info);
+	if (terminate)
+	{
+		msgwin_status_add("Sending shutdown request to LSP server %s", s->cmd);
+		lsp_client_call_async(info->rpc_client, "shutdown", NULL, shutdown_cb, info);
+	}
+	else
+		g_ptr_array_remove_fast(servers_in_shutdown, info);
+
 }
 
 
@@ -134,7 +140,7 @@ static void stop_server(LspServer *s)
 	if (s->process)
 	{
 		s->startup_shutdown = TRUE;
-		stop_process(s);
+		stop_process(s, TRUE);
 	}
 }
 
@@ -570,7 +576,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 		if (s && s->rpc_client == self)
 		{
 			msgwin_status_add("LSP initialize request failed for LSP server %s", s->cmd);
-			stop_process(s);
+			stop_process(s, TRUE);
 			start_lsp_server(s, filetype_id);
 		}
 	}
@@ -713,8 +719,8 @@ static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer 
 
 	if (s && s->process == process)
 	{
-		msgwin_status_add("LSP server %s crashed, restarting", s->cmd);
-		stop_process(s);
+		msgwin_status_add("LSP server %s stopped, restarting", s->cmd);
+		stop_process(s, FALSE);
 		start_lsp_server(s, filetype_id);
 	}
 }
@@ -736,7 +742,10 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 
 	server->restarts++;
 	if (is_dead(server))
+	{
+		dialogs_show_msgbox(GTK_MESSAGE_ERROR, "LSP server %s terminated more than 5 times, giving up", server->cmd);
 		return;
+	}
 
 	argv = g_strsplit_set(server->cmd, " ", -1);
 
@@ -883,10 +892,7 @@ static LspServer *server_get_or_start_for_ft(GeanyFiletype *ft, gboolean launch_
 		return NULL;
 
 	if (is_dead(s))
-	{
-		msgwin_status_add("LSP server %s terminated more than 5 times, giving up", s->cmd);
 		return NULL;
-	}
 
 	if (!launch_server)
 		return NULL;
