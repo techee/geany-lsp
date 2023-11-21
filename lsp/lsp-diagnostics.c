@@ -234,7 +234,7 @@ void lsp_diagnostics_received(GVariant* diags)
 	GeanyDocument *doc;
 	GVariantIter *iter = NULL;
 	const gchar *uri = NULL;
-	gchar *real_path, *real_path2;
+	gchar *real_path;
 	GVariant *diag = NULL;
 	GPtrArray *arr;
 
@@ -283,11 +283,9 @@ void lsp_diagnostics_received(GVariant* diags)
 
 	doc = document_get_current();
 
-	real_path2 = g_strdup(real_path);
-	/* frees real_path */
-	g_hash_table_insert(diag_table, real_path, arr);
+	g_hash_table_insert(diag_table, g_strdup(real_path), arr);
 
-	if (doc && doc->real_path && g_strcmp0(doc->real_path, real_path2) == 0)
+	if (doc && doc->real_path && g_strcmp0(doc->real_path, real_path) == 0)
 	{
 		LspServer *srv = lsp_server_get(doc);
 		if (srv)
@@ -295,7 +293,7 @@ void lsp_diagnostics_received(GVariant* diags)
 	}
 
 	g_variant_iter_free(iter);
-	g_free(real_path2);
+	g_free(real_path);
 }
 
 
