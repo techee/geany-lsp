@@ -114,18 +114,14 @@ static void sem_tokens_edit_apply(CachedData *data, SemanticTokensEdit *edit)
 
 const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
 {
-	static gchar *empty_result = NULL;
 	CachedData *data;
 
-	if (!empty_result)
-		empty_result = g_strdup("");
-
 	if (!cached_tokens)
-		return empty_result;
+		return "";
 
 	data = g_hash_table_lookup(cached_tokens, doc->real_path);
 	if (!data || !data->tokens_str)
-		return empty_result;
+		return "";
 
 	return data->tokens_str;
 }
