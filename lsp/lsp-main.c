@@ -319,7 +319,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	}
 	else if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
-		LspServer *srv = lsp_server_get_if_running(doc);
+		LspServer *srv = lsp_server_get(doc);
 
 		// also delivered when other window has focus
 		if (!gtk_widget_has_focus(GTK_WIDGET(sci)))
@@ -345,7 +345,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	}
 	else if (nt->nmhdr.code == SCN_DWELLEND)
 	{
-		LspServer *srv = lsp_server_get_if_running(doc);
+		LspServer *srv = lsp_server_get(doc);
 		if (!srv)
 			return FALSE;
 
@@ -364,7 +364,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		if (!(nt->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_BEFOREDELETE | SC_MOD_BEFOREINSERT)))
 			return FALSE;
 
-		srv = lsp_server_get_if_running(doc);
+		srv = lsp_server_get(doc);
 
 		if (!srv || !doc->real_path)
 			return FALSE;
