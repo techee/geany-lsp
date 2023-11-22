@@ -86,6 +86,8 @@ enum {
   KB_RENAME_IN_PROJECT,
   KB_FORMAT_CODE,
 
+  KB_RESTART_SERVERS,
+
   KB_COUNT
 };
 
@@ -853,6 +855,10 @@ static void invoke_kb(guint key_id, gint pos)
 			lsp_format_perform();
 			break;
 
+		case KB_RESTART_SERVERS:
+			restart_all_servers();
+			break;
+
 		default:
 			break;
 	}
@@ -983,7 +989,8 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("Show _Hover Popup"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(show_hover_popup), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_SHOW_HOVER_POPUP));
 	keybindings_set_item(group, KB_SHOW_HOVER_POPUP, NULL, 0, 0, "show_hover_popup",
 		_("Show hover popup"), item);
 
@@ -1011,7 +1018,10 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("_Restart All Servers"));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(restart_all_servers), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_RESTART_SERVERS));
+	keybindings_set_item(group, KB_RESTART_SERVERS, NULL, 0, 0, "restart_all_servers",
+		_("Restart all servers"), item);
 
 	gtk_widget_show_all(menu_items.parent_item);
 
