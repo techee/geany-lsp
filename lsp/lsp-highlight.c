@@ -61,6 +61,7 @@ void lsp_highlight_style_current_doc(LspServer *server)
 		lsp_highlight_clear(doc);
 	}
 	indicator = lsp_utils_set_indicator_style(sci, server->config.highlighting_style);
+	SSM(sci, SCI_INDICSETUNDER, indicator, TRUE);
 }
 
 
