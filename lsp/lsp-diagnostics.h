@@ -36,4 +36,7 @@ void lsp_diagnostics_style_current_doc(LspServer *server);
 
 gboolean lsp_diagnostics_has_diag(gint pos);
 
+void lsp_diagnostics_goto_next_diag(gint pos);
+void lsp_diagnostics_goto_prev_diag(gint pos);
+
 #endif  /* LSP_DIAGNOSTICS_H */

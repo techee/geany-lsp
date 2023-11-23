@@ -84,9 +84,10 @@ void lsp_diagnostics_destroy(void)
 }
 
 
-static LspDiag *get_diag(gint pos)
+static LspDiag *get_diag(gint pos, gint where)
 {
 	GeanyDocument *doc = document_get_current();
+	LspDiag *previous_diag = NULL;
 	GPtrArray *diags;
 	gint i;
 
@@ -110,9 +111,27 @@ static LspDiag *get_diag(gint pos)
 			end_pos = SSM(sci, SCI_POSITIONAFTER, end_pos, 0);
 		}
 
-		if (pos >= start_pos && pos <= end_pos)
-			return diag;
+		if (where == 0)  // at the position
+		{
+			if (pos >= start_pos && pos <= end_pos)
+				return diag;
+		}
+		else if (where == 1)  // after position
+		{
+			if (start_pos > pos)
+				return diag;
+		}
+		else if (where == -1)  // before position
+		{
+			if (end_pos < pos)
+				previous_diag = diag;
+			else
+				break;
+		}
 	}
+
+	if (previous_diag)
+		return previous_diag;
 
 	return NULL;
 }
@@ -120,13 +139,39 @@ static LspDiag *get_diag(gint pos)
 
 gboolean lsp_diagnostics_has_diag(gint pos)
 {
-	return get_diag(pos) != NULL;
+	return get_diag(pos, 0) != NULL;
+}
+
+
+void lsp_diagnostics_goto_next_diag(gint pos)
+{
+	GeanyDocument *doc = document_get_current();
+	LspDiag *diag = get_diag(pos, 1);
+
+	if (doc && diag)
+	{
+		gint start_pos = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, diag->range.start);
+		sci_set_current_position(doc->editor->sci, start_pos, TRUE);
+	}
+}
+
+
+void lsp_diagnostics_goto_prev_diag(gint pos)
+{
+	GeanyDocument *doc = document_get_current();
+	LspDiag *diag = get_diag(pos, -1);
+
+	if (doc && diag)
+	{
+		gint start_pos = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, diag->range.start);
+		sci_set_current_position(doc->editor->sci, start_pos, TRUE);
+	}
 }
 
 
 void lsp_diagnostics_show_calltip(gint pos)
 {
-	LspDiag *diag = get_diag(pos);
+	LspDiag *diag = get_diag(pos, 0);
 	gchar *first = NULL;
 	gchar *second;
 
@@ -183,6 +228,7 @@ void lsp_diagnostics_redraw_current_doc(LspServer *server)
 	GeanyDocument *doc = document_get_current();
 	ScintillaObject *sci;
 	GPtrArray *diags;
+	gint last_start_pos = 0, last_end_pos = 0;
 	gint i;
 
 	if (!doc || !doc->real_path)
@@ -196,7 +242,6 @@ void lsp_diagnostics_redraw_current_doc(LspServer *server)
 	if (!diags || !server->config.diagnostics_enable)
 		return;
 
-
 	for (i = 0; i < diags->len; i++)
 	{
 		LspDiag *diag = diags->pdata[i];
@@ -209,8 +254,13 @@ void lsp_diagnostics_redraw_current_doc(LspServer *server)
 			end_pos = SSM(sci, SCI_POSITIONAFTER, end_pos, 0);
 		}
 
-		editor_indicator_set_on_range(doc->editor, style_indices[diag->severity],
-			start_pos, end_pos);
+		if (start_pos != last_start_pos || end_pos != last_end_pos)
+		{
+			editor_indicator_set_on_range(doc->editor, style_indices[diag->severity],
+				start_pos, end_pos);
+			last_start_pos = start_pos;
+			last_end_pos = end_pos;
+		}
 	}
 }
 
@@ -229,9 +279,28 @@ void lsp_diagnostics_style_current_doc(LspServer *server)
 }
 
 
+static gint sort_diags(gconstpointer a, gconstpointer b)
+{
+	LspDiag *d1 = *((LspDiag **)a);
+	LspDiag *d2 = *((LspDiag **)b);
+
+	if (d2->range.start.line > d1->range.start.line)
+		return -1;
+	if (d2->range.start.line < d1->range.start.line)
+		return 1;
+
+	if (d2->range.start.character > d1->range.start.character)
+		return -1;
+	if (d2->range.start.character < d1->range.start.character)
+		return 1;
+
+	return d1->severity - d2->severity;
+}
+
+
 void lsp_diagnostics_received(GVariant* diags)
 {
-	GeanyDocument *doc;
+	GeanyDocument *doc = document_get_current();;
 	GVariantIter *iter = NULL;
 	const gchar *uri = NULL;
 	gchar *real_path;
@@ -281,7 +350,7 @@ void lsp_diagnostics_received(GVariant* diags)
 		g_ptr_array_add(arr, lsp_diag);
 	}
 
-	doc = document_get_current();
+	g_ptr_array_sort(arr, sort_diags);
 
 	g_hash_table_insert(diag_table, g_strdup(real_path), arr);
 

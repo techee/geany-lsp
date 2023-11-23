@@ -77,6 +77,9 @@ enum {
   KB_GOTO_WORKSPACE_SYMBOL,
   KB_GOTO_LINE,
 
+  KB_GOTO_NEXT_DIAG,
+  KB_GOTO_PREV_DIAG,
+
   KB_FIND_IMPLEMENTATIONS,
   KB_FIND_REFERENCES,
 
@@ -832,6 +835,13 @@ static void invoke_kb(guint key_id, gint pos)
 			lsp_goto_anywhere_for_line();
 			break;
 
+		case KB_GOTO_NEXT_DIAG:
+			lsp_diagnostics_goto_next_diag(pos);
+			break;
+		case KB_GOTO_PREV_DIAG:
+			lsp_diagnostics_goto_prev_diag(pos);
+			break;
+
 		case KB_FIND_REFERENCES:
 			lsp_goto_references(pos);
 			break;
@@ -924,27 +934,47 @@ static void create_menu_items()
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Anywhere..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_file), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_ANYWHERE));
 	keybindings_set_item(group, KB_GOTO_ANYWHERE, NULL, 0, 0, "goto_anywhere",
 		_("Go to anywhere"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Document Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_doc), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_DOC_SYMBOL));
 	keybindings_set_item(group, KB_GOTO_DOC_SYMBOL, NULL, 0, 0, "goto_doc_symbol",
 		_("Go to document symbol"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Workspace Symbol..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_workspace), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_WORKSPACE_SYMBOL));
 	keybindings_set_item(group, KB_GOTO_WORKSPACE_SYMBOL, NULL, 0, 0, "goto_workspace_symbol",
 		_("Go to workspace symbol"), item);
 
 	item = gtk_menu_item_new_with_mnemonic(_("Go to _Line..."));
 	gtk_container_add(GTK_CONTAINER(menu), item);
-	g_signal_connect(item, "activate", G_CALLBACK(lsp_goto_anywhere_for_line), NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_LINE));
 	keybindings_set_item(group, KB_GOTO_LINE, NULL, 0, 0, "goto_line",
 		_("Go to line"), item);
+
+	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
+
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Next Diagnostic"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_NEXT_DIAG));
+	keybindings_set_item(group, KB_GOTO_NEXT_DIAG, NULL, 0, 0, "goto_next_diag",
+		_("Go to next diagnostic"), item);
+
+	item = gtk_menu_item_new_with_mnemonic(_("Go to _Previous Diagnostic"));
+	gtk_container_add(GTK_CONTAINER(menu), item);
+	g_signal_connect(item, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_PREV_DIAG));
+	keybindings_set_item(group, KB_GOTO_PREV_DIAG, NULL, 0, 0, "goto_prev_diag",
+		_("Go to previous diagnostic"), item);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
