@@ -232,7 +232,7 @@ static LspServer *srv_from_rpc_client(JsonrpcClient *client)
 
 LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
 {
-	LspLogInfo empty = {0, NULL};
+	LspLogInfo empty = {0, TRUE, NULL};
 	LspServer *s;
 	gint i;
 
@@ -821,6 +821,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 
 	get_bool(&s->config.use_outside_project_dir, kf, section, "lsp_use_outside_project_dir");
 	get_bool(&s->config.use_without_project, kf, section, "lsp_use_without_project");
+	get_bool(&s->config.rpc_log_full, kf, section, "rpc_log_full");
 
 	get_bool(&s->config.autocomplete_enable, kf, section, "autocomplete_enable");
 

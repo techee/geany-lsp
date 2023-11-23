@@ -45,11 +45,13 @@ static void log_print(LspLogInfo log, const gchar *fmt, ...)
 
 LspLogInfo lsp_log_start(LspServerConfig *config)
 {
-	LspLogInfo info = {0, NULL};
+	LspLogInfo info = {0, TRUE, NULL};
 	GFile *fp;
 
 	if (!config->rpc_log)
 		return info;
+
+	info.full = config->rpc_log_full;
 
 	if (g_strcmp0(config->rpc_log, "stdout") == 0)
 		info.type = STDOUT_FILENO;
@@ -67,7 +69,8 @@ LspLogInfo lsp_log_start(LspServerConfig *config)
 		g_object_unref(fp);
 	}
 
-	log_print(info, "{\n");
+	if (info.full)
+		log_print(info, "{\n");
 
 	return info;
 }
@@ -78,7 +81,8 @@ void lsp_log_stop(LspLogInfo log)
 	if (log.type == 0 && !log.stream)
 		return;
 
-	log_print(log, "\n\n\"log end\": \"\"\n}\n");
+	if (log.full)
+		log_print(log, "\n\n\"log end\": \"\"\n}\n");
 
 	if (log.stream)
 		g_output_stream_close(G_OUTPUT_STREAM(log.stream), NULL, NULL);
@@ -104,34 +108,39 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 	switch (type)
 	{
 		case LspLogClientMessageSent:
-			title = "Geany ---> Server (message request)";
+			title = "Geany  ---> Server (message request)";
 			break;
 		case LspLogClientMessageReceived:
-			title = "Geany <--- Server (message response)";
+			title = "Geany  <--- Server (message response)";
 			break;
 		case LspLogClientNotificationSent:
-			title = "Geany ---> Server (notification)";
+			title = "Geany  ---> Server (notification)";
 			break;
 		case LspLogServerMessageSent:
-			title = "Server ---> Geany (message request)";
+			title = "Server ---> Geany  (message request)";
 			break;
 		case LspLogServerMessageReceived:
-			title = "Server <--- Geany (message response)";
+			title = "Server <--- Geany  (message response)";
 			break;
 		case LspLogServerNotificationSent:
-			title = "Server ---> Geany (notification)";
+			title = "Server ---> Geany  (notification)";
 			break;
 	}
 
-	log_print(log, "\n\n\"%s\": \"%s\",\n", time_str, title);
+	if (log.full)
+	{
+		log_print(log, "\n\n\"%s\": \"%s\",\n", time_str, title);
 
-	if (!params)
-		json_msg = g_strdup("null");
+		if (!params)
+			json_msg = g_strdup("null");
+		else
+			json_msg = lsp_utils_json_pretty_print(params);
+
+		log_print(log, "\"%s\":\n%s,\n", method, json_msg);
+		g_free(json_msg);
+	}
 	else
-		json_msg = lsp_utils_json_pretty_print(params);
+		log_print(log, "[%s] %s\n                  - %s\n", time_str, title, method);
 
-	log_print(log, "\"%s\":\n%s,\n", method, json_msg);
-
-	g_free(json_msg);
 	g_free(time_str);
 }

@@ -29,6 +29,7 @@ typedef struct
 {
 	gboolean show_server_stderr;
 	gchar *rpc_log;
+	gboolean rpc_log_full;
 	gchar *initialization_options_file;
 	gboolean use_outside_project_dir;
 	gboolean use_without_project;
@@ -70,6 +71,7 @@ typedef struct
 typedef struct
 {
 	gint type;  // 0: use stream, 1: stdout, 2: stderr
+	gboolean full;
 	GFileOutputStream *stream;
 } LspLogInfo;
 
