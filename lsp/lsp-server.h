@@ -40,6 +40,7 @@ typedef struct
 	gboolean autocomplete_apply_additional_edits;
 	gint autocomplete_window_max_entries;
 	gint autocomplete_window_max_displayed;
+	gint autocomplete_window_max_width;
 
 	gboolean diagnostics_enable;
 	gchar *diagnostics_error_style;

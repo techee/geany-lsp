@@ -835,6 +835,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 
 	get_int(&s->config.autocomplete_window_max_entries, kf, section, "autocomplete_window_max_entries");
 	get_int(&s->config.autocomplete_window_max_displayed, kf, section, "autocomplete_window_max_displayed");
+	get_int(&s->config.autocomplete_window_max_width, kf, section, "autocomplete_window_max_width");
 
 	get_bool(&s->config.autocomplete_use_label, kf, section, "autocomplete_use_label");
 	get_bool(&s->config.autocomplete_apply_additional_edits, kf, section, "autocomplete_apply_additional_edits");

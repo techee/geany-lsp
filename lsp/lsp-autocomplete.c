@@ -221,6 +221,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH, 0);
 	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
 	SSM(sci, SCI_AUTOCSETMAXHEIGHT, server->config.autocomplete_window_max_displayed, 0);
+	SSM(sci, SCI_AUTOCSETMAXWIDTH, server->config.autocomplete_window_max_width, 0);
 	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(doc, pos), (sptr_t) words->str);
 
 	//make sure Scintilla selects the first item - see https://sourceforge.net/p/scintilla/bugs/2403/
