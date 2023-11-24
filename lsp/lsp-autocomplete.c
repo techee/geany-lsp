@@ -300,10 +300,6 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		JSONRPC_MESSAGE_PARSE(member, "textEdit", JSONRPC_MESSAGE_GET_VARIANT(&text_edit));
 		JSONRPC_MESSAGE_PARSE(member, "additionalTextEdits", JSONRPC_MESSAGE_GET_ITER(&additional_edits));
 
-		//TODO: strips bullet added by clangd - fix in Scintilla
-//		while (*label && (label[0] > 127 || isspace(label[0]) || !isprint(label[0])))
-//			label = g_utf8_next_char(label);
-
 		sym = g_new0(LspAutocompleteSymbol, 1);
 		sym->label = g_strdup(label);
 		sym->insert_text = g_strdup(insert_text);
@@ -432,18 +428,6 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc)
 	gint lexer = sci_get_lexer(sci);
 	gint style = sci_get_style_at(sci, pos);
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
-
-#if 0
-	if (first_time)
-	{
-		//TODO: workaround a strange Scintilla autocomplete window sizing
-		//when autocomplete performed immediately after clangd start
-		SSM(doc->editor->sci, SCI_AUTOCSETORDER, SC_ORDER_CUSTOM, 0);
-		SSM(doc->editor->sci, SCI_AUTOCSHOW, 0, (sptr_t) "a?1");
-		SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
-		first_time = FALSE;
-	}
-#endif
 
 	// highlighting_is_code_style(lexer, style) also checks for preprocessor
 	// style which we might not want here as LSP servers might support it
