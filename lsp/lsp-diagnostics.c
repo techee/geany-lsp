@@ -36,6 +36,7 @@ typedef struct {
 	gchar *source;
 	gchar *message;
 	gint severity;
+	GVariant *diag_raw;
 } LspDiag;
 
 
@@ -57,6 +58,7 @@ static void diag_free(LspDiag *diag)
 	g_free(diag->code);
 	g_free(diag->source);
 	g_free(diag->message);
+	g_variant_unref(diag->diag_raw);
 	g_free(diag);
 }
 
@@ -140,6 +142,16 @@ static LspDiag *get_diag(gint pos, gint where)
 gboolean lsp_diagnostics_has_diag(gint pos)
 {
 	return get_diag(pos, 0) != NULL;
+}
+
+
+GVariant *lsp_diagnostics_get_diag_raw(gint pos)
+{
+	LspDiag *diag = get_diag(pos, 0);
+
+	if (diag)
+		return diag->diag_raw;
+	return NULL;
 }
 
 
@@ -325,7 +337,7 @@ void lsp_diagnostics_received(GVariant* diags)
 
 	arr = g_ptr_array_new_full(10, (GDestroyNotify)diag_free);
 
-	while (g_variant_iter_loop(iter, "v", &diag))
+	while (g_variant_iter_next(iter, "v", &diag))
 	{
 		GVariant *range = NULL;
 		const gchar *code = NULL;
@@ -346,6 +358,7 @@ void lsp_diagnostics_received(GVariant* diags)
 		lsp_diag->message = g_strdup(message);
 		lsp_diag->severity = severity;
 		lsp_diag->range = lsp_utils_parse_range(range);
+		lsp_diag->diag_raw = diag;
 
 		g_ptr_array_add(arr, lsp_diag);
 	}

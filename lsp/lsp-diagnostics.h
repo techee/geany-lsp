@@ -35,6 +35,7 @@ void lsp_diagnostics_redraw_current_doc(LspServer *server);
 void lsp_diagnostics_style_current_doc(LspServer *server);
 
 gboolean lsp_diagnostics_has_diag(gint pos);
+GVariant *lsp_diagnostics_get_diag_raw(gint pos);
 
 void lsp_diagnostics_goto_next_diag(gint pos);
 void lsp_diagnostics_goto_prev_diag(gint pos);

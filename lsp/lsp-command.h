@@ -25,5 +25,6 @@
 
 
 void lsp_command_send_request(LspServer *server, const gchar *cmd, GVariant *arguments);
+void lsp_command_send_code_action_request(LspServer *server, gint pos);
 
 #endif  /* LSP_COMMAND_H */
