@@ -23,8 +23,19 @@
 
 #include <glib.h>
 
+typedef struct
+{
+	gchar *title;
+	gchar *command;
+	GVariant *arguments;
+} LspCommand;
+
 
 void lsp_command_send_request(LspServer *server, const gchar *cmd, GVariant *arguments);
-void lsp_command_send_code_action_request(LspServer *server, gint pos);
+
+void lsp_command_send_code_action_init(void);
+void lsp_command_send_code_action_destroy(void);
+void lsp_command_send_code_action_request(gint pos, GCallback actions_resolved_cb);
+GPtrArray *lsp_command_get_resolved_code_actions(void);
 
 #endif  /* LSP_COMMAND_H */

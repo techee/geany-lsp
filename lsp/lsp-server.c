@@ -317,6 +317,27 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 		jsonrpc_client_reply_async(self, id, NULL, NULL, NULL, NULL);
 		ret = TRUE;
 	}
+	else if (g_strcmp0(method, "workspace/applyEdit") == 0)
+	{
+		GVariant *edit, *node;
+		gboolean success = FALSE;
+
+		JSONRPC_MESSAGE_PARSE(params,
+			"edit", JSONRPC_MESSAGE_GET_VARIANT(&edit)
+		);
+
+		success = lsp_utils_apply_workspace_edit(edit);
+
+		node = JSONRPC_MESSAGE_NEW(
+			"applied", JSONRPC_MESSAGE_PUT_BOOLEAN(success)
+		);
+
+		jsonrpc_client_reply_async(self, id, node, NULL, NULL, NULL);
+
+		g_variant_unref(node);
+		g_variant_unref(edit);
+		ret = TRUE;
+	}
 
 	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageReceived, method, variant);
 	g_variant_unref(variant);

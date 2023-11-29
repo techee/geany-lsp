@@ -34,6 +34,7 @@
 #include "lsp-format.h"
 #include "lsp-highlight.h"
 #include "lsp-rename.h"
+#include "lsp-command.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -101,6 +102,7 @@ struct
 	GtkWidget *project_config;
 	GtkWidget *user_config;
 	// context menu
+	GtkWidget *command_item;
 	GtkWidget *goto_type_def;
 	GtkWidget *goto_ref;
 	GtkWidget *rename_in_file;
@@ -152,6 +154,7 @@ static void destroy_all(void)
 	lsp_diagnostics_destroy();
 	lsp_semtokens_destroy();
 	lsp_symbols_destroy();
+	lsp_command_send_code_action_destroy();
 }
 
 
@@ -164,6 +167,7 @@ static void stop_and_init_all_servers(void)
 
 	lsp_sync_init();
 	lsp_diagnostics_init();
+	lsp_command_send_code_action_init();
 }
 
 
@@ -588,10 +592,55 @@ static void on_project_save(G_GNUC_UNUSED GObject *obj, GKeyFile *kf,
 }
 
 
+static void code_action_cb(GtkWidget *widget, gpointer user_data)
+{
+	GeanyDocument *doc = document_get_current();
+	LspServer *srv = lsp_server_get_if_running(doc);
+	GPtrArray *arr = lsp_command_get_resolved_code_actions();
+	guint index = GPOINTER_TO_UINT(user_data);
+	LspCommand *cmd;
+
+	if (!srv || index >= arr->len)
+		return;
+
+	cmd = arr->pdata[index];
+	lsp_command_send_request(srv, cmd->command, cmd->arguments);
+}
+
+
+static void remove_item(GtkWidget *widget, gpointer data)
+{
+	gtk_container_remove(GTK_CONTAINER(data), widget);
+}
+
+
+static void update_command_menu_items(void)
+{
+	GtkWidget *menu = gtk_menu_item_get_submenu(GTK_MENU_ITEM(menu_items.command_item));
+	GPtrArray *arr = lsp_command_get_resolved_code_actions();
+	LspCommand *cmd;
+	guint i;
+
+	gtk_container_foreach(GTK_CONTAINER(menu), remove_item, menu);
+
+	foreach_ptr_array(cmd, i, arr)
+	{
+		GtkWidget *item = gtk_menu_item_new_with_label(cmd->title);
+
+		gtk_container_add(GTK_CONTAINER(menu), item);
+		g_signal_connect(item, "activate", G_CALLBACK(code_action_cb), GUINT_TO_POINTER(i));
+	}
+
+	gtk_widget_show_all(menu_items.command_item);
+	gtk_widget_set_sensitive(menu_items.command_item, arr->len > 0);
+}
+
+
 static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 	const gchar *word, gint pos, GeanyDocument *doc, gpointer user_data)
 {
-	last_click_pos = pos;
+	lsp_command_send_code_action_request(pos, update_command_menu_items);
+
 	return FALSE;
 }
 
@@ -898,7 +947,7 @@ static void on_context_menu_invoked(GtkWidget *widget, gpointer user_data)
 
 static void create_menu_items()
 {
-	GtkWidget *menu, *item;
+	GtkWidget *menu, *item, *command_submenu;
 	GeanyKeyGroup *group;
 
 	group = plugin_set_key_group(geany_plugin, "lsp", KB_COUNT, on_kb_invoked);
@@ -1059,6 +1108,12 @@ static void create_menu_items()
 	menu_items.separator1 = gtk_separator_menu_item_new();
 	gtk_widget_show(menu_items.separator1);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator1);
+
+	menu_items.command_item = gtk_menu_item_new_with_mnemonic(_("_Commands"));
+	command_submenu = gtk_menu_new ();
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_items.command_item), command_submenu);
+	gtk_widget_show_all(menu_items.command_item);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.command_item);
 
 	menu_items.format_code = gtk_menu_item_new_with_mnemonic(_("_Format Code (LSP)"));
 	gtk_widget_show(menu_items.format_code);
