@@ -97,9 +97,12 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 	GDateTime *time;
 	gint time_str_len;
 	gchar *delta_str = NULL;
+	gchar *err_msg;
 
 	if (log.type == 0 && !log.stream)
 		return;
+
+	err_msg = error ? g_strdup_printf("\n%s", error->message) : g_strdup("");
 
 	time = g_date_time_new_now_local();
 	if (req_time)
@@ -151,8 +154,9 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 		g_free(json_msg);
 	}
 	else
-		log_print(log, "[%s] %s %s%s\n", time_str, title, method, delta_str);
+		log_print(log, "[%s] %s %s%s%s\n", time_str, title, method, delta_str, err_msg);
 
 	g_free(time_str);
+	g_free(err_msg);
 	g_free(delta_str);
 }

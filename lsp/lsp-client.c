@@ -86,7 +86,6 @@ static void notify_cb(GObject *source_object, GAsyncResult *res, gpointer user_d
 	GVariant *return_value = NULL;
 	GError *error = NULL;
 
-	//TODO: log errors
 	jsonrpc_client_send_notification_finish(self, res, &error);
 
 	if (data->callback)
