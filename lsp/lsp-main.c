@@ -56,6 +56,7 @@ gchar *project_configuration_file;
 
 static gint last_click_pos;
 static gboolean ignore_selection_change;
+static gboolean session_opening;
 
 
 PLUGIN_VERSION_CHECK(246)  //TODO
@@ -129,10 +130,25 @@ static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 }
 
 
+static void on_document_visible(GeanyDocument *doc)
+{
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv || lsp_sync_is_document_open(doc))
+		return;
+
+	// this might not get called for the first time when server gets started because
+	// lsp_server_get() returns NULL. However, we also "open" current and modified
+	// documents after successful server handshake
+	lsp_sync_text_document_did_open(srv, doc);
+}
+
+
 static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
-	// we use "lazy" document opening notifications, nothing here
+	if (!session_opening)
+		on_document_visible(doc);
 }
 
 
@@ -264,26 +280,6 @@ static void on_document_reload(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 
 	lsp_sync_text_document_did_close(srv, doc);
 	lsp_sync_text_document_did_open(srv, doc);
-}
-
-
-static void on_document_visible(GeanyDocument *doc)
-{
-	LspServer *srv = lsp_server_get(doc);
-
-	if (!srv)
-		return;
-
-	// this might not get called for the first time when server gets started because
-	// lsp_server_get() returns NULL. However, we also "open" current and modified
-	// documents after successful server handshake
-	if (!lsp_sync_is_document_open(doc))
-		lsp_sync_text_document_did_open(srv, doc);
-
-	lsp_diagnostics_style_current_doc(srv);
-	lsp_diagnostics_redraw_current_doc(srv);
-	lsp_highlight_style_current_doc(srv);
-	lsp_semtokens_style_current_doc(srv);
 }
 
 
@@ -650,6 +646,7 @@ static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 static void on_session_opening(G_GNUC_UNUSED GObject *obj, gboolean opening,
 		G_GNUC_UNUSED gpointer user_data)
 {
+	session_opening = opening;
 	if (!opening)
 		on_document_visible(document_get_current());
 }

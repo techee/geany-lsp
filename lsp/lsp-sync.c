@@ -23,6 +23,9 @@
 #include "lsp/lsp-sync.h"
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
+#include "lsp/lsp-diagnostics.h"
+#include "lsp/lsp-highlight.h"
+#include "lsp/lsp-semtokens.h"
 
 #include <jsonrpc-glib.h>
 
@@ -92,6 +95,11 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
 	lsp_client_notify(server, "textDocument/didOpen", node, NULL, NULL);
+
+	lsp_diagnostics_style_current_doc(server);
+	lsp_diagnostics_redraw_current_doc(server);
+	lsp_highlight_style_current_doc(server);
+	lsp_semtokens_style_current_doc(server);
 
 	g_free(doc_uri);
 	g_free(lang_id);

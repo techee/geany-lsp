@@ -556,16 +556,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 					LspServer *s2 = lsp_server_get_if_running(doc);
 
 					if (s2)
-					{
 						lsp_sync_text_document_did_open(s, doc);
-						if (doc == current_doc)
-						{
-							lsp_diagnostics_style_current_doc(s);
-							lsp_diagnostics_redraw_current_doc(s);
-							lsp_highlight_style_current_doc(s);
-							lsp_semtokens_style_current_doc(s);
-						}
-					}
 				}
 			}
 		}
