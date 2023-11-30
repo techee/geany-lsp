@@ -1117,7 +1117,7 @@ static void create_menu_items()
 	gtk_widget_show(menu_items.separator1);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.separator1);
 
-	menu_items.command_item = gtk_menu_item_new_with_mnemonic(_("_Commands"));
+	menu_items.command_item = gtk_menu_item_new_with_mnemonic(_("_Commands (LSP)"));
 	command_submenu = gtk_menu_new ();
 	gtk_menu_item_set_submenu(GTK_MENU_ITEM(menu_items.command_item), command_submenu);
 	gtk_widget_show_all(menu_items.command_item);
