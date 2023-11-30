@@ -384,7 +384,7 @@ static gboolean retry_cb(gpointer user_data)
 	//printf("retrying sem tokens\n");
 	if (data->doc == document_get_current())
 	{
-		LspServer *srv = lsp_server_get(data->doc);
+		LspServer *srv = lsp_server_get_if_running(data->doc);
 		if (!lsp_server_is_usable(data->doc))
 			;  // server died or misconfigured
 		else if (!srv)
@@ -408,7 +408,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 	gpointer user_data)
 {
 	LspSemtokensUserData *data = g_new0(LspSemtokensUserData, 1);
-	LspServer *server = lsp_server_get(doc);
+	LspServer *server = lsp_server_get_if_running(doc);
 	gchar *doc_uri;
 	GVariant *node;
 	CachedData *cached_data;

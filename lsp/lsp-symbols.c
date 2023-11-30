@@ -213,7 +213,7 @@ static gboolean retry_cb(gpointer user_data)
 	//printf("retrying symbols\n");
 	if (data->doc == document_get_current())
 	{
-		LspServer *srv = lsp_server_get(data->doc);
+		LspServer *srv = lsp_server_get_if_running(data->doc);
 		if (!lsp_server_is_usable(data->doc))
 			;  // server died or misconfigured
 		else if (!srv)
@@ -236,7 +236,7 @@ static gboolean retry_cb(gpointer user_data)
 void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
 	gpointer user_data)
 {
-	LspServer *server = lsp_server_get(doc);
+	LspServer *server = lsp_server_get_if_running(doc);
 	LspSymbolUserData *data = g_new0(LspSymbolUserData, 1);
 	GVariant *node;
 	gchar *doc_uri;
