@@ -27,62 +27,87 @@
 #include <stdio.h>
 
 
-JsonrpcClient *lsp_client_new(GIOStream *io_stream)
-{
-	return jsonrpc_client_new(io_stream);;
-}
-
-
-void lsp_client_start_listening(JsonrpcClient *self)
-{
-	jsonrpc_client_start_listening(self);
-}
-
-
-void lsp_client_close(JsonrpcClient *self)
-{
-	jsonrpc_client_close(self, NULL, NULL);
-}
-
-
 typedef struct
 {
-	GAsyncReadyCallback callback;
 	gchar *method_name;
 	gpointer user_data;
+	LspClientCallback callback;
 } CallbackData;
 
 
-
-void lsp_client_call_async(JsonrpcClient *self, const gchar *method, GVariant *params,
-	GAsyncReadyCallback callback, gpointer user_data)
+static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
-	lsp_log(lsp_server_get_log_info(self), LspLogClientMessageSent, method, params);
+	JsonrpcClient *self = (JsonrpcClient *)source_object;
+	CallbackData *data = user_data;
+	GVariant *return_value = NULL;
+	GError *error = NULL;
 
-	jsonrpc_client_call_async(self, method, params, NULL, callback, user_data);
+	//TODO: log errors
+	if (jsonrpc_client_call_finish(self, res, &return_value, &error))
+		lsp_log(lsp_server_get_log_info(self), LspLogClientMessageReceived, data->method_name, return_value);
+
+	if (data->callback)
+		data->callback(return_value, error, data->user_data);
+
+	if (return_value)
+		g_variant_unref(return_value);
+
+	if (error)
+		g_error_free(error);
+
+	g_free(data->method_name);
+	g_free(data);
 }
 
 
-gboolean lsp_client_call_finish(JsonrpcClient *self, GAsyncResult *result,
-	GVariant **return_value, GError **error)
+void lsp_client_call_async(LspServer *srv, const gchar *method, GVariant *params,
+	LspClientCallback callback, gpointer user_data)
 {
-	// TODO: log errors
-	gboolean ret = jsonrpc_client_call_finish(self, result, return_value, error);
+	CallbackData *data = g_new0(CallbackData, 1);
 
-	if (ret)
-		lsp_log(lsp_server_get_log_info(self), LspLogClientMessageReceived, NULL, *return_value);
+	data->method_name = g_strdup(method);
+	data->user_data = user_data;
+	data->callback = callback;
 
-	return ret;
+	lsp_log(lsp_server_get_log_info(srv->rpc_client), LspLogClientMessageSent, method, params);
+
+	jsonrpc_client_call_async(srv->rpc_client, method, params, NULL, call_cb, data);
 }
 
 
-void lsp_client_notify_async(JsonrpcClient *self, const gchar *method, GVariant *params,
-	GAsyncReadyCallback callback, gpointer user_data)
+static void notify_cb(GObject *source_object, GAsyncResult *res, gpointer user_data)
+{
+	JsonrpcClient *self = (JsonrpcClient *)source_object;
+	CallbackData *data = user_data;
+	GVariant *return_value = NULL;
+	GError *error = NULL;
+
+	//TODO: log errors
+	jsonrpc_client_send_notification_finish(self, res, &error);
+
+	if (data->callback)
+		data->callback(return_value, error, data->user_data);
+
+	if (return_value)
+		g_variant_unref(return_value);
+
+	if (error)
+		g_error_free(error);
+
+	g_free(data);
+}
+
+
+void lsp_client_notify(LspServer *srv, const gchar *method, GVariant *params,
+	LspClientCallback callback, gpointer user_data)
 {
 	gboolean params_added = FALSE;
-	GCancellable *cancellable = NULL;
+	CallbackData *data = g_new0(CallbackData, 1);
 
-	lsp_log(lsp_server_get_log_info(self), LspLogClientNotificationSent, method, params);
+	data->user_data = user_data;
+	data->callback = callback;
+
+	lsp_log(lsp_server_get_log_info(srv->rpc_client), LspLogClientNotificationSent, method, params);
 
 	if (!params)
 	{
@@ -90,35 +115,8 @@ void lsp_client_notify_async(JsonrpcClient *self, const gchar *method, GVariant 
 		params_added = TRUE;
 	}
 
-	jsonrpc_client_send_notification_async(self, method, params, cancellable, callback, user_data);
+	jsonrpc_client_send_notification_async(srv->rpc_client, method, params, NULL, notify_cb, data);
 
 	if (params_added)
 		g_variant_unref(params);
-}
-
-
-gboolean lsp_client_notify_finish(JsonrpcClient *self, GAsyncResult *result)
-{
-	return jsonrpc_client_send_notification_finish(self, result, NULL);
-}
-
-
-gboolean lsp_client_notify(JsonrpcClient *self, const gchar *method, GVariant *params)
-{
-	gboolean params_added = FALSE;
-
-	lsp_log(lsp_server_get_log_info(self), LspLogClientNotificationSent, method, params);
-
-	if (!params)
-	{
-		params = JSONRPC_MESSAGE_NEW("gopls_bug_workarond", JSONRPC_MESSAGE_PUT_STRING("https://github.com/golang/go/issues/57459"));
-		params_added = TRUE;
-	}
-
-	jsonrpc_client_send_notification_async(self, method, params, NULL, NULL, NULL);
-
-	if (params_added)
-		g_variant_unref(params);
-
-	return TRUE;
 }

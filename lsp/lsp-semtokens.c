@@ -338,13 +338,11 @@ static void process_delta_result(GeanyDocument *doc, GVariant *result, guint64 t
 }
 
 
-static void semtokens_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void semtokens_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
 	LspSemtokensUserData *data = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GeanyDocument *doc = data->doc;
 		gboolean doc_exists = FALSE;
@@ -371,9 +369,6 @@ static void semtokens_cb(GObject *object, GAsyncResult *result, gpointer user_da
 			else
 				process_full_result(doc, return_value, srv->semantic_token_mask);
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	data->callback(data->user_data);
@@ -450,7 +445,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 				"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 			"}"
 		);
-		lsp_client_call_async(server->rpc_client, "textDocument/semanticTokens/full/delta", node,
+		lsp_client_call_async(server, "textDocument/semanticTokens/full/delta", node,
 			semtokens_cb, data);
 	}
 	else
@@ -460,7 +455,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 				"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 			"}"
 		);
-		lsp_client_call_async(server->rpc_client, "textDocument/semanticTokens/full", node,
+		lsp_client_call_async(server, "textDocument/semanticTokens/full", node,
 			semtokens_cb, data);
 	}
 

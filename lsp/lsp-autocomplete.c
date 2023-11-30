@@ -358,12 +358,9 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 }
 
 
-static void autocomplete_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void autocomplete_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GeanyDocument *current_doc = document_get_current();
 		LspAutocompleteAsyncData *data = user_data;
@@ -377,9 +374,6 @@ static void autocomplete_cb(GObject *object, GAsyncResult *result, gpointer user
 			process_response(srv, return_value, doc);
 			//printf("%s\n", lsp_utils_json_pretty_print(return_value));
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	g_free(user_data);
@@ -480,7 +474,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc)
 	data->doc = doc;
 	data->request_id = ++sent_request_id;
 
-	lsp_client_call_async(server->rpc_client, "textDocument/completion", node,
+	lsp_client_call_async(server, "textDocument/completion", node,
 		autocomplete_cb, data);
 
 	g_free(doc_uri);

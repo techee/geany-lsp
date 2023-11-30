@@ -117,12 +117,9 @@ static void show_in_msgwin(LspLocation *loc, GHashTable *sci_table)
 }
 
 
-static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GotoData *data = user_data;
 		gboolean doc_exists = FALSE;
@@ -217,9 +214,6 @@ static void goto_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 		}
 
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	g_free(user_data);
@@ -247,7 +241,7 @@ static void perform_goto(LspServer *server, GeanyDocument *doc, gint pos, const 
 
 	data->doc = doc;
 	data->show_in_msgwin = show_in_msgwin;
-	lsp_client_call_async(server->rpc_client, request, node, goto_cb, data);
+	lsp_client_call_async(server, request, node, goto_cb, data);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

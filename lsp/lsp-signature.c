@@ -63,12 +63,9 @@ static void show_signature(ScintillaObject *sci)
 }
 
 
-static void signature_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void signature_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GeanyDocument *current_doc = document_get_current();
 		LspSignatureData *data = user_data;
@@ -112,9 +109,6 @@ static void signature_cb(GObject *object, GAsyncResult *result, gpointer user_da
 
 			g_variant_iter_free(iter);
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	g_free(user_data);
@@ -186,7 +180,7 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc)
 	data->doc = doc;
 	data->pos = pos;
 
-	lsp_client_call_async(server->rpc_client, "textDocument/signatureHelp", node,
+	lsp_client_call_async(server, "textDocument/signatureHelp", node,
 		signature_cb, data);
 
 	g_free(doc_uri);

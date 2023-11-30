@@ -33,15 +33,6 @@
 #include "lsp/lsp-highlight.h"
 
 
-typedef struct {
-	GSubprocess *process;
-	GIOStream *stream;
-	JsonrpcClient *rpc_client;
-	LspLogInfo log;
-	gchar *cmd;  //just for logging
-} ShutdownServerInfo;
-
-
 static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id);
 
 
@@ -52,11 +43,11 @@ static GPtrArray *lsp_servers = NULL;
 static GPtrArray *servers_in_shutdown = NULL;
 
 
-static void free_shuthown_info(ShutdownServerInfo *info)
+static void free_shuthown_info(LspServer *info)
 {
 	lsp_log_stop(info->log);
 	g_object_unref(info->process);
-	lsp_client_close(info->rpc_client);
+	jsonrpc_client_close(info->rpc_client, NULL, NULL);
 	g_object_unref(info->rpc_client);
 	//TODO: check if stream should be closed
 	g_object_unref(info->stream);
@@ -65,7 +56,7 @@ static void free_shuthown_info(ShutdownServerInfo *info)
 }
 
 
-static void force_terminate(ShutdownServerInfo *info)
+static void force_terminate(LspServer *info)
 {
 	g_subprocess_send_signal(info->process, SIGTERM);
 	//TODO: check if sleep can be added here and if g_subprocess_send_signal() is executed immediately
@@ -73,31 +64,25 @@ static void force_terminate(ShutdownServerInfo *info)
 }
 
 
-static void exit_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void exit_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	ShutdownServerInfo *info = user_data;
+	LspServer *info = user_data;
 
-	if (!lsp_client_notify_finish(self, result))
+	if (error)
 		force_terminate(info);
 
 	g_ptr_array_remove_fast(servers_in_shutdown, info);
 }
 
 
-static void shutdown_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void shutdown_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-	ShutdownServerInfo *info = user_data;
+	LspServer *info = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		msgwin_status_add("Sending exit notification to LSP server %s", info->cmd);
-		lsp_client_notify_async(info->rpc_client, "exit", NULL, exit_cb, info);
-
-		if (return_value)
-			g_variant_unref(return_value);
+		lsp_client_notify(info, "exit", NULL, exit_cb, info);
 	}
 	else
 	{
@@ -110,7 +95,7 @@ static void shutdown_cb(GObject *object, GAsyncResult *result, gpointer user_dat
 
 static void stop_process(LspServer *s, gboolean terminate)
 {
-	ShutdownServerInfo *info = g_new0(ShutdownServerInfo, 1);
+	LspServer *info = g_new0(LspServer, 1);
 
 	info->process = s->process;
 	s->process = NULL;
@@ -127,7 +112,7 @@ static void stop_process(LspServer *s, gboolean terminate)
 	if (terminate)
 	{
 		msgwin_status_add("Sending shutdown request to LSP server %s", s->cmd);
-		lsp_client_call_async(info->rpc_client, "shutdown", NULL, shutdown_cb, info);
+		lsp_client_call_async(info, "shutdown", NULL, shutdown_cb, info);
 	}
 	else
 		g_ptr_array_remove_fast(servers_in_shutdown, info);
@@ -240,7 +225,7 @@ LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
 	{
 		for (i = 0; i < servers_in_shutdown->len; i++)
 		{
-			ShutdownServerInfo *s = servers_in_shutdown->pdata[i];
+			LspServer *s = servers_in_shutdown->pdata[i];
 			if (s->rpc_client == client)
 				return s->log;
 		}
@@ -513,17 +498,15 @@ static LspServer *server_get_configured_for_ft(gint ft_id)
 }
 
 
-static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void initialize_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
 	gint filetype_id = GPOINTER_TO_INT(user_data);
 
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		LspServer *s = server_get_configured_for_ft(filetype_id);
 
-		if (s && s->rpc_client == self)
+		if (s)
 		{
 			GeanyDocument *current_doc = document_get_current();
 			guint i;
@@ -557,7 +540,7 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 
 			msgwin_status_add("LSP server %s initialized", s->cmd);
 
-			lsp_client_notify(s->rpc_client, "initialized", NULL);
+			lsp_client_notify(s, "initialized", NULL, NULL, NULL);
 			s->startup_shutdown = FALSE;
 
 			lsp_semtokens_init(filetype_id);
@@ -586,15 +569,12 @@ static void initialize_cb(GObject *object, GAsyncResult *result, gpointer user_d
 				}
 			}
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 	else
 	{
 		LspServer *s = server_get_configured_for_ft(filetype_id);
 
-		if (s && s->rpc_client == self)
+		if (s)
 		{
 			msgwin_status_add("LSP initialize request failed for LSP server %s", s->cmd);
 			stop_process(s, TRUE);
@@ -708,7 +688,7 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 	msgwin_status_add("Sending initialize request to LSP server %s", server->cmd);
 
 	server->startup_shutdown = TRUE;
-	lsp_client_call_async(server->rpc_client, "initialize", node, initialize_cb, GINT_TO_POINTER(ft));
+	lsp_client_call_async(server, "initialize", node, initialize_cb, GINT_TO_POINTER(ft));
 
 	g_free(locale);
 	g_free(project_base);
@@ -789,8 +769,8 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 	output_stream = g_subprocess_get_stdin_pipe(server->process);
 	server->stream = g_simple_io_stream_new(input_stream, output_stream);
 
-	server->rpc_client = lsp_client_new(server->stream);
-	lsp_client_start_listening(server->rpc_client);
+	server->rpc_client = jsonrpc_client_new(server->stream);
+	jsonrpc_client_start_listening(server->rpc_client);
 	server->log = lsp_log_start(&server->config);
 
 	g_signal_connect(server->rpc_client, "handle-call", G_CALLBACK(handle_call), NULL);

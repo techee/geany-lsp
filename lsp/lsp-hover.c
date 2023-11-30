@@ -84,12 +84,9 @@ static void show_calltip(GeanyDocument *doc, gint pos, const gchar *calltip)
 }
 
 
-static void hover_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void hover_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GeanyDocument *doc = document_get_current();
 		LspHoverData *data = user_data;
@@ -108,9 +105,6 @@ static void hover_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 			if (str && strlen(str) > 0)
 				show_calltip(doc, data->pos, str);
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	g_free(user_data);
@@ -140,7 +134,7 @@ void lsp_hover_send_request(LspServer *server, GeanyDocument *doc, gint pos)
 	data->doc = doc;
 	data->pos = pos;
 
-	lsp_client_call_async(server->rpc_client, "textDocument/hover", node,
+	lsp_client_call_async(server, "textDocument/hover", node,
 		hover_cb, data);
 
 	g_free(doc_uri);

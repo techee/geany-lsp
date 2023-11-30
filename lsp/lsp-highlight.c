@@ -76,13 +76,11 @@ static void highlight_range(GeanyDocument *doc, LspRange range)
 }
 
 
-static void highlight_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void highlight_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
 	LspHighlightData *data = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GeanyDocument *doc = document_get_current();
 
@@ -142,9 +140,6 @@ static void highlight_cb(GObject *object, GAsyncResult *result, gpointer user_da
 			if (!data->highlight)
 				SSM(doc->editor->sci, SCI_SETMAINSELECTION, main_sel_id, 0);
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	g_free(data->identifier);
@@ -185,7 +180,7 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 		data->pos = pos;
 		data->identifier = g_strdup(iden);
 		data->highlight = highlight;
-		lsp_client_call_async(server->rpc_client, "textDocument/documentHighlight", node,
+		lsp_client_call_async(server, "textDocument/documentHighlight", node,
 			highlight_cb, data);
 	}
 	else

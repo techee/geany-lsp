@@ -19,21 +19,18 @@
 #ifndef LSP_CLIENT_H
 #define LSP_CLIENT_H 1
 
-#include <jsonrpc-glib.h>
 
-JsonrpcClient *lsp_client_new(GIOStream *io_stream);
-void lsp_client_start_listening(JsonrpcClient *self);
-void lsp_client_close(JsonrpcClient *self);
+#include "lsp/lsp-server.h"
 
-void lsp_client_call_async(JsonrpcClient *self, const gchar *method, GVariant *params,
-	GAsyncReadyCallback callback, gpointer user_data);
-gboolean lsp_client_call_finish(JsonrpcClient *self, GAsyncResult *result,
-	GVariant **return_value, GError **error);
 
-void lsp_client_notify_async(JsonrpcClient *self, const gchar *method, GVariant *params,
-	GAsyncReadyCallback callback, gpointer user_data);
-gboolean lsp_client_notify_finish(JsonrpcClient *self, GAsyncResult *result);
+typedef void (*LspClientCallback) (GVariant *return_value, GError *error, gpointer user_data);
 
-gboolean lsp_client_notify(JsonrpcClient *self, const gchar *method, GVariant *params);
+
+void lsp_client_call_async(LspServer *srv, const gchar *method, GVariant *params,
+	LspClientCallback callback, gpointer user_data);
+
+void lsp_client_notify(LspServer *srv, const gchar *method, GVariant *params,
+	LspClientCallback callback, gpointer user_data);
+
 
 #endif  /* LSP_CLIENT_H */

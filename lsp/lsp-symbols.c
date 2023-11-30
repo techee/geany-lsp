@@ -172,13 +172,11 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 }
 
 
-static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void symbols_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
 	LspSymbolUserData *data = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
@@ -191,9 +189,6 @@ static void symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data
 			parse_symbols(cached_symbols, return_value, NULL,
 				symbols_get_context_separator(data->doc->file_type->id), FALSE);
 		}
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	data->callback(data->user_data);
@@ -272,7 +267,7 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callba
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(server->rpc_client, "textDocument/documentSymbol", node,
+	lsp_client_call_async(server, "textDocument/documentSymbol", node,
 		symbols_cb, data);
 
 	g_free(doc_uri);
@@ -280,22 +275,17 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callba
 }
 
 
-static void workspace_symbols_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void workspace_symbols_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
 	LspWorkspaceSymbolUserData *data = user_data;
 	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
 
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
 		//scope separator doesn't matter here
 		parse_symbols(ret, return_value, NULL, "", TRUE);
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 
 	data->callback(ret, data->user_data);
@@ -326,7 +316,7 @@ void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query,
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(server->rpc_client, "workspace/symbol", node,
+	lsp_client_call_async(server, "workspace/symbol", node,
 		workspace_symbols_cb, data);
 
 	g_variant_unref(node);

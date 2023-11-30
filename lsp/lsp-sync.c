@@ -91,7 +91,7 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_notify(server->rpc_client, "textDocument/didOpen", node);
+	lsp_client_notify(server, "textDocument/didOpen", node, NULL, NULL);
 
 	g_free(doc_uri);
 	g_free(lang_id);
@@ -121,7 +121,7 @@ void lsp_sync_text_document_did_close(LspServer *server, GeanyDocument *doc)
 
 	g_hash_table_remove(open_docs, doc);
 
-	lsp_client_notify(server->rpc_client, "textDocument/didClose", node);
+	lsp_client_notify(server, "textDocument/didClose", node, NULL, NULL);
 
 	g_free(doc_uri);
 	g_variant_unref(node);
@@ -143,7 +143,7 @@ void lsp_sync_text_document_did_save(LspServer *server, GeanyDocument *doc)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_notify(server->rpc_client, "textDocument/didSave", node);
+	lsp_client_notify(server, "textDocument/didSave", node, NULL, NULL);
 
 	g_free(doc_uri);
 	g_free(doc_text);
@@ -198,7 +198,7 @@ void lsp_sync_text_document_did_change(LspServer *server, GeanyDocument *doc,
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_notify(server->rpc_client, "textDocument/didChange", node);
+	lsp_client_notify(server, "textDocument/didChange", node, NULL, NULL);
 
 	g_free(doc_uri);
 

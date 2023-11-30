@@ -454,7 +454,7 @@ static void apply_edits_in_file(const gchar *uri, GPtrArray *edits)
 				"}", "]"
 			);
 
-			lsp_client_notify(client, "workspace/didChangeWatchedFiles", node);
+			lsp_client_notify(srv, "workspace/didChangeWatchedFiles", node, NULL, NULL);
 			g_variant_unref(node);
 #endif
 

@@ -59,18 +59,11 @@ GPtrArray *lsp_command_get_resolved_code_actions(void)
 }
 
 
-static void command_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void command_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-	GError *error = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, &error))
+	if (!error)
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 }
 
@@ -97,20 +90,16 @@ void lsp_command_send_request(LspServer *server, const gchar *cmd, GVariant *arg
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(server->rpc_client, "workspace/executeCommand", node,
+	lsp_client_call_async(server, "workspace/executeCommand", node,
 		command_cb, NULL);
 
 	g_variant_unref(node);
 }
 
 
-static void code_action_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void code_action_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-	GError *error = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, &error))
+	if (!error)
 	{
 		GCallback callback = user_data;
 		GVariant *code_action = NULL;
@@ -147,9 +136,6 @@ static void code_action_cb(GObject *object, GAsyncResult *result, gpointer user_
 		}
 
 		callback();
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 }
 
@@ -207,7 +193,7 @@ void lsp_command_send_code_action_request(gint pos, GCallback actions_resolved_c
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(srv->rpc_client, "textDocument/codeAction", node, code_action_cb,
+	lsp_client_call_async(srv, "textDocument/codeAction", node, code_action_cb,
 		actions_resolved_cb);
 
 	g_variant_unref(node);

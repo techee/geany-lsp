@@ -130,24 +130,18 @@ static gchar *show_dialog_rename(const gchar *old_name)
 }
 
 
-static void rename_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void rename_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-	GError *error = NULL;
 	GCallback on_rename_done = user_data;
 
-	if (lsp_client_call_finish(self, result, &return_value, &error))
+	if (!error)
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
 		if (lsp_utils_apply_workspace_edit(return_value))
 			on_rename_done();
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
-	else if (error)
+	else
 		dialogs_show_msgbox(GTK_MESSAGE_ERROR, "%s", error->message);
 }
 
@@ -188,7 +182,7 @@ void lsp_rename_send_request(gint pos, GCallback on_rename_done)
 
 			//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-			lsp_client_call_async(srv->rpc_client, "textDocument/rename", node,
+			lsp_client_call_async(srv, "textDocument/rename", node,
 				rename_cb, on_rename_done);
 
 			g_free(doc_uri);

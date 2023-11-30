@@ -26,12 +26,9 @@
 #include "lsp/lsp-client.h"
 
 
-static void format_cb(GObject *object, GAsyncResult *result, gpointer user_data)
+static void format_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)object;
-	GVariant *return_value = NULL;
-
-	if (lsp_client_call_finish(self, result, &return_value, NULL))
+	if (!error)
 	{
 		GeanyDocument *doc = document_get_current();
 
@@ -54,9 +51,6 @@ static void format_cb(GObject *object, GAsyncResult *result, gpointer user_data)
 		}
 
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
-
-		if (return_value)
-			g_variant_unref(return_value);
 	}
 }
 
@@ -122,7 +116,7 @@ void lsp_format_perform(void)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(srv->rpc_client, method, node, format_cb, doc);
+	lsp_client_call_async(srv, method, node, format_cb, doc);
 
 	g_free(doc_uri);
 	g_variant_unref(node);
