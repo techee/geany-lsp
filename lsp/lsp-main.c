@@ -267,13 +267,7 @@ static void on_document_reload(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 }
 
 
-/* Geany seems to call the "document-activate" signal only for the last tab of
- * and not every document when e.g. opening/closing a project. This is exactly
- * what we need as lsp_server_get(doc) causes start of a single server and only
- * this file is "opened" in that server.
- */
-static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
-	G_GNUC_UNUSED gpointer user_data)
+static void on_document_visible(GeanyDocument *doc)
 {
 	LspServer *srv = lsp_server_get(doc);
 
@@ -290,6 +284,13 @@ static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	lsp_diagnostics_redraw_current_doc(srv);
 	lsp_highlight_style_current_doc(srv);
 	lsp_semtokens_style_current_doc(srv);
+}
+
+
+static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	on_document_visible(doc);
 }
 
 
@@ -646,6 +647,14 @@ static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 }
 
 
+static void on_session_opening(G_GNUC_UNUSED GObject *obj, gboolean opening,
+		G_GNUC_UNUSED gpointer user_data)
+{
+	if (!opening)
+		on_document_visible(document_get_current());
+}
+
+
 PluginCallback plugin_callbacks[] = {
 	{"document-new", (GCallback) &on_document_new, FALSE, NULL},
 	{"document-open", (GCallback) &on_document_open, FALSE, NULL},
@@ -657,6 +666,7 @@ PluginCallback plugin_callbacks[] = {
 	{"document-filetype-set", (GCallback) &on_document_filetype_set, FALSE, NULL},
 	{"editor-notify", (GCallback) &on_editor_notify, FALSE, NULL},
 	{"update-editor-menu", (GCallback) &on_update_editor_menu, FALSE, NULL},
+	{"session-opening", (GCallback) &on_session_opening, FALSE, NULL},
 	{"project-open", (GCallback) &on_project_open, FALSE, NULL},
 	{"project-close", (GCallback) &on_project_close, FALSE, NULL},
 	{"project-save", (GCallback) &on_project_save, FALSE, NULL},
