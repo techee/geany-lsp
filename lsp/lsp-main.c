@@ -213,7 +213,7 @@ static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	lsp_sync_text_document_did_save(srv, doc);
 }
 
-/*
+
 static void on_document_before_save_as(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
@@ -223,7 +223,7 @@ static void on_document_before_save_as(G_GNUC_UNUSED GObject *obj, GeanyDocument
 		return;
 
 	lsp_sync_text_document_did_close(srv, doc);
-}*/
+}
 
 
 static void on_document_filetype_set(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
@@ -662,7 +662,7 @@ PluginCallback plugin_callbacks[] = {
 	{"document-reload", (GCallback) &on_document_reload, FALSE, NULL},
 	{"document-activate", (GCallback) &on_document_activate, FALSE, NULL},
 	{"document-save", (GCallback) &on_document_save, FALSE, NULL},
-//	{"document-before-save-as", (GCallback) &on_document_before_save_as, TRUE, NULL},
+	{"document-before-save-as", (GCallback) &on_document_before_save_as, TRUE, NULL},
 	{"document-filetype-set", (GCallback) &on_document_filetype_set, FALSE, NULL},
 	{"editor-notify", (GCallback) &on_editor_notify, FALSE, NULL},
 	{"update-editor-menu", (GCallback) &on_update_editor_menu, FALSE, NULL},
