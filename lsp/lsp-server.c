@@ -242,7 +242,7 @@ LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
 static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *params,
 	gpointer user_data)
 {
-	lsp_log(lsp_server_get_log_info(self), LspLogServerNotificationSent, method, params);
+	lsp_log(lsp_server_get_log_info(self), LspLogServerNotificationSent, method, params, NULL, NULL);
 
 	if (g_strcmp0(method, "textDocument/publishDiagnostics") == 0)
 		lsp_diagnostics_received(params);
@@ -271,7 +271,7 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 	GVariant *variant = json_gvariant_deserialize(node, NULL, NULL);
 	gboolean ret = FALSE;
 
-	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageSent, method, params);
+	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageSent, method, params, NULL, NULL);
 
 	//printf("\n\nREQUEST FROM SERVER: %s\n", method);
 	//printf("params:\n%s\n\n\n", lsp_utils_json_pretty_print(params));
@@ -324,7 +324,7 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 		ret = TRUE;
 	}
 
-	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageReceived, method, variant);
+	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageReceived, method, variant, NULL, NULL);
 	g_variant_unref(variant);
 	json_node_free(node);
 

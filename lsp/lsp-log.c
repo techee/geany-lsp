@@ -89,17 +89,30 @@ void lsp_log_stop(LspLogInfo log)
 }
 
 
-void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *params)
+void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *params,
+	GError *error, GDateTime *req_time)
 {
 	gchar *json_msg, *time_str;
 	const gchar *title = "";
 	GDateTime *time;
+	gint time_str_len;
+	gchar *delta_str = NULL;
 
 	if (log.type == 0 && !log.stream)
 		return;
 
 	time = g_date_time_new_now_local();
+	if (req_time)
+	{
+		GTimeSpan delta = g_date_time_difference(time, req_time);
+		delta_str = g_strdup_printf(" (%ld ms)", delta / 1000);
+	}
+	else
+		delta_str = g_strdup("");
 	time_str = g_date_time_format(time, "\%H:\%M:\%S.\%f");
+	time_str_len = strlen(time_str);
+	if (time_str_len > 3)
+		time_str[time_str_len-3] = '\0';
 	g_date_time_unref(time);
 
 	if (!method)
@@ -108,39 +121,38 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 	switch (type)
 	{
 		case LspLogClientMessageSent:
-			title = "Geany  ---> Server (message request)";
+			title = "C --> S  msg:  ";
 			break;
 		case LspLogClientMessageReceived:
-			title = "Geany  <--- Server (message response)";
+			title = "C <-- S  msg:  ";
 			break;
 		case LspLogClientNotificationSent:
-			title = "Geany  ---> Server (notification)";
+			title = "C --> S  notif:";
 			break;
 		case LspLogServerMessageSent:
-			title = "Server ---> Geany  (message request)";
+			title = "S --> C  msg:  ";
 			break;
 		case LspLogServerMessageReceived:
-			title = "Server <--- Geany  (message response)";
+			title = "S <-- C  msg:  ";
 			break;
 		case LspLogServerNotificationSent:
-			title = "Server ---> Geany  (notification)";
+			title = "S --> C  notif:";
 			break;
 	}
 
 	if (log.full)
 	{
-		log_print(log, "\n\n\"%s\": \"%s\",\n", time_str, title);
-
 		if (!params)
 			json_msg = g_strdup("null");
 		else
 			json_msg = lsp_utils_json_pretty_print(params);
 
-		log_print(log, "\"%s\":\n%s,\n", method, json_msg);
+		log_print(log, "\n\n\"[%s] %s %s%s\":\n%s,\n", time_str, title, method, delta_str, json_msg);
 		g_free(json_msg);
 	}
 	else
-		log_print(log, "[%s] %s\n                  - %s\n", time_str, title, method);
+		log_print(log, "[%s] %s %s%s\n", time_str, title, method, delta_str);
 
 	g_free(time_str);
+	g_free(delta_str);
 }

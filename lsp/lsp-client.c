@@ -32,6 +32,7 @@ typedef struct
 	gchar *method_name;
 	gpointer user_data;
 	LspClientCallback callback;
+	GDateTime *req_time;
 } CallbackData;
 
 
@@ -42,9 +43,10 @@ static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_dat
 	GVariant *return_value = NULL;
 	GError *error = NULL;
 
-	//TODO: log errors
-	if (jsonrpc_client_call_finish(self, res, &return_value, &error))
-		lsp_log(lsp_server_get_log_info(self), LspLogClientMessageReceived, data->method_name, return_value);
+	jsonrpc_client_call_finish(self, res, &return_value, &error);
+
+	lsp_log(lsp_server_get_log_info(self), LspLogClientMessageReceived, data->method_name,
+		return_value, error, data->req_time);
 
 	if (data->callback)
 		data->callback(return_value, error, data->user_data);
@@ -55,6 +57,7 @@ static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_dat
 	if (error)
 		g_error_free(error);
 
+	g_date_time_unref(data->req_time);
 	g_free(data->method_name);
 	g_free(data);
 }
@@ -68,8 +71,9 @@ void lsp_client_call_async(LspServer *srv, const gchar *method, GVariant *params
 	data->method_name = g_strdup(method);
 	data->user_data = user_data;
 	data->callback = callback;
+	data->req_time = g_date_time_new_now_local();
 
-	lsp_log(lsp_server_get_log_info(srv->rpc_client), LspLogClientMessageSent, method, params);
+	lsp_log(lsp_server_get_log_info(srv->rpc_client), LspLogClientMessageSent, method, params, NULL, NULL);
 
 	jsonrpc_client_call_async(srv->rpc_client, method, params, NULL, call_cb, data);
 }
@@ -107,11 +111,13 @@ void lsp_client_notify(LspServer *srv, const gchar *method, GVariant *params,
 	data->user_data = user_data;
 	data->callback = callback;
 
-	lsp_log(lsp_server_get_log_info(srv->rpc_client), LspLogClientNotificationSent, method, params);
+	lsp_log(lsp_server_get_log_info(srv->rpc_client), LspLogClientNotificationSent,
+		method, params, NULL, NULL);
 
 	if (!params)
 	{
-		params = JSONRPC_MESSAGE_NEW("gopls_bug_workarond", JSONRPC_MESSAGE_PUT_STRING("https://github.com/golang/go/issues/57459"));
+		params = JSONRPC_MESSAGE_NEW("gopls_bug_workarond",
+			JSONRPC_MESSAGE_PUT_STRING("https://github.com/golang/go/issues/57459"));
 		params_added = TRUE;
 	}
 

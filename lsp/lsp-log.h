@@ -37,7 +37,8 @@ typedef enum
 LspLogInfo lsp_log_start(LspServerConfig *config);
 void lsp_log_stop(LspLogInfo log);
 
-void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *params);
+void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *params,
+	GError *error, GDateTime *req_time);
 
 
 #endif  /* LSP_LOG_H */
