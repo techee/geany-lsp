@@ -134,13 +134,19 @@ static void on_document_visible(GeanyDocument *doc)
 {
 	LspServer *srv = lsp_server_get(doc);
 
-	if (!srv || lsp_sync_is_document_open(doc))
+	lsp_diagnostics_style_init(doc);
+	lsp_diagnostics_redraw(doc);
+	lsp_highlight_style_init(doc);
+	lsp_semtokens_style_init(doc);
+
+	if (!srv)
 		return;
 
 	// this might not get called for the first time when server gets started because
 	// lsp_server_get() returns NULL. However, we also "open" current and modified
 	// documents after successful server handshake
-	lsp_sync_text_document_did_open(srv, doc);
+	if (!lsp_sync_is_document_open(doc))
+		lsp_sync_text_document_did_open(srv, doc);
 }
 
 

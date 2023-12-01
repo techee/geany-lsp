@@ -30,9 +30,9 @@ void lsp_diagnostics_show_calltip(gint pos);
 void lsp_diagnostics_hide_calltip(GeanyDocument *doc);
 
 void lsp_diagnostics_received(GVariant* diags);
-void lsp_diagnostics_redraw_current_doc(LspServer *server);
+void lsp_diagnostics_redraw(GeanyDocument *doc);
 
-void lsp_diagnostics_style_current_doc(LspServer *server);
+void lsp_diagnostics_style_init(GeanyDocument *doc);
 
 gboolean lsp_diagnostics_has_diag(gint pos);
 GVariant *lsp_diagnostics_get_diag_raw(gint pos);

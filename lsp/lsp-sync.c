@@ -96,11 +96,6 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 
 	lsp_client_notify(server, "textDocument/didOpen", node, NULL, NULL);
 
-	lsp_diagnostics_style_current_doc(server);
-	lsp_diagnostics_redraw_current_doc(server);
-	lsp_highlight_style_current_doc(server);
-	lsp_semtokens_style_current_doc(server);
-
 	g_free(doc_uri);
 	g_free(lang_id);
 	g_free(doc_text);

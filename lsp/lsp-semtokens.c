@@ -84,14 +84,19 @@ void lsp_semtokens_init(gint ft_id)
 }
 
 
-void lsp_semtokens_style_current_doc(LspServer *server)
+void lsp_semtokens_style_init(GeanyDocument *doc)
 {
-	GeanyDocument *doc = document_get_current();
-	ScintillaObject *sci = doc->editor->sci;
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+	ScintillaObject *sci;
+
+	if (!doc || !cfg)
+		return;
+
+	sci = doc->editor->sci;
 
 	style_index = 0;
-	if (server->config.semantic_tokens_type_style)
-		style_index = lsp_utils_set_indicator_style(sci, server->config.semantic_tokens_type_style);
+	if (cfg->semantic_tokens_type_style)
+		style_index = lsp_utils_set_indicator_style(sci, cfg->semantic_tokens_type_style);
 }
 
 

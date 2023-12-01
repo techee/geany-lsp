@@ -235,23 +235,23 @@ static void clear_indicators(ScintillaObject *sci)
 }
 
 
-void lsp_diagnostics_redraw_current_doc(LspServer *server)
+void lsp_diagnostics_redraw(GeanyDocument *doc)
 {
-	GeanyDocument *doc = document_get_current();
+	LspServerConfig *cfg = lsp_server_get_config(doc);
 	ScintillaObject *sci;
 	GPtrArray *diags;
 	gint last_start_pos = 0, last_end_pos = 0;
 	gint i;
 
-	if (!doc || !doc->real_path)
+	if (!doc || !doc->real_path || !cfg)
 		return;
 
 	sci = doc->editor->sci;
 
-	clear_indicators(doc->editor->sci);
+	clear_indicators(sci);
 
 	diags = g_hash_table_lookup(diag_table, doc->real_path);
-	if (!diags || !server->config.diagnostics_enable)
+	if (!diags || !cfg->diagnostics_enable)
 		return;
 
 	for (i = 0; i < diags->len; i++)
@@ -277,15 +277,20 @@ void lsp_diagnostics_redraw_current_doc(LspServer *server)
 }
 
 
-void lsp_diagnostics_style_current_doc(LspServer *server)
+void lsp_diagnostics_style_init(GeanyDocument *doc)
 {
-	GeanyDocument *doc = document_get_current();
-	ScintillaObject *sci = doc->editor->sci;
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+	ScintillaObject *sci;
 
-	style_indices[LspError] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_error_style);
-	style_indices[LspWarning] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_warning_style);
-	style_indices[LspInfo] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_info_style);
-	style_indices[LspHint] = lsp_utils_set_indicator_style(sci, server->config.diagnostics_hint_style);
+	if (!doc || !cfg)
+		return;
+
+	sci = doc->editor->sci;
+
+	style_indices[LspError] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_error_style);
+	style_indices[LspWarning] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_warning_style);
+	style_indices[LspInfo] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_info_style);
+	style_indices[LspHint] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_hint_style);
 
 	SSM(sci, SCI_SETMOUSEDWELLTIME, 500, 0);
 }
@@ -368,11 +373,7 @@ void lsp_diagnostics_received(GVariant* diags)
 	g_hash_table_insert(diag_table, g_strdup(real_path), arr);
 
 	if (doc && doc->real_path && g_strcmp0(doc->real_path, real_path) == 0)
-	{
-		LspServer *srv = lsp_server_get(doc);
-		if (srv)
-			lsp_diagnostics_redraw_current_doc(srv);
-	}
+		lsp_diagnostics_redraw(doc);
 
 	g_variant_iter_free(iter);
 	g_free(real_path);

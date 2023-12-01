@@ -23,7 +23,7 @@
 
 #include <glib.h>
 
-void lsp_highlight_style_current_doc(LspServer *server);
+void lsp_highlight_style_init(GeanyDocument *doc);
 
 void lsp_highlight_send_request(LspServer *server, GeanyDocument *doc);
 
