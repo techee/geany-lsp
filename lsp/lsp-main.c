@@ -105,6 +105,7 @@ struct
 	// context menu
 	GtkWidget *command_item;
 	GtkWidget *goto_type_def;
+	GtkWidget *goto_def;
 	GtkWidget *goto_ref;
 	GtkWidget *rename_in_file;
 	GtkWidget *rename_in_project;
@@ -1157,6 +1158,12 @@ static void create_menu_items()
 	g_signal_connect(menu_items.goto_type_def, "activate", G_CALLBACK(on_context_menu_invoked),
 		GUINT_TO_POINTER(KB_GOTO_TYPE_DEFINITION));
 
+	menu_items.goto_def = gtk_menu_item_new_with_mnemonic(_("Go to _Definition (LSP)"));
+	gtk_widget_show(menu_items.goto_def);
+	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_def);
+	g_signal_connect(menu_items.goto_def, "activate", G_CALLBACK(on_context_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_DEFINITION));
+
 	menu_items.goto_ref = gtk_menu_item_new_with_mnemonic(_("Find _References (LSP)"));
 	gtk_widget_show(menu_items.goto_ref);
 	gtk_menu_shell_prepend(GTK_MENU_SHELL(geany->main_widgets->editor_menu), menu_items.goto_ref);
@@ -1180,10 +1187,12 @@ void plugin_cleanup(void)
 {
 	gtk_widget_destroy(menu_items.parent_item);
 	gtk_widget_destroy(menu_items.goto_type_def);
+	gtk_widget_destroy(menu_items.goto_def);
 	gtk_widget_destroy(menu_items.format_code);
 	gtk_widget_destroy(menu_items.rename_in_file);
 	gtk_widget_destroy(menu_items.rename_in_project);
 	gtk_widget_destroy(menu_items.goto_ref);
+	gtk_widget_destroy(menu_items.command_item);
 	gtk_widget_destroy(menu_items.separator1);
 	gtk_widget_destroy(menu_items.separator2);
 
