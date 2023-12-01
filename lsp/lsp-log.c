@@ -124,22 +124,22 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 	switch (type)
 	{
 		case LspLogClientMessageSent:
-			title = "C --> S  msg:  ";
+			title = "C --> S  req:  ";
 			break;
 		case LspLogClientMessageReceived:
-			title = "C <-- S  msg:  ";
+			title = "C <-- S  resp: ";
 			break;
 		case LspLogClientNotificationSent:
 			title = "C --> S  notif:";
 			break;
 		case LspLogServerMessageSent:
-			title = "S --> C  msg:  ";
+			title = "C <-- S  req:  ";
 			break;
 		case LspLogServerMessageReceived:
-			title = "S <-- C  msg:  ";
+			title = "C --> S  resp: ";
 			break;
 		case LspLogServerNotificationSent:
-			title = "S --> C  notif:";
+			title = "C <-- S  notif:";
 			break;
 	}
 
