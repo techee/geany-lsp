@@ -23,5 +23,6 @@
 
 #include <glib.h>
 
+void lsp_code_lens_send_request(GeanyDocument *doc);
 
 #endif  /* LSP_CODE_LENS_H */
