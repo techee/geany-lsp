@@ -80,6 +80,7 @@ typedef struct
 typedef struct LspServer
 {
 	gchar *cmd;
+	gchar **env;
 	gchar *ref_lang;
 
 	JsonrpcClient *rpc_client;

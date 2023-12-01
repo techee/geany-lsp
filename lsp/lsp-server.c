@@ -138,6 +138,7 @@ static void free_server(gpointer data)
 	stop_server(s);
 
 	g_free(s->cmd);
+	g_strfreev(s->env);
 	g_free(s->ref_lang);
 	g_free(s->autocomplete_trigger_chars);
 	g_free(s->signature_trigger_chars);
@@ -729,8 +730,10 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 	GInputStream *input_stream;
 	GOutputStream *output_stream;
 	GError *error = NULL;
-	gchar ** argv;
+	gchar **argv, **env;
 	gint flags = G_SUBPROCESS_FLAGS_STDIN_PIPE | G_SUBPROCESS_FLAGS_STDOUT_PIPE;
+	GString *cmd;
+	GSubprocessLauncher *launcher;
 
 	server->restarts++;
 	if (is_dead(server))
@@ -739,13 +742,32 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 		return;
 	}
 
-	argv = g_strsplit_set(server->cmd, " ", -1);
+	cmd = g_string_new(server->cmd);
+	while (utils_string_replace_all(cmd, "  ", " ") > 0)
+		;
+	if (g_str_has_prefix(cmd->str, "~/"))
+		utils_string_replace_first(cmd, "~", g_get_home_dir());
+	argv = g_strsplit_set(cmd->str, " ", -1);
+	g_string_free(cmd, TRUE);
 
 	if (!server->config.show_server_stderr)
 		flags |= G_SUBPROCESS_FLAGS_STDERR_SILENCE;
-	server->process = g_subprocess_newv((const gchar * const *)argv, flags, &error);
+	launcher = g_subprocess_launcher_new(flags);
+
+	foreach_strv(env, server->env)
+	{
+		gchar **kv = g_strsplit_set(*env, "=", 2);
+		if (kv && kv[0] && kv[1])
+		{
+			g_subprocess_launcher_setenv(launcher, kv[0], kv[1], TRUE);
+		}
+		g_strfreev(kv);
+	}
+
+	server->process = g_subprocess_launcher_spawnv(launcher, (const gchar * const *)argv, &error);
 
 	g_strfreev(argv);
+	g_object_unref(launcher);
 
 	if (!server->process)
 	{
@@ -795,6 +817,18 @@ static void get_str(gchar **dest, GKeyFile *kf, const gchar *section, const gcha
 }
 
 
+static void get_strv(gchar ***dest, GKeyFile *kf, const gchar *section, const gchar *key)
+{
+	gchar **strv_val = g_key_file_get_string_list(kf, section, key, NULL, NULL);
+
+	if (strv_val)
+	{
+		g_strfreev(*dest);
+		*dest = strv_val;
+	}
+}
+
+
 static void get_int(gint *dest, GKeyFile *kf, const gchar *section, const gchar *key)
 {
 	GError *error = NULL;
@@ -809,21 +843,13 @@ static void get_int(gint *dest, GKeyFile *kf, const gchar *section, const gchar 
 
 static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 {
-	gchar *str_val;
-
 	get_bool(&s->config.use_outside_project_dir, kf, section, "lsp_use_outside_project_dir");
 	get_bool(&s->config.use_without_project, kf, section, "lsp_use_without_project");
 	get_bool(&s->config.rpc_log_full, kf, section, "rpc_log_full");
 
 	get_bool(&s->config.autocomplete_enable, kf, section, "autocomplete_enable");
 
-	str_val = g_key_file_get_string(kf, section, "autocomplete_trigger_sequences", NULL);
-	if (str_val)
-	{
-		g_strfreev(s->config.autocomplete_trigger_sequences);
-		s->config.autocomplete_trigger_sequences = g_strsplit(str_val, ";", -1);
-		g_free(str_val);
-	}
+	get_strv(&s->config.autocomplete_trigger_sequences, kf, section, "autocomplete_trigger_sequences");
 
 	get_int(&s->config.autocomplete_window_max_entries, kf, section, "autocomplete_window_max_entries");
 	get_int(&s->config.autocomplete_window_max_displayed, kf, section, "autocomplete_window_max_displayed");
@@ -859,6 +885,7 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 static void load_filetype_only_config(GKeyFile *kf, gchar *section, LspServer *s)
 {
 	get_str(&s->cmd, kf, section, "cmd");
+	get_strv(&s->env, kf, section, "env");
 	get_str(&s->ref_lang, kf, section, "use");
 	get_str(&s->config.rpc_log, kf, section, "rpc_log");
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
