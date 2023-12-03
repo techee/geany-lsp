@@ -24,7 +24,9 @@
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
 
- 
+#include <jsonrpc-glib.h>
+
+
 typedef struct {
 	GeanyDocument *doc;
 	gint pos;
@@ -134,7 +136,7 @@ void lsp_hover_send_request(LspServer *server, GeanyDocument *doc, gint pos)
 	data->doc = doc;
 	data->pos = pos;
 
-	lsp_client_call_async(server, "textDocument/hover", node,
+	lsp_client_call(server, "textDocument/hover", node,
 		hover_cb, data);
 
 	g_free(doc_uri);

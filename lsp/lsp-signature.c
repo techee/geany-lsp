@@ -24,6 +24,8 @@
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
 
+#include <jsonrpc-glib.h>
+
 
 typedef struct {
 	GeanyDocument *doc;
@@ -180,7 +182,7 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc)
 	data->doc = doc;
 	data->pos = pos;
 
-	lsp_client_call_async(server, "textDocument/signatureHelp", node,
+	lsp_client_call(server, "textDocument/signatureHelp", node,
 		signature_cb, data);
 
 	g_free(doc_uri);

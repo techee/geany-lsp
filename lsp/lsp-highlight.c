@@ -24,6 +24,8 @@
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
 
+#include <jsonrpc-glib.h>
+
 
 typedef struct {
 	GeanyDocument *doc;
@@ -185,7 +187,7 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 		data->pos = pos;
 		data->identifier = g_strdup(iden);
 		data->highlight = highlight;
-		lsp_client_call_async(server, "textDocument/documentHighlight", node,
+		lsp_client_call(server, "textDocument/documentHighlight", node,
 			highlight_cb, data);
 	}
 	else

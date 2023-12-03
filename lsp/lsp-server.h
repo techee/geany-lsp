@@ -22,11 +22,18 @@
 #include <geanyplugin.h>
 
 #include <gio/gio.h>
-#include <jsonrpc-glib.h>
+
+
+struct LspClient;
+typedef struct LspClient LspClient;
 
 
 typedef struct
 {
+	gchar *cmd;
+	gchar **env;
+	gchar *ref_lang;
+
 	gboolean show_server_stderr;
 	gchar *rpc_log;
 	gboolean rpc_log_full;
@@ -79,11 +86,7 @@ typedef struct
 
 typedef struct LspServer
 {
-	gchar *cmd;
-	gchar **env;
-	gchar *ref_lang;
-
-	JsonrpcClient *rpc_client;
+	LspClient *rpc_client;
 	GSubprocess *process;
 	GIOStream *stream;
 	LspLogInfo log;
@@ -92,6 +95,7 @@ typedef struct LspServer
 	gboolean not_used;
 	gboolean startup_shutdown;
 	guint restarts;
+	gint filetype;
 
 	LspServerConfig config;
 
@@ -109,7 +113,6 @@ typedef struct LspServer
 
 LspServer *lsp_server_get(GeanyDocument *doc);
 LspServer *lsp_server_get_for_ft(GeanyFiletype *ft);
-LspLogInfo lsp_server_get_log_info(JsonrpcClient *client);
 LspServer *lsp_server_get_if_running(GeanyDocument *doc);
 LspServerConfig *lsp_server_get_config(GeanyDocument *doc);
 gboolean lsp_server_is_usable(GeanyDocument *doc);

@@ -26,6 +26,7 @@
 #include "lsp/lsp-server.h"
 #include "lsp/lsp-symbol-kinds.h"
 
+#include <jsonrpc-glib.h>
 #include <ctype.h>
 #include <glib.h>
 
@@ -474,7 +475,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc)
 	data->doc = doc;
 	data->request_id = ++sent_request_id;
 
-	lsp_client_call_async(server, "textDocument/completion", node,
+	lsp_client_call(server, "textDocument/completion", node,
 		autocomplete_cb, data);
 
 	g_free(doc_uri);

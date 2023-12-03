@@ -25,6 +25,8 @@
 #include "lsp/lsp-client.h"
 #include "lsp/lsp-goto-panel.h"
 
+#include <jsonrpc-glib.h>
+
 
 typedef struct {
 	GeanyDocument *doc;
@@ -241,7 +243,7 @@ static void perform_goto(LspServer *server, GeanyDocument *doc, gint pos, const 
 
 	data->doc = doc;
 	data->show_in_msgwin = show_in_msgwin;
-	lsp_client_call_async(server, request, node, goto_cb, data);
+	lsp_client_call(server, request, node, goto_cb, data);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

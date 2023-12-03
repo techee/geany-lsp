@@ -25,6 +25,8 @@
 #include "lsp/lsp-client.h"
 #include "lsp/lsp-sync.h"
 
+#include <jsonrpc-glib.h>
+
 
 typedef struct {
 	GeanyDocument *doc;
@@ -450,7 +452,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 				"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 			"}"
 		);
-		lsp_client_call_async(server, "textDocument/semanticTokens/full/delta", node,
+		lsp_client_call(server, "textDocument/semanticTokens/full/delta", node,
 			semtokens_cb, data);
 	}
 	else
@@ -460,7 +462,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 				"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 			"}"
 		);
-		lsp_client_call_async(server, "textDocument/semanticTokens/full", node,
+		lsp_client_call(server, "textDocument/semanticTokens/full", node,
 			semtokens_cb, data);
 	}
 

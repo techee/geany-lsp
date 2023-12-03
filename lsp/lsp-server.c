@@ -32,28 +32,18 @@
 #include "lsp/lsp-symbol-kinds.h"
 #include "lsp/lsp-highlight.h"
 
+#include <jsonrpc-glib.h>
 
-static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id);
+
+static void start_lsp_server(LspServer *server);
+static LspServer *lsp_server_init(gint ft);
 
 
 extern GeanyData *geany_data;
-
 extern LspProjectConfigurationType project_configuration_type;
+
 static GPtrArray *lsp_servers = NULL;
 static GPtrArray *servers_in_shutdown = NULL;
-
-
-static void free_shuthown_info(LspServer *info)
-{
-	lsp_log_stop(info->log);
-	g_object_unref(info->process);
-	jsonrpc_client_close(info->rpc_client, NULL, NULL);
-	g_object_unref(info->rpc_client);
-	//TODO: check if stream should be closed
-	g_object_unref(info->stream);
-	g_free(info->cmd);
-	g_free(info);
-}
 
 
 static void force_terminate(LspServer *info)
@@ -66,85 +56,49 @@ static void force_terminate(LspServer *info)
 
 static void exit_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	LspServer *info = user_data;
+	LspServer *srv = user_data;
 
 	if (error)
-		force_terminate(info);
+		force_terminate(srv);
 
-	g_ptr_array_remove_fast(servers_in_shutdown, info);
+	g_ptr_array_remove_fast(servers_in_shutdown, srv);
 }
 
 
 static void shutdown_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	LspServer *info = user_data;
+	LspServer *srv = user_data;
 
 	if (!error)
 	{
-		msgwin_status_add("Sending exit notification to LSP server %s", info->cmd);
-		lsp_client_notify(info, "exit", NULL, exit_cb, info);
+		msgwin_status_add("Sending exit notification to LSP server %s", srv->config.cmd);
+		lsp_client_notify(srv, "exit", NULL, exit_cb, srv);
 	}
 	else
 	{
-		msgwin_status_add("Force terminating LSP server %s", info->cmd);
-		force_terminate(info);
-		g_ptr_array_remove_fast(servers_in_shutdown, info);
+		msgwin_status_add("Force terminating LSP server %s", srv->config.cmd);
+		force_terminate(srv);
+		g_ptr_array_remove_fast(servers_in_shutdown, srv);
 	}
 }
 
 
-static void stop_process(LspServer *s, gboolean terminate)
+static void stop_process(LspServer *s)
 {
-	LspServer *info = g_new0(LspServer, 1);
+	s->startup_shutdown = TRUE;
+	g_ptr_array_add(servers_in_shutdown, s);
 
-	info->process = s->process;
-	s->process = NULL;
-	info->rpc_client = s->rpc_client;
-	s->rpc_client = NULL;
-	info->stream = s->stream;
-	s->stream = NULL;
-	info->log = s->log;
-	s->log.stream = NULL;
-	info->cmd = g_strdup(s->cmd);
-
-	g_ptr_array_add(servers_in_shutdown, info);
-
-	if (terminate)
-	{
-		msgwin_status_add("Sending shutdown request to LSP server %s", s->cmd);
-		lsp_client_call_async(info, "shutdown", NULL, shutdown_cb, info);
-	}
-	else
-		g_ptr_array_remove_fast(servers_in_shutdown, info);
-
+	msgwin_status_add("Sending shutdown request to LSP server %s", s->config.cmd);
+	lsp_client_call_startup_shutdown(s, "shutdown", NULL, shutdown_cb, s);
 }
 
 
-static void stop_server(LspServer *s)
+
+static void free_config(LspServerConfig *cfg)
 {
-	if (s->process)
-	{
-		s->startup_shutdown = TRUE;
-		stop_process(s, TRUE);
-	}
-}
-
-
-static void free_server(gpointer data)
-{
-	LspServer *s = data;
-	LspServerConfig *cfg = &s->config;
-
-	stop_server(s);
-
-	g_free(s->cmd);
-	g_strfreev(s->env);
-	g_free(s->ref_lang);
-	g_free(s->autocomplete_trigger_chars);
-	g_free(s->signature_trigger_chars);
-	g_free(s->initialize_response);
-	lsp_progress_free_all(s);
-
+	g_free(cfg->cmd);
+	g_strfreev(cfg->env);
+	g_free(cfg->ref_lang);
 	g_strfreev(cfg->autocomplete_trigger_sequences);
 	g_free(cfg->semantic_tokens_type_style);
 	g_free(cfg->diagnostics_error_style);
@@ -153,183 +107,37 @@ static void free_server(gpointer data)
 	g_free(cfg->diagnostics_hint_style);
 	g_free(cfg->highlighting_style);
 	g_free(cfg->formatting_options_file);
+}
+
+
+static void free_server(LspServer *s)
+{
+	if (s->process)
+	{
+		g_object_unref(s->process);
+		lsp_client_destroy(s->rpc_client);
+		//TODO: check if stream should be closed
+		g_object_unref(s->stream);
+		lsp_log_stop(s->log);
+	}
+
+	g_free(s->autocomplete_trigger_chars);
+	g_free(s->signature_trigger_chars);
+	g_free(s->initialize_response);
+	lsp_progress_free_all(s);
+
+	free_config(&s->config);
 
 	g_free(s);
 }
 
 
-static void log_message(GVariant *params)
+static void stop_and_free_server(LspServer *s)
 {
-	gint64 type;
-	const gchar *msg;
-	gboolean success;
-
-	success = JSONRPC_MESSAGE_PARSE(params,
-		"type", JSONRPC_MESSAGE_GET_INT64(&type),
-		"message", JSONRPC_MESSAGE_GET_STRING(&msg));
-
-	if (success)
-	{
-		const gchar *type_str;
-		gchar *stripped_msg = g_strdup(msg);
-
-		switch (type)
-		{
-			case 1:
-				type_str = "Error";
-				break;
-			case 2:
-				type_str = "Warning";
-				break;
-			case 3:
-				type_str = "Info";
-				break;
-			case 4:
-				type_str = "Log";
-				break;
-			default:
-				type_str = "Debug";
-				break;
-		}
-
-		g_strstrip(stripped_msg);
-		msgwin_status_add("%s: %s", type_str, stripped_msg);
-		g_free(stripped_msg);
-	}
-}
-
-
-static LspServer *srv_from_rpc_client(JsonrpcClient *client)
-{
-	if (lsp_servers)
-	{
-		gint i;
-		for (i = 0; i < lsp_servers->len; i++)
-		{
-			LspServer *s = lsp_servers->pdata[i];
-			if (s->rpc_client == client)
-				return s;
-		}
-	}
-
-	return NULL;
-}
-
-
-LspLogInfo lsp_server_get_log_info(JsonrpcClient *client)
-{
-	LspLogInfo empty = {0, TRUE, NULL};
-	LspServer *s;
-	gint i;
-
-	if (servers_in_shutdown)
-	{
-		for (i = 0; i < servers_in_shutdown->len; i++)
-		{
-			LspServer *s = servers_in_shutdown->pdata[i];
-			if (s->rpc_client == client)
-				return s->log;
-		}
-	}
-
-	s = srv_from_rpc_client(client);
-	if (s)
-		return s->log;
-
-	return empty;
-}
-
-
-static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *params,
-	gpointer user_data)
-{
-	lsp_log(lsp_server_get_log_info(self), LspLogServerNotificationSent, method, params, NULL, NULL);
-
-	if (g_strcmp0(method, "textDocument/publishDiagnostics") == 0)
-		lsp_diagnostics_received(params);
-	else if (g_strcmp0(method, "window/logMessage") == 0 ||
-		g_strcmp0(method, "window/showMessage") == 0)
-	{
-		log_message(params);
-	}
-	else if (g_str_has_prefix(method, "$/"))
-	{
-		LspServer *srv = srv_from_rpc_client(self);
-		lsp_progress_process_notification(srv, params);
-	}
+	if (s->process)
+		stop_process(s);
 	else
-	{
-		//printf("\n\nNOTIFICATION FROM SERVER: %s\n", method);
-		//printf("params:\n%s\n\n\n", lsp_utils_json_pretty_print(params));
-	}
-}
-
-
-static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GVariant *params,
-	gpointer user_data)
-{
-	JsonNode *node = json_from_string("{}", NULL);
-	GVariant *variant = json_gvariant_deserialize(node, NULL, NULL);
-	gboolean ret = FALSE;
-
-	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageSent, method, params, NULL, NULL);
-
-	//printf("\n\nREQUEST FROM SERVER: %s\n", method);
-	//printf("params:\n%s\n\n\n", lsp_utils_json_pretty_print(params));
-
-	if (g_strcmp0(method, "window/workDoneProgress/create") == 0)
-	{
-		LspServer *srv = srv_from_rpc_client(self);
-		gboolean have_token = FALSE;
-		const gchar *token_str = NULL;
-		gint64 token_int = 0;
-
-		have_token = JSONRPC_MESSAGE_PARSE(params,
-			"token", JSONRPC_MESSAGE_GET_STRING(&token_str)
-		);
-		if (!have_token)
-		{
-			have_token = JSONRPC_MESSAGE_PARSE(params,
-				"token", JSONRPC_MESSAGE_GET_INT64(&token_int)
-			);
-		}
-
-		if (srv && have_token)
-		{
-			LspProgressToken token = {token_int, (gchar *)token_str};
-			lsp_progress_create(srv, token);
-		}
-
-		jsonrpc_client_reply_async(self, id, NULL, NULL, NULL, NULL);
-		ret = TRUE;
-	}
-	else if (g_strcmp0(method, "workspace/applyEdit") == 0)
-	{
-		GVariant *edit, *node;
-		gboolean success = FALSE;
-
-		JSONRPC_MESSAGE_PARSE(params,
-			"edit", JSONRPC_MESSAGE_GET_VARIANT(&edit)
-		);
-
-		success = lsp_utils_apply_workspace_edit(edit);
-
-		node = JSONRPC_MESSAGE_NEW(
-			"applied", JSONRPC_MESSAGE_PUT_BOOLEAN(success)
-		);
-
-		jsonrpc_client_reply_async(self, id, node, NULL, NULL, NULL);
-
-		g_variant_unref(node);
-		g_variant_unref(edit);
-		ret = TRUE;
-	}
-
-	lsp_log(lsp_server_get_log_info(self), LspLogServerMessageReceived, method, variant, NULL, NULL);
-	g_variant_unref(variant);
-	json_node_free(node);
-
-	return ret;
+		free_server(s);
 }
 
 
@@ -476,107 +284,79 @@ static void update_config(GVariant *variant, gboolean *option, const gchar *key)
 }
 
 
-static LspServer *server_get_configured_for_ft(gint ft_id)
-{
-	LspServer *s;
-
-	if (!lsp_servers || lsp_utils_is_lsp_disabled_for_project())
-		return NULL;
-
-	s = lsp_servers->pdata[ft_id];
-
-	if (s->ref_lang)
-	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
-
-		if (ft)
-			s = lsp_servers->pdata[ft->id];
-		else
-			return NULL;
-	}
-
-	return s;
-}
-
-
 static void initialize_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	gint filetype_id = GPOINTER_TO_INT(user_data);
+	LspServer *s = user_data;
 
 	if (!error)
 	{
-		LspServer *s = server_get_configured_for_ft(filetype_id);
+		GeanyDocument *current_doc = document_get_current();
+		guint i;
 
-		if (s)
+		g_free(s->autocomplete_trigger_chars);
+		s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
+		if (!*s->autocomplete_trigger_chars)
+			s->config.autocomplete_enable = FALSE;
+
+		g_free(s->signature_trigger_chars);
+		s->signature_trigger_chars = get_signature_trigger_chars(return_value);
+		if (!*s->signature_trigger_chars)
+			s->config.signature_enable = FALSE;
+
+		update_config(return_value, &s->config.hover_enable, "hoverProvider");
+		update_config(return_value, &s->config.goto_enable, "definitionProvider");
+		update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
+		update_config(return_value, &s->config.highlighting_enable, "documentHighlightProvider");
+
+		s->supports_workspace_symbols = TRUE;
+		update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
+
+		s->use_incremental_sync = use_incremental_sync(return_value);
+
+		s->initialize_response = lsp_utils_json_pretty_print(return_value);
+
+		if (!supports_semantic_tokens(return_value))
+			s->config.semantic_tokens_enable = FALSE;
+		s->semantic_token_mask = get_semantic_token_mask(return_value);
+
+		msgwin_status_add("LSP server %s initialized", s->config.cmd);
+
+		lsp_client_notify(s, "initialized", NULL, NULL, NULL);
+		s->startup_shutdown = FALSE;
+
+		lsp_semtokens_init(s->filetype);
+
+		foreach_document(i)
 		{
-			GeanyDocument *current_doc = document_get_current();
-			guint i;
+			GeanyDocument *doc = documents[i];
 
-			g_free(s->autocomplete_trigger_chars);
-			s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
-			if (!*s->autocomplete_trigger_chars)
-				s->config.autocomplete_enable = FALSE;
-
-			g_free(s->signature_trigger_chars);
-			s->signature_trigger_chars = get_signature_trigger_chars(return_value);
-			if (!*s->signature_trigger_chars)
-				s->config.signature_enable = FALSE;
-
-			update_config(return_value, &s->config.hover_enable, "hoverProvider");
-			update_config(return_value, &s->config.goto_enable, "definitionProvider");
-			update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
-			update_config(return_value, &s->config.highlighting_enable, "documentHighlightProvider");
-
-			s->supports_workspace_symbols = TRUE;
-			update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
-
-			s->use_incremental_sync = use_incremental_sync(return_value);
-
-			s->initialize_response = lsp_utils_json_pretty_print(return_value);
-			//printf("%s\n", s->initialize_response);
-
-			if (!supports_semantic_tokens(return_value))
-				s->config.semantic_tokens_enable = FALSE;
-			s->semantic_token_mask = get_semantic_token_mask(return_value);
-
-			msgwin_status_add("LSP server %s initialized", s->cmd);
-
-			lsp_client_notify(s, "initialized", NULL, NULL, NULL);
-			s->startup_shutdown = FALSE;
-
-			lsp_semtokens_init(filetype_id);
-
-			foreach_document(i)
+			// see on_document_activate() for detailed comment
+			if (doc->file_type->id == s->filetype && (doc->changed || doc == current_doc))
 			{
-				GeanyDocument *doc = documents[i];
+				// returns NULL if e.g. configured not to use LSP outside project dir
+				LspServer *s2 = lsp_server_get_if_running(doc);
 
-				// see on_document_activate() for detailed comment
-				if (doc->file_type->id == filetype_id && (doc->changed || doc == current_doc))
-				{
-					// returns NULL if e.g. configured not to use LSP outside project dir
-					LspServer *s2 = lsp_server_get_if_running(doc);
-
-					if (s2)
-						lsp_sync_text_document_did_open(s, doc);
-				}
+				if (s2)
+					lsp_sync_text_document_did_open(s, doc);
 			}
 		}
 	}
 	else
 	{
-		LspServer *s = server_get_configured_for_ft(filetype_id);
+		gint restarts = s->restarts;
 
-		if (s)
-		{
-			msgwin_status_add("LSP initialize request failed for LSP server %s", s->cmd);
-			stop_process(s, TRUE);
-			start_lsp_server(s, filetype_id);
-		}
+		msgwin_status_add("LSP initialize request failed for LSP server %s", s->config.cmd);
+
+		stop_process(s);
+		s = lsp_server_init(s->filetype);
+		s->restarts = restarts;
+		lsp_servers->pdata[s->filetype] = s;
+		start_lsp_server(s);
 	}
 }
 
 
-static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
+static void perform_initialize(LspServer *server)
 {
 	GVariant *node;
 
@@ -684,10 +464,10 @@ static void perform_initialize(LspServer *server, GeanyFiletypeID ft)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	msgwin_status_add("Sending initialize request to LSP server %s", server->cmd);
+	msgwin_status_add("Sending initialize request to LSP server %s", server->config.cmd);
 
 	server->startup_shutdown = TRUE;
-	lsp_client_call_async(server, "initialize", node, initialize_cb, GINT_TO_POINTER(ft));
+	lsp_client_call_startup_shutdown(server, "initialize", node, initialize_cb, server);
 
 	g_free(locale);
 	g_free(project_base);
@@ -714,14 +494,19 @@ static GKeyFile *read_keyfile(const gchar *config_file)
 static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer data)
 {
 	GSubprocess *process = (GSubprocess *)source_object;
-	GeanyFiletypeID filetype_id = GPOINTER_TO_INT(data);
-	LspServer *s = server_get_configured_for_ft(filetype_id);
+	LspServer *s = data;
 
 	if (s && s->process == process)
 	{
-		msgwin_status_add("LSP server %s stopped, restarting", s->cmd);
-		stop_process(s, FALSE);
-		start_lsp_server(s, filetype_id);
+		gint restarts = s->restarts;
+
+		msgwin_status_add("LSP server %s stopped, restarting", s->config.cmd);
+
+		free_server(s);
+		s = lsp_server_init(s->filetype);
+		s->restarts = restarts;
+		lsp_servers->pdata[s->filetype] = s;
+		start_lsp_server(s);
 	}
 }
 
@@ -732,7 +517,7 @@ static gboolean is_dead(LspServer *server)
 }
 
 
-static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
+static void start_lsp_server(LspServer *server)
 {
 	GInputStream *input_stream;
 	GOutputStream *output_stream;
@@ -745,11 +530,11 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 	server->restarts++;
 	if (is_dead(server))
 	{
-		dialogs_show_msgbox(GTK_MESSAGE_ERROR, "LSP server %s terminated more than 5 times, giving up", server->cmd);
+		dialogs_show_msgbox(GTK_MESSAGE_ERROR, "LSP server %s terminated more than 5 times, giving up", server->config.cmd);
 		return;
 	}
 
-	cmd = g_string_new(server->cmd);
+	cmd = g_string_new(server->config.cmd);
 	while (utils_string_replace_all(cmd, "  ", " ") > 0)
 		;
 	if (g_str_has_prefix(cmd->str, "~/"))
@@ -761,7 +546,7 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 		flags |= G_SUBPROCESS_FLAGS_STDERR_SILENCE;
 	launcher = g_subprocess_launcher_new(flags);
 
-	foreach_strv(env, server->env)
+	foreach_strv(env, server->config.env)
 	{
 		gchar **kv = g_strsplit_set(*env, "=", 2);
 		if (kv && kv[0] && kv[1])
@@ -778,25 +563,21 @@ static void start_lsp_server(LspServer *server, GeanyFiletypeID filetype_id)
 
 	if (!server->process)
 	{
-		msgwin_status_add("LSP server process %s failed to start with error message: %s", server->cmd, error->message);
+		msgwin_status_add("LSP server process %s failed to start with error message: %s", server->config.cmd, error->message);
 		g_error_free(error);
 		return;
 	}
 
-	g_subprocess_wait_async(server->process, NULL, process_stopped, GINT_TO_POINTER(filetype_id));
+	g_subprocess_wait_async(server->process, NULL, process_stopped, server);
 
 	input_stream = g_subprocess_get_stdout_pipe(server->process);
 	output_stream = g_subprocess_get_stdin_pipe(server->process);
 	server->stream = g_simple_io_stream_new(input_stream, output_stream);
 
-	server->rpc_client = jsonrpc_client_new(server->stream);
-	jsonrpc_client_start_listening(server->rpc_client);
 	server->log = lsp_log_start(&server->config);
+	server->rpc_client = lsp_client_new(server, server->stream);
 
-	g_signal_connect(server->rpc_client, "handle-call", G_CALLBACK(handle_call), NULL);
-	g_signal_connect(server->rpc_client, "notification", G_CALLBACK(handle_notification), NULL);
-
-	perform_initialize(server, filetype_id);
+	perform_initialize(server);
 }
 
 
@@ -891,9 +672,9 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 
 static void load_filetype_only_config(GKeyFile *kf, gchar *section, LspServer *s)
 {
-	get_str(&s->cmd, kf, section, "cmd");
-	get_strv(&s->env, kf, section, "env");
-	get_str(&s->ref_lang, kf, section, "use");
+	get_str(&s->config.cmd, kf, section, "cmd");
+	get_strv(&s->config.env, kf, section, "env");
+	get_str(&s->config.ref_lang, kf, section, "use");
 	get_str(&s->config.rpc_log, kf, section, "rpc_log");
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
 }
@@ -925,9 +706,9 @@ static LspServer *server_get_or_start_for_ft(GeanyFiletype *ft, gboolean launch_
 	if (!launch_server)
 		return NULL;
 
-	if (s->ref_lang)
+	if (s->config.ref_lang)
 	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(s->ref_lang);
+		GeanyFiletype *ft = filetypes_lookup_by_name(s->config.ref_lang);
 
 		if (ft)
 		{
@@ -941,17 +722,17 @@ static LspServer *server_get_or_start_for_ft(GeanyFiletype *ft, gboolean launch_
 	if (s2)
 		s = s2;
 
-	if (s->cmd)
-		g_strstrip(s->cmd);
-	if (EMPTY(s->cmd))
+	if (s->config.cmd)
+		g_strstrip(s->config.cmd);
+	if (EMPTY(s->config.cmd))
 	{
-		g_free(s->cmd);
-		s->cmd = NULL;
+		g_free(s->config.cmd);
+		s->config.cmd = NULL;
 		s->not_used = TRUE;
 	}
 	else
 	{
-		start_lsp_server(s, ft->id);
+		start_lsp_server(s);
 	}
 
 	// the server isn't initialized when running for the first time because the async
@@ -1022,6 +803,29 @@ LspServer *lsp_server_get_if_running(GeanyDocument *doc)
 }
 
 
+static LspServer *server_get_configured_for_ft(gint ft_id)
+{
+	LspServer *s;
+
+	if (!lsp_servers || lsp_utils_is_lsp_disabled_for_project())
+		return NULL;
+
+	s = lsp_servers->pdata[ft_id];
+
+	if (s->config.ref_lang)
+	{
+		GeanyFiletype *ft = filetypes_lookup_by_name(s->config.ref_lang);
+
+		if (ft)
+			s = lsp_servers->pdata[ft->id];
+		else
+			return NULL;
+	}
+
+	return s;
+}
+
+
 static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
 {
 	LspServer *s;
@@ -1081,6 +885,38 @@ void lsp_server_stop_all(gboolean wait)
 }
 
 
+static LspServer *lsp_server_new(GKeyFile *kf_global, GKeyFile *kf, GeanyFiletype *ft)
+{
+	LspServer *s = g_new0(LspServer, 1);
+
+	s->filetype = ft->id;
+
+	load_config(kf_global, "all", s);
+	load_config(kf_global, ft->name, s);
+	load_config(kf, "all", s);
+	load_config(kf, ft->name, s);
+
+	load_filetype_only_config(kf_global, ft->name, s);
+	load_filetype_only_config(kf, ft->name, s);
+
+	return s;
+}
+
+
+static LspServer *lsp_server_init(gint ft)
+{
+	GKeyFile *kf_global = read_keyfile(lsp_utils_get_global_config_filename());
+	GKeyFile *kf = read_keyfile(lsp_utils_get_config_filename());
+	GeanyFiletype *filetype = filetypes_index(ft);
+	LspServer *s = lsp_server_new(kf_global, kf, filetype);
+
+	g_key_file_free(kf);
+	g_key_file_free(kf_global);
+
+	return s;
+}
+
+
 void lsp_server_init_all(void)
 {
 	GKeyFile *kf_global = read_keyfile(lsp_utils_get_global_config_filename());
@@ -1092,22 +928,14 @@ void lsp_server_init_all(void)
 		lsp_server_stop_all(FALSE);
 
 	if (!servers_in_shutdown)
-		servers_in_shutdown = g_ptr_array_new_full(0, (GDestroyNotify)free_shuthown_info);
+		servers_in_shutdown = g_ptr_array_new_full(0, (GDestroyNotify)free_server);
 
-	lsp_servers = g_ptr_array_new_full(0, free_server);
+	lsp_servers = g_ptr_array_new_full(0, (GDestroyNotify)stop_and_free_server);
 
 	for (i = 0; (ft = filetypes_index(i)); i++)
 	{
-		LspServer *s = g_new0(LspServer, 1);
+		LspServer *s = lsp_server_new(kf_global, kf, ft);
 		g_ptr_array_add(lsp_servers, s);
-
-		load_config(kf_global, "all", s);
-		load_config(kf_global, ft->name, s);
-		load_config(kf, "all", s);
-		load_config(kf, ft->name, s);
-
-		load_filetype_only_config(kf_global, ft->name, s);
-		load_filetype_only_config(kf, ft->name, s);
 	}
 
 	g_key_file_free(kf);
@@ -1159,13 +987,13 @@ gchar *lsp_server_get_initialize_responses(void)
 	{
 		LspServer *s = lsp_servers->pdata[i];
 
-		if (s->cmd && s->initialize_response)
+		if (s->config.cmd && s->initialize_response)
 		{
 			if (!first)
 				g_string_append(str, "\n\n\"############################################################\": \"next server\",");
 			first = FALSE;
 			g_string_append(str, "\n\n\"");
-			g_string_append(str, s->cmd);
+			g_string_append(str, s->config.cmd);
 			g_string_append(str, "\":\n");
 			g_string_append(str, s->initialize_response);
 			g_string_append_c(str, ',');

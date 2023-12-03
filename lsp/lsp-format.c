@@ -25,6 +25,8 @@
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-client.h"
 
+#include <jsonrpc-glib.h>
+
 
 static void format_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
@@ -116,7 +118,7 @@ void lsp_format_perform(void)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(srv, method, node, format_cb, doc);
+	lsp_client_call(srv, method, node, format_cb, doc);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

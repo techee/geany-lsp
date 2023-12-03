@@ -26,6 +26,8 @@
 #include "lsp/lsp-sync.h"
 #include "lsp/lsp-tm-tag.h"
 
+#include <jsonrpc-glib.h>
+
 
 typedef struct {
 	GeanyDocument *doc;
@@ -267,7 +269,7 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callba
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(server, "textDocument/documentSymbol", node,
+	lsp_client_call(server, "textDocument/documentSymbol", node,
 		symbols_cb, data);
 
 	g_free(doc_uri);
@@ -316,7 +318,7 @@ void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query,
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call_async(server, "workspace/symbol", node,
+	lsp_client_call(server, "workspace/symbol", node,
 		workspace_symbols_cb, data);
 
 	g_variant_unref(node);

@@ -22,6 +22,8 @@
 
 #include "lsp/lsp-progress.h"
 
+#include <jsonrpc-glib.h>
+
 
 typedef struct
 {

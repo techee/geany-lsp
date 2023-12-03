@@ -86,6 +86,7 @@ void lsp_log_stop(LspLogInfo log)
 
 	if (log.stream)
 		g_output_stream_close(G_OUTPUT_STREAM(log.stream), NULL, NULL);
+	log.stream = NULL;
 }
 
 

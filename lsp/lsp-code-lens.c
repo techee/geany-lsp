@@ -25,6 +25,8 @@
 #include "lsp/lsp-client.h"
 #include "lsp/lsp-sync.h"
 
+#include <jsonrpc-glib.h>
+
 
 extern GeanyPlugin *geany_plugin;
 extern GeanyData *geany_data;
@@ -108,7 +110,7 @@ void lsp_code_lens_send_request(GeanyDocument *doc)
 			"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 		"}"
 	);
-	lsp_client_call_async(server, "textDocument/codeLens", node,
+	lsp_client_call(server, "textDocument/codeLens", node,
 		code_lens_cb, doc);
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));

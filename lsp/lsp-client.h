@@ -26,7 +26,17 @@
 typedef void (*LspClientCallback) (GVariant *return_value, GError *error, gpointer user_data);
 
 
-void lsp_client_call_async(LspServer *srv, const gchar *method, GVariant *params,
+struct LspClient;
+typedef struct LspClient LspClient;
+
+
+LspClient *lsp_client_new(LspServer *srv, GIOStream *stream);
+void lsp_client_destroy(LspClient *client);
+
+void lsp_client_call(LspServer *srv, const gchar *method, GVariant *params,
+	LspClientCallback callback, gpointer user_data);
+
+void lsp_client_call_startup_shutdown(LspServer *srv, const gchar *method, GVariant *params,
 	LspClientCallback callback, gpointer user_data);
 
 void lsp_client_notify(LspServer *srv, const gchar *method, GVariant *params,
