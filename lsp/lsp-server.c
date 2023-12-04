@@ -344,13 +344,14 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 	else
 	{
 		gint restarts = s->restarts;
+		gint ft = s->filetype;
 
 		msgwin_status_add("LSP initialize request failed for LSP server %s", s->config.cmd);
 
 		stop_process(s);
-		s = lsp_server_init(s->filetype);
+		s = lsp_server_init(ft);
 		s->restarts = restarts;
-		lsp_servers->pdata[s->filetype] = s;
+		lsp_servers->pdata[ft] = s;
 		start_lsp_server(s);
 	}
 }
@@ -493,19 +494,19 @@ static GKeyFile *read_keyfile(const gchar *config_file)
 
 static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer data)
 {
-	GSubprocess *process = (GSubprocess *)source_object;
 	LspServer *s = data;
 
-	if (s && s->process == process)
+	if (s  && !s->startup_shutdown)
 	{
 		gint restarts = s->restarts;
+		gint ft = s->filetype;
 
 		msgwin_status_add("LSP server %s stopped, restarting", s->config.cmd);
 
 		free_server(s);
-		s = lsp_server_init(s->filetype);
+		s = lsp_server_init(ft);
 		s->restarts = restarts;
-		lsp_servers->pdata[s->filetype] = s;
+		lsp_servers->pdata[ft] = s;
 		start_lsp_server(s);
 	}
 }
