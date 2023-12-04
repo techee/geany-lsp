@@ -92,7 +92,7 @@ void lsp_command_send_request(LspServer *server, const gchar *cmd, GVariant *arg
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call(server, "workspace/executeCommand", node,
+	lsp_rpc_call(server, "workspace/executeCommand", node,
 		command_cb, NULL);
 
 	g_variant_unref(node);
@@ -195,7 +195,7 @@ void lsp_command_send_code_action_request(gint pos, GCallback actions_resolved_c
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call(srv, "textDocument/codeAction", node, code_action_cb,
+	lsp_rpc_call(srv, "textDocument/codeAction", node, code_action_cb,
 		actions_resolved_cb);
 
 	g_variant_unref(node);

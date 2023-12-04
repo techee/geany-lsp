@@ -473,7 +473,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc)
 	data->doc = doc;
 	data->request_id = ++sent_request_id;
 
-	lsp_client_call(server, "textDocument/completion", node,
+	lsp_rpc_call(server, "textDocument/completion", node,
 		autocomplete_cb, data);
 
 	g_free(doc_uri);

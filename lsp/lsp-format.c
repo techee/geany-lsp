@@ -118,7 +118,7 @@ void lsp_format_perform(void)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	lsp_client_call(srv, method, node, format_cb, doc);
+	lsp_rpc_call(srv, method, node, format_cb, doc);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

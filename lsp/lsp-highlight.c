@@ -187,7 +187,7 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 		data->pos = pos;
 		data->identifier = g_strdup(iden);
 		data->highlight = highlight;
-		lsp_client_call(server, "textDocument/documentHighlight", node,
+		lsp_rpc_call(server, "textDocument/documentHighlight", node,
 			highlight_cb, data);
 	}
 	else

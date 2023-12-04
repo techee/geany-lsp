@@ -243,7 +243,7 @@ static void perform_goto(LspServer *server, GeanyDocument *doc, gint pos, const 
 
 	data->doc = doc;
 	data->show_in_msgwin = show_in_msgwin;
-	lsp_client_call(server, request, node, goto_cb, data);
+	lsp_rpc_call(server, request, node, goto_cb, data);
 
 	g_free(doc_uri);
 	g_variant_unref(node);

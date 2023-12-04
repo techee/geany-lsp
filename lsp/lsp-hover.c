@@ -136,7 +136,7 @@ void lsp_hover_send_request(LspServer *server, GeanyDocument *doc, gint pos)
 	data->doc = doc;
 	data->pos = pos;
 
-	lsp_client_call(server, "textDocument/hover", node,
+	lsp_rpc_call(server, "textDocument/hover", node,
 		hover_cb, data);
 
 	g_free(doc_uri);

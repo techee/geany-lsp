@@ -184,7 +184,7 @@ void lsp_rename_send_request(gint pos, GCallback on_rename_done)
 
 			//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-			lsp_client_call(srv, "textDocument/rename", node,
+			lsp_rpc_call(srv, "textDocument/rename", node,
 				rename_cb, on_rename_done);
 
 			g_free(doc_uri);

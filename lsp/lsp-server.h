@@ -24,8 +24,8 @@
 #include <gio/gio.h>
 
 
-struct LspClient;
-typedef struct LspClient LspClient;
+struct LspRpc;
+typedef struct LspRpc LspRpc;
 
 
 typedef struct
@@ -86,7 +86,7 @@ typedef struct
 
 typedef struct LspServer
 {
-	LspClient *rpc_client;
+	LspRpc *rpc;
 	GSubprocess *process;
 	GIOStream *stream;
 	LspLogInfo log;

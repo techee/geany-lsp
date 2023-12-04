@@ -182,7 +182,7 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc)
 	data->doc = doc;
 	data->pos = pos;
 
-	lsp_client_call(server, "textDocument/signatureHelp", node,
+	lsp_rpc_call(server, "textDocument/signatureHelp", node,
 		signature_cb, data);
 
 	g_free(doc_uri);

@@ -35,13 +35,13 @@ typedef struct
 {
 	gchar *method_name;
 	gpointer user_data;
-	LspClientCallback callback;
+	LspRpcCallback callback;
 	GDateTime *req_time;
 	gboolean cb_on_startup_shutdown;
 } CallbackData;
 
 
-struct LspClient
+struct LspRpc
 {
 	JsonrpcClient *client;
 };
@@ -91,10 +91,10 @@ static void log_message(GVariant *params)
 }
 
 
-static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *params,
+static void handle_notification(JsonrpcClient *client, gchar *method, GVariant *params,
 	gpointer user_data)
 {
-	LspServer *srv = g_hash_table_lookup(client_table, self);
+	LspServer *srv = g_hash_table_lookup(client_table, client);
 
 	if (!srv)
 		return;
@@ -120,10 +120,10 @@ static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *pa
 }
 
 
-static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GVariant *params,
+static gboolean handle_call(JsonrpcClient *client, gchar* method, GVariant *id, GVariant *params,
 	gpointer user_data)
 {
-	LspServer *srv = g_hash_table_lookup(client_table, self);
+	LspServer *srv = g_hash_table_lookup(client_table, client);
 	gboolean ret = FALSE;
 	GVariant *variant;
 	JsonNode *node;
@@ -161,7 +161,7 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 			lsp_progress_create(srv, token);
 		}
 
-		jsonrpc_client_reply_async(self, id, NULL, NULL, NULL, NULL);
+		jsonrpc_client_reply_async(client, id, NULL, NULL, NULL, NULL);
 		ret = TRUE;
 	}
 	else if (g_strcmp0(method, "workspace/applyEdit") == 0)
@@ -179,7 +179,7 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 			"applied", JSONRPC_MESSAGE_PUT_BOOLEAN(success)
 		);
 
-		jsonrpc_client_reply_async(self, id, node, NULL, NULL, NULL);
+		jsonrpc_client_reply_async(client, id, node, NULL, NULL, NULL);
 
 		g_variant_unref(node);
 		g_variant_unref(edit);
@@ -196,14 +196,14 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 
 static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)source_object;
-	LspServer *srv = g_hash_table_lookup(client_table, self);
+	JsonrpcClient *client = (JsonrpcClient *)source_object;
+	LspServer *srv = g_hash_table_lookup(client_table, client);
 	CallbackData *data = user_data;
 	GVariant *return_value = NULL;
 	GError *error = NULL;
 	gboolean is_startup_shutdown = TRUE;
 
-	jsonrpc_client_call_finish(self, res, &return_value, &error);
+	jsonrpc_client_call_finish(client, res, &return_value, &error);
 
 	if (srv)
 	{
@@ -227,8 +227,8 @@ static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_dat
 }
 
 
-static void lsp_client_call_full(LspServer *srv, const gchar *method, GVariant *params,
-	LspClientCallback callback, gboolean cb_on_startup_shutdown, gpointer user_data)
+static void call_full(LspServer *srv, const gchar *method, GVariant *params,
+	LspRpcCallback callback, gboolean cb_on_startup_shutdown, gpointer user_data)
 {
 	CallbackData *data = g_new0(CallbackData, 1);
 
@@ -240,32 +240,32 @@ static void lsp_client_call_full(LspServer *srv, const gchar *method, GVariant *
 
 	lsp_log(srv->log, LspLogClientMessageSent, method, params, NULL, NULL);
 
-	jsonrpc_client_call_async(srv->rpc_client->client, method, params, NULL, call_cb, data);
+	jsonrpc_client_call_async(srv->rpc->client, method, params, NULL, call_cb, data);
 }
 
 
-void lsp_client_call(LspServer *srv, const gchar *method, GVariant *params,
-	LspClientCallback callback, gpointer user_data)
+void lsp_rpc_call(LspServer *srv, const gchar *method, GVariant *params,
+	LspRpcCallback callback, gpointer user_data)
 {
-	lsp_client_call_full(srv, method, params, callback, FALSE, user_data);
+	call_full(srv, method, params, callback, FALSE, user_data);
 }
 
 
-void lsp_client_call_startup_shutdown(LspServer *srv, const gchar *method, GVariant *params,
-	LspClientCallback callback, gpointer user_data)
+void lsp_rpc_call_startup_shutdown(LspServer *srv, const gchar *method, GVariant *params,
+	LspRpcCallback callback, gpointer user_data)
 {
-	lsp_client_call_full(srv, method, params, callback, TRUE, user_data);
+	call_full(srv, method, params, callback, TRUE, user_data);
 }
 
 
 static void notify_cb(GObject *source_object, GAsyncResult *res, gpointer user_data)
 {
-	JsonrpcClient *self = (JsonrpcClient *)source_object;
+	JsonrpcClient *client = (JsonrpcClient *)source_object;
 	CallbackData *data = user_data;
 	GVariant *return_value = NULL;
 	GError *error = NULL;
 
-	jsonrpc_client_send_notification_finish(self, res, &error);
+	jsonrpc_client_send_notification_finish(client, res, &error);
 
 	if (data->callback)
 		data->callback(return_value, error, data->user_data);
@@ -280,8 +280,8 @@ static void notify_cb(GObject *source_object, GAsyncResult *res, gpointer user_d
 }
 
 
-void lsp_client_notify(LspServer *srv, const gchar *method, GVariant *params,
-	LspClientCallback callback, gpointer user_data)
+void lsp_rpc_notify(LspServer *srv, const gchar *method, GVariant *params,
+	LspRpcCallback callback, gpointer user_data)
 {
 	gboolean params_added = FALSE;
 	CallbackData *data = g_new0(CallbackData, 1);
@@ -299,16 +299,16 @@ void lsp_client_notify(LspServer *srv, const gchar *method, GVariant *params,
 		params_added = TRUE;
 	}
 
-	jsonrpc_client_send_notification_async(srv->rpc_client->client, method, params, NULL, notify_cb, data);
+	jsonrpc_client_send_notification_async(srv->rpc->client, method, params, NULL, notify_cb, data);
 
 	if (params_added)
 		g_variant_unref(params);
 }
 
 
-LspClient *lsp_client_new(LspServer *srv, GIOStream *stream)
+LspRpc *lsp_rpc_new(LspServer *srv, GIOStream *stream)
 {
-	LspClient *c = g_new0(LspClient, 1);
+	LspRpc *c = g_new0(LspRpc, 1);
 
 	if (!client_table)
 		client_table = g_hash_table_new_full(g_direct_hash, g_direct_equal, NULL, NULL);
@@ -323,10 +323,10 @@ LspClient *lsp_client_new(LspServer *srv, GIOStream *stream)
 }
 
 
-void lsp_client_destroy(LspClient *client)
+void lsp_rpc_destroy(LspRpc *rpc)
 {
-	g_hash_table_remove(client_table, client->client);
-	jsonrpc_client_close(client->client, NULL, NULL);
-	g_object_unref(client->client);
-	g_free(client);
+	g_hash_table_remove(client_table, rpc->client);
+	jsonrpc_client_close(rpc->client, NULL, NULL);
+	g_object_unref(rpc->client);
+	g_free(rpc);
 }

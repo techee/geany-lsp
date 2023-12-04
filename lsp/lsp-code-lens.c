@@ -110,7 +110,7 @@ void lsp_code_lens_send_request(GeanyDocument *doc)
 			"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
 		"}"
 	);
-	lsp_client_call(server, "textDocument/codeLens", node,
+	lsp_rpc_call(server, "textDocument/codeLens", node,
 		code_lens_cb, doc);
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));

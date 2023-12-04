@@ -72,7 +72,7 @@ static void shutdown_cb(GVariant *return_value, GError *error, gpointer user_dat
 	if (!error)
 	{
 		msgwin_status_add("Sending exit notification to LSP server %s", srv->config.cmd);
-		lsp_client_notify(srv, "exit", NULL, exit_cb, srv);
+		lsp_rpc_notify(srv, "exit", NULL, exit_cb, srv);
 	}
 	else
 	{
@@ -89,7 +89,7 @@ static void stop_process(LspServer *s)
 	g_ptr_array_add(servers_in_shutdown, s);
 
 	msgwin_status_add("Sending shutdown request to LSP server %s", s->config.cmd);
-	lsp_client_call_startup_shutdown(s, "shutdown", NULL, shutdown_cb, s);
+	lsp_rpc_call_startup_shutdown(s, "shutdown", NULL, shutdown_cb, s);
 }
 
 
@@ -115,7 +115,7 @@ static void free_server(LspServer *s)
 	if (s->process)
 	{
 		g_object_unref(s->process);
-		lsp_client_destroy(s->rpc_client);
+		lsp_rpc_destroy(s->rpc);
 		//TODO: check if stream should be closed
 		g_object_unref(s->stream);
 		lsp_log_stop(s->log);
@@ -321,7 +321,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 
 		msgwin_status_add("LSP server %s initialized", s->config.cmd);
 
-		lsp_client_notify(s, "initialized", NULL, NULL, NULL);
+		lsp_rpc_notify(s, "initialized", NULL, NULL, NULL);
 		s->startup_shutdown = FALSE;
 
 		lsp_semtokens_init(s->filetype);
@@ -468,7 +468,7 @@ static void perform_initialize(LspServer *server)
 	msgwin_status_add("Sending initialize request to LSP server %s", server->config.cmd);
 
 	server->startup_shutdown = TRUE;
-	lsp_client_call_startup_shutdown(server, "initialize", node, initialize_cb, server);
+	lsp_rpc_call_startup_shutdown(server, "initialize", node, initialize_cb, server);
 
 	g_free(locale);
 	g_free(project_base);
@@ -576,7 +576,7 @@ static void start_lsp_server(LspServer *server)
 	server->stream = g_simple_io_stream_new(input_stream, output_stream);
 
 	server->log = lsp_log_start(&server->config);
-	server->rpc_client = lsp_client_new(server, server->stream);
+	server->rpc = lsp_rpc_new(server, server->stream);
 
 	perform_initialize(server);
 }
