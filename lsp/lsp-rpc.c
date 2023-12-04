@@ -96,6 +96,9 @@ static void handle_notification(JsonrpcClient *self, gchar *method, GVariant *pa
 {
 	LspServer *srv = g_hash_table_lookup(client_table, self);
 
+	if (!srv)
+		return;
+
 	lsp_log(srv->log, LspLogServerNotificationSent, method, params, NULL, NULL);
 
 	if (g_strcmp0(method, "textDocument/publishDiagnostics") == 0)
@@ -121,9 +124,15 @@ static gboolean handle_call(JsonrpcClient *self, gchar* method, GVariant *id, GV
 	gpointer user_data)
 {
 	LspServer *srv = g_hash_table_lookup(client_table, self);
-	JsonNode *node = json_from_string("{}", NULL);
-	GVariant *variant = json_gvariant_deserialize(node, NULL, NULL);
 	gboolean ret = FALSE;
+	GVariant *variant;
+	JsonNode *node;
+
+	if (!srv)
+		return ret;
+
+	node = json_from_string("{}", NULL);
+	variant = json_gvariant_deserialize(node, NULL, NULL);
 
 	lsp_log(srv->log, LspLogServerMessageSent, method, params, NULL, NULL);
 
@@ -192,13 +201,18 @@ static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_dat
 	CallbackData *data = user_data;
 	GVariant *return_value = NULL;
 	GError *error = NULL;
+	gboolean is_startup_shutdown = TRUE;
 
 	jsonrpc_client_call_finish(self, res, &return_value, &error);
 
-	lsp_log(srv->log, LspLogClientMessageReceived, data->method_name,
-		return_value, error, data->req_time);
+	if (srv)
+	{
+		lsp_log(srv->log, LspLogClientMessageReceived, data->method_name,
+			return_value, error, data->req_time);
+		is_startup_shutdown = srv->startup_shutdown;
+	}
 
-	if (data->callback && (!srv->startup_shutdown || data->cb_on_startup_shutdown))
+	if (data->callback && (!is_startup_shutdown || data->cb_on_startup_shutdown))
 		data->callback(return_value, error, data->user_data);
 
 	if (return_value)
