@@ -22,7 +22,7 @@
 
 #include "lsp/lsp-goto.h"
 #include "lsp/lsp-utils.h"
-#include "lsp/lsp-client.h"
+#include "lsp/lsp-rpc.h"
 #include "lsp/lsp-goto-panel.h"
 
 #include <jsonrpc-glib.h>

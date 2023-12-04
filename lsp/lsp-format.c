@@ -23,7 +23,7 @@
 #include "lsp/lsp-format.h"
 #include "lsp/lsp-server.h"
 #include "lsp/lsp-utils.h"
-#include "lsp/lsp-client.h"
+#include "lsp/lsp-rpc.h"
 
 #include <jsonrpc-glib.h>
 

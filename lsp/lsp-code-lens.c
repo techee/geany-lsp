@@ -22,7 +22,7 @@
 
 #include "lsp/lsp-code-lens.h"
 #include "lsp/lsp-utils.h"
-#include "lsp/lsp-client.h"
+#include "lsp/lsp-rpc.h"
 #include "lsp/lsp-sync.h"
 
 #include <jsonrpc-glib.h>

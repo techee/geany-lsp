@@ -20,7 +20,7 @@
 # include "config.h"
 #endif
 
-#include "lsp/lsp-client.h"
+#include "lsp/lsp-rpc.h"
 #include "lsp/lsp-server.h"
 #include "lsp/lsp-diagnostics.h"
 #include "lsp/lsp-progress.h"
