@@ -133,7 +133,12 @@ static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 
 static void on_document_visible(GeanyDocument *doc)
 {
-	LspServer *srv = lsp_server_get(doc);
+	LspServer *srv;
+
+	if (session_opening)
+		return;
+
+	srv = lsp_server_get(doc);
 
 	lsp_diagnostics_style_init(doc);
 	lsp_diagnostics_redraw(doc);
@@ -162,7 +167,7 @@ static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocu
 static void on_document_close(G_GNUC_UNUSED GObject * obj, GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
-	LspServer *srv = lsp_server_get(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 
 	if (!srv)
 		return;
@@ -293,7 +298,8 @@ static void on_document_reload(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
-	on_document_visible(doc);
+	if (!session_opening)
+		on_document_visible(doc);
 }
 
 
