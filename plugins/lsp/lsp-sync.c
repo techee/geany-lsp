@@ -69,7 +69,7 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 {
 	GVariant *node;
 	gchar *doc_uri;
-	gchar *lang_id;
+	gchar *lang_id = NULL;
 	gchar *doc_text;
 	guint doc_version;
 
@@ -78,8 +78,8 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 
 	g_hash_table_add(open_docs, doc);
 
+	lsp_server_get_ft(doc, &lang_id);
 	doc_uri = lsp_utils_get_doc_uri(doc);
-	lang_id = lsp_utils_get_lsp_lang_name(doc);
 	doc_text = sci_get_contents(doc->editor->sci, -1);
 	doc_version = get_next_doc_version_num(doc);
 

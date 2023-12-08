@@ -33,6 +33,7 @@ typedef struct
 	gchar *cmd;
 	gchar **env;
 	gchar *ref_lang;
+	gchar **lang_id_mappings;
 
 	gboolean show_server_stderr;
 	gchar *rpc_log;
@@ -116,6 +117,7 @@ LspServer *lsp_server_get_for_ft(GeanyFiletype *ft);
 LspServer *lsp_server_get_if_running(GeanyDocument *doc);
 LspServerConfig *lsp_server_get_config(GeanyDocument *doc);
 gboolean lsp_server_is_usable(GeanyDocument *doc);
+GeanyFiletype *lsp_server_get_ft(GeanyDocument *doc, gchar **lsp_lang_id);
 
 void lsp_server_stop_all(gboolean wait);
 void lsp_server_init_all(void);
