@@ -55,41 +55,45 @@ gint lsp_utils_lsp_pos_to_scintilla(ScintillaObject *sci, LspPosition lsp_pos)
 }
 
 
-gchar *lsp_utils_get_lsp_lang_name(GeanyDocument *doc)
+gchar *lsp_utils_get_lsp_lang_id(GeanyDocument *doc)
 {
 	GString *s;
-	const gchar *name;
+	const gchar *new_name = NULL;
 
 	if (!doc || !doc->file_type)
 		return NULL;
 
-	name = doc->file_type->name;
-
-	s = g_string_new(name);
+	s = g_string_new(doc->file_type->name);
 	g_string_ascii_down(s);
 
 	if (g_strcmp0(s->str, "none") == 0)
-		name = "plaintext";
+		new_name = "plaintext";
 	else if (g_strcmp0(s->str, "batch") == 0)
-		name = "bat";
+		new_name = "bat";
 	else if (g_strcmp0(s->str, "c++") == 0)
-		name = "cpp";
+		new_name = "cpp";
 	else if (g_strcmp0(s->str, "c#") == 0)
-		name = "csharp";
+		new_name = "csharp";
 	else if (g_strcmp0(s->str, "conf") == 0)
-		name = "ini";
+		new_name = "ini";
 	else if (g_strcmp0(s->str, "cython") == 0)
-		name = "python";
+		new_name = "python";
 	else if (g_strcmp0(s->str, "f77") == 0)
-		name = "fortran";
+		new_name = "fortran";
 	else if (g_strcmp0(s->str, "freebasic") == 0)
-		name = "vb";  // visual basic
+		new_name = "vb";  // visual basic
 	else if (g_strcmp0(s->str, "make") == 0)
-		name = "makefile";
+		new_name = "makefile";
 	else if (g_strcmp0(s->str, "matlab/octave") == 0)
-		name = "matlab";
+		new_name = "matlab";
 	else if (g_strcmp0(s->str, "sh") == 0)
-		name = "shellscript";
+		new_name = "shellscript";
+
+	if (new_name)
+	{
+		g_string_free(s, TRUE);
+		return g_strdup(new_name);
+	}
 
 	return g_string_free(s, FALSE);
 }

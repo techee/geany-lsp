@@ -46,54 +46,6 @@ static GPtrArray *lsp_servers = NULL;
 static GPtrArray *servers_in_shutdown = NULL;
 
 
-static void force_terminate(LspServer *info)
-{
-	g_subprocess_send_signal(info->process, SIGTERM);
-	//TODO: check if sleep can be added here and if g_subprocess_send_signal() is executed immediately
-	g_subprocess_force_exit(info->process);
-}
-
-
-static void exit_cb(GVariant *return_value, GError *error, gpointer user_data)
-{
-	LspServer *srv = user_data;
-
-	if (error)
-		force_terminate(srv);
-
-	g_ptr_array_remove_fast(servers_in_shutdown, srv);
-}
-
-
-static void shutdown_cb(GVariant *return_value, GError *error, gpointer user_data)
-{
-	LspServer *srv = user_data;
-
-	if (!error)
-	{
-		msgwin_status_add("Sending exit notification to LSP server %s", srv->config.cmd);
-		lsp_rpc_notify(srv, "exit", NULL, exit_cb, srv);
-	}
-	else
-	{
-		msgwin_status_add("Force terminating LSP server %s", srv->config.cmd);
-		force_terminate(srv);
-		g_ptr_array_remove_fast(servers_in_shutdown, srv);
-	}
-}
-
-
-static void stop_process(LspServer *s)
-{
-	s->startup_shutdown = TRUE;
-	g_ptr_array_add(servers_in_shutdown, s);
-
-	msgwin_status_add("Sending shutdown request to LSP server %s", s->config.cmd);
-	lsp_rpc_call_startup_shutdown(s, "shutdown", NULL, shutdown_cb, s);
-}
-
-
-
 static void free_config(LspServerConfig *cfg)
 {
 	g_free(cfg->cmd);
@@ -107,6 +59,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->diagnostics_hint_style);
 	g_free(cfg->highlighting_style);
 	g_free(cfg->formatting_options_file);
+	g_strfreev(cfg->lang_id_mappings);
 }
 
 
@@ -129,6 +82,58 @@ static void free_server(LspServer *s)
 	free_config(&s->config);
 
 	g_free(s);
+}
+
+
+static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer data)
+{
+	LspServer *s = data;
+
+	if (s->startup_shutdown)  // normal shutdown
+		g_ptr_array_remove_fast(servers_in_shutdown, s);
+	else  // crash
+	{
+		gint restarts = s->restarts;
+		gint ft = s->filetype;
+
+		msgwin_status_add("LSP server %s stopped, restarting", s->config.cmd);
+
+		free_server(s);
+
+		s = lsp_server_init(ft);
+		s->restarts = restarts;
+		lsp_servers->pdata[ft] = s;
+		start_lsp_server(s);
+	}
+}
+
+
+static void shutdown_cb(GVariant *return_value, GError *error, gpointer user_data)
+{
+	LspServer *srv = user_data;
+
+	if (!error)
+	{
+		msgwin_status_add("Sending exit notification to LSP server %s", srv->config.cmd);
+		lsp_rpc_notify(srv, "exit", NULL, NULL, srv);
+	}
+	else
+	{
+		msgwin_status_add("Force terminating LSP server %s", srv->config.cmd);
+		g_subprocess_send_signal(srv->process, SIGTERM);
+		//TODO: check if sleep can be added here and if g_subprocess_send_signal() is executed immediately
+		g_subprocess_force_exit(srv->process);
+	}
+}
+
+
+static void stop_process(LspServer *s)
+{
+	s->startup_shutdown = TRUE;
+	g_ptr_array_add(servers_in_shutdown, s);
+
+	msgwin_status_add("Sending shutdown request to LSP server %s", s->config.cmd);
+	lsp_rpc_call_startup_shutdown(s, "shutdown", NULL, shutdown_cb, s);
 }
 
 
@@ -492,26 +497,6 @@ static GKeyFile *read_keyfile(const gchar *config_file)
 }
 
 
-static void process_stopped(GObject *source_object, GAsyncResult *res, gpointer data)
-{
-	LspServer *s = data;
-
-	if (s  && !s->startup_shutdown)
-	{
-		gint restarts = s->restarts;
-		gint ft = s->filetype;
-
-		msgwin_status_add("LSP server %s stopped, restarting", s->config.cmd);
-
-		free_server(s);
-		s = lsp_server_init(ft);
-		s->restarts = restarts;
-		lsp_servers->pdata[ft] = s;
-		start_lsp_server(s);
-	}
-}
-
-
 static gboolean is_dead(LspServer *server)
 {
 	return server->restarts > 5;
@@ -678,6 +663,7 @@ static void load_filetype_only_config(GKeyFile *kf, gchar *section, LspServer *s
 	get_str(&s->config.ref_lang, kf, section, "use");
 	get_str(&s->config.rpc_log, kf, section, "rpc_log");
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
+	get_strv(&s->config.lang_id_mappings, kf, section, "lang_id_mappings");
 }
 
 
@@ -776,14 +762,71 @@ static gboolean is_lsp_valid_for_doc(LspServerConfig *cfg, GeanyDocument *doc)
 }
 
 
+GeanyFiletype *lsp_server_get_ft(GeanyDocument *doc, gchar **lsp_lang_id)
+{
+	LspServer *srv;
+	guint i;
+
+	if (!lsp_servers || (doc->file_type && doc->file_type->id != GEANY_FILETYPES_NONE))
+	{
+		if (lsp_lang_id)
+			*lsp_lang_id = lsp_utils_get_lsp_lang_id(doc);
+		return doc->file_type;
+	}
+
+	foreach_ptr_array(srv, i, lsp_servers)
+	{
+		gint j = 0;
+		gchar **val;
+		gchar *lang_id = NULL;
+
+		if (!srv->config.lang_id_mappings || !srv->config.cmd)
+			continue;
+
+		foreach_strv(val, srv->config.lang_id_mappings)
+		{
+			if (j % 2 == 0)
+				lang_id = *val;
+			else
+			{
+				GPatternSpec *spec = g_pattern_spec_new(*val);
+				gchar *fname = g_path_get_basename(doc->file_name);
+				GeanyFiletype *ret = NULL;
+
+				if (g_pattern_spec_match_string(spec, fname))
+					ret = filetypes_index(i);
+
+				g_pattern_spec_free(spec);
+				g_free(fname);
+
+				if (ret)
+				{
+					if (lsp_lang_id)
+						*lsp_lang_id = g_strdup(lang_id);
+					return ret;
+				}
+			}
+
+			j++;
+		}
+	}
+
+	if (lsp_lang_id)
+		*lsp_lang_id = lsp_utils_get_lsp_lang_id(doc);
+	return doc->file_type;
+}
+
+
 static LspServer *server_get_for_doc(GeanyDocument *doc, gboolean launch_server)
 {
+	GeanyFiletype *ft;
 	LspServer *srv;
 
 	if (!doc)
 		return NULL;
 
-	srv = server_get_or_start_for_ft(doc->file_type, launch_server);
+	ft = lsp_server_get_ft(doc, NULL);
+	srv = server_get_or_start_for_ft(ft, launch_server);
 
 	if (!srv || !is_lsp_valid_for_doc(&srv->config, doc))
 		return NULL;
@@ -804,18 +847,20 @@ LspServer *lsp_server_get_if_running(GeanyDocument *doc)
 }
 
 
-static LspServer *server_get_configured_for_ft(gint ft_id)
+static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
 {
+	GeanyFiletype *ft;
 	LspServer *s;
 
-	if (!lsp_servers || lsp_utils_is_lsp_disabled_for_project())
+	if (!doc || !lsp_servers || lsp_utils_is_lsp_disabled_for_project())
 		return NULL;
 
-	s = lsp_servers->pdata[ft_id];
+	ft = lsp_server_get_ft(doc, NULL);
+	s = lsp_servers->pdata[ft->id];
 
 	if (s->config.ref_lang)
 	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(s->config.ref_lang);
+		ft = filetypes_lookup_by_name(s->config.ref_lang);
 
 		if (ft)
 			s = lsp_servers->pdata[ft->id];
@@ -823,18 +868,6 @@ static LspServer *server_get_configured_for_ft(gint ft_id)
 			return NULL;
 	}
 
-	return s;
-}
-
-
-static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
-{
-	LspServer *s;
-
-	if (!doc)
-		return NULL;
-
-	s = server_get_configured_for_ft(doc->file_type->id);
 	if (!s)
 		return NULL;
 
