@@ -272,26 +272,28 @@ static void on_document_filetype_set(G_GNUC_UNUSED GObject *obj, GeanyDocument *
 		return;
 
 	if (srv_old)
-		// only sends URI so no problem we are using the "new" doc here
+	{
+		// only uses URI/path so no problem we are using the "new" doc here
+		lsp_diagnostics_clear(doc);
+		lsp_semtokens_clear(doc);
 		lsp_sync_text_document_did_close(srv_old, doc);
+	}
 
 	// might be NULL because lsp_server_get() just launched new server but should
 	// be opened once the new server starts
 	if (srv_new)
+	{
 		lsp_sync_text_document_did_open(srv_new, doc);
+		on_document_visible(doc);
+	}
 }
 
 
 static void on_document_reload(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
-	LspServer *srv = lsp_server_get(doc);
-
-	if (!srv)
-		return;
-
-	lsp_sync_text_document_did_close(srv, doc);
-	lsp_sync_text_document_did_open(srv, doc);
+	// do nothing - reload behaves like a normal edit where the original text is
+	// removed from Scintilla and the new one inserted
 }
 
 

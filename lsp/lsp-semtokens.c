@@ -162,6 +162,12 @@ static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, guint64 token_m
 	GString *type_str;
 	gint i;
 
+	if (style_index > 0)
+	{
+		sci_indicator_set(doc->editor->sci, style_index);
+		sci_indicator_clear(doc->editor->sci, 0, sci_get_length(doc->editor->sci));
+	}
+
 	for (i = 0; i < tokens->len; i++)
 	{
 		guint v = g_array_index(tokens, guint, i);
@@ -468,4 +474,15 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 
 	g_free(doc_uri);
 	g_variant_unref(node);
+}
+
+
+void lsp_semtokens_clear(GeanyDocument *doc)
+{
+	g_hash_table_remove(cached_tokens, doc->real_path);
+	if (style_index > 0)
+	{
+		sci_indicator_set(doc->editor->sci, style_index);
+		sci_indicator_clear(doc->editor->sci, 0, sci_get_length(doc->editor->sci));
+	}
 }

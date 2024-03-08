@@ -25,7 +25,6 @@
 
 #include <jsonrpc-glib.h>
 
-
 static GHashTable *diag_table = NULL;
 static ScintillaObject *calltip_sci;
 
@@ -377,6 +376,13 @@ void lsp_diagnostics_received(GVariant* diags)
 
 	g_variant_iter_free(iter);
 	g_free(real_path);
+}
+
+
+void lsp_diagnostics_clear(GeanyDocument *doc)
+{
+	g_hash_table_remove(diag_table, doc->real_path);
+	lsp_diagnostics_redraw(doc);
 }
 
 

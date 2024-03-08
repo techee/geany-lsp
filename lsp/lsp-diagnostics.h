@@ -31,6 +31,7 @@ void lsp_diagnostics_hide_calltip(GeanyDocument *doc);
 
 void lsp_diagnostics_received(GVariant* diags);
 void lsp_diagnostics_redraw(GeanyDocument *doc);
+void lsp_diagnostics_clear(GeanyDocument *doc);
 
 void lsp_diagnostics_style_init(GeanyDocument *doc);
 
