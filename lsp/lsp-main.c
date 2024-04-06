@@ -672,8 +672,13 @@ static void update_command_menu_items(void)
 static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 	const gchar *word, gint pos, GeanyDocument *doc, gpointer user_data)
 {
-	last_click_pos = pos;
-	lsp_command_send_code_action_request(pos, update_command_menu_items);
+	LspServer *srv = lsp_server_get_if_running(doc);
+
+	if (srv && srv->config.execute_command_enable)
+	{
+		last_click_pos = pos;
+		lsp_command_send_code_action_request(pos, update_command_menu_items);
+	}
 
 	return FALSE;
 }

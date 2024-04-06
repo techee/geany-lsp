@@ -331,6 +331,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		update_config(return_value, &s->config.goto_enable, "definitionProvider");
 		update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
 		update_config(return_value, &s->config.highlighting_enable, "documentHighlightProvider");
+		update_config(return_value, &s->config.execute_command_enable, "executeCommandProvider");
 		update_config(return_value, &s->config.code_lens_enable, "codeLensProvider");
 
 		s->supports_workspace_symbols = TRUE;
@@ -673,6 +674,8 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 
 	get_bool(&s->config.highlighting_enable, kf, section, "highlighting_enable");
 	get_str(&s->config.highlighting_style, kf, section, "highlighting_style");
+
+	s->config.execute_command_enable = TRUE;
 
 	get_bool(&s->config.code_lens_enable, kf, section, "code_lens_enable");
 	get_str(&s->config.code_lens_style, kf, section, "code_lens_style");
