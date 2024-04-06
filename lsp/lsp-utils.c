@@ -507,6 +507,44 @@ gboolean lsp_utils_apply_workspace_edit(GVariant *workspace_edit)
 	if (changes)
 		g_variant_unref(changes);
 
+	if (!ret)
+	{
+		GVariantIter *iter = NULL;
+		GVariant *document_chages = NULL;
+
+		JSONRPC_MESSAGE_PARSE(workspace_edit,
+			"documentChanges", JSONRPC_MESSAGE_GET_ITER(&iter)
+			);
+
+		while (iter && g_variant_iter_loop(iter, "v", &document_chages))
+		{
+			const gchar *uri = NULL;
+			GVariantIter *iter2 = NULL;
+
+			//TODO: support CreateFile, RenameFile, DeleteFile
+			JSONRPC_MESSAGE_PARSE(document_chages,
+				"textDocument", "{",
+					"uri", JSONRPC_MESSAGE_GET_STRING(&uri),
+				"}",
+				"edits", JSONRPC_MESSAGE_GET_ITER(&iter2)
+			);
+
+			if (uri && iter2)
+			{
+				GPtrArray *edits = lsp_utils_parse_text_edits(iter2);
+
+				apply_edits_in_file(uri, edits);
+				ret = TRUE;
+
+				g_ptr_array_free(edits, TRUE);
+				g_variant_iter_free(iter2);
+			}
+		}
+
+		if (iter)
+			g_variant_iter_free(iter);
+	}
+
 	return ret;
 }
 

@@ -25,11 +25,13 @@
 
 typedef struct
 {
+	guint line;
 	gchar *title;
 	gchar *command;
 	GVariant *arguments;
 } LspCommand;
 
+void lsp_command_free(LspCommand *cmd);
 
 void lsp_command_send_request(LspServer *server, const gchar *cmd, GVariant *arguments);
 

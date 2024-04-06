@@ -58,6 +58,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->diagnostics_info_style);
 	g_free(cfg->diagnostics_hint_style);
 	g_free(cfg->highlighting_style);
+	g_free(cfg->code_lens_style);
 	g_free(cfg->formatting_options_file);
 	g_strfreev(cfg->lang_id_mappings);
 }
@@ -280,12 +281,30 @@ static gboolean use_incremental_sync(GVariant *node)
 static void update_config(GVariant *variant, gboolean *option, const gchar *key)
 {
 	gboolean val = FALSE;
-	JSONRPC_MESSAGE_PARSE(variant,
+	gboolean success = JSONRPC_MESSAGE_PARSE(variant,
 		"capabilities", "{",
 			key, JSONRPC_MESSAGE_GET_BOOLEAN(&val),
 		"}");
-	if (!val)
-		*option = FALSE;
+
+	if (success)  // explicit TRUE, FALSE
+	{
+		if (!val)
+			*option = FALSE;
+	}
+	else  // dict (possibly just empty) which also indicates TRUE
+	{
+		GVariant *var;
+
+		JSONRPC_MESSAGE_PARSE(variant,
+			"capabilities", "{",
+				key, JSONRPC_MESSAGE_GET_VARIANT(&var),
+			"}");
+
+		if (var)
+			g_variant_unref(var);
+		else
+			*option = FALSE;
+	}
 }
 
 
@@ -312,6 +331,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		update_config(return_value, &s->config.goto_enable, "definitionProvider");
 		update_config(return_value, &s->config.document_symbols_enable, "documentSymbolProvider");
 		update_config(return_value, &s->config.highlighting_enable, "documentHighlightProvider");
+		update_config(return_value, &s->config.code_lens_enable, "codeLensProvider");
 
 		s->supports_workspace_symbols = TRUE;
 		update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
@@ -653,6 +673,9 @@ static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
 
 	get_bool(&s->config.highlighting_enable, kf, section, "highlighting_enable");
 	get_str(&s->config.highlighting_style, kf, section, "highlighting_style");
+
+	get_bool(&s->config.code_lens_enable, kf, section, "code_lens_enable");
+	get_str(&s->config.code_lens_style, kf, section, "code_lens_style");
 }
 
 

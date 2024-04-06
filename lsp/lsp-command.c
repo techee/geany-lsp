@@ -31,7 +31,7 @@
 static GPtrArray *code_actions;
 
 
-static void command_free(LspCommand *cmd)
+void lsp_command_free(LspCommand *cmd)
 {
 	g_free(cmd->title);
 	g_free(cmd->command);
@@ -51,7 +51,7 @@ void lsp_command_send_code_action_destroy(void)
 void lsp_command_send_code_action_init(void)
 {
 	lsp_command_send_code_action_destroy();
-	code_actions = g_ptr_array_new_full(0, (GDestroyNotify)command_free);
+	code_actions = g_ptr_array_new_full(0, (GDestroyNotify)lsp_command_free);
 }
 
 

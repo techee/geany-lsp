@@ -74,6 +74,9 @@ typedef struct
 	gboolean highlighting_enable;
 	gchar *highlighting_style;
 
+	gboolean code_lens_enable;
+	gchar *code_lens_style;
+
 } LspServerConfig;
 
 

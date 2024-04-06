@@ -24,5 +24,8 @@
 #include <glib.h>
 
 void lsp_code_lens_send_request(GeanyDocument *doc);
+void lsp_code_lens_style_init(GeanyDocument *doc);
+
+void lsp_code_lens_append_commands(GPtrArray *cmds, guint line);
 
 #endif  /* LSP_CODE_LENS_H */

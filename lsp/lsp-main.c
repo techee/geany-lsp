@@ -35,6 +35,7 @@
 #include "lsp-highlight.h"
 #include "lsp-rename.h"
 #include "lsp-command.h"
+#include "lsp-code-lens.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -57,6 +58,7 @@ gchar *project_configuration_file;
 static gint last_click_pos;
 static gboolean ignore_selection_change;
 static gboolean session_opening;
+static GPtrArray *commands;
 
 
 PLUGIN_VERSION_CHECK(246)  //TODO
@@ -144,6 +146,7 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_diagnostics_redraw(doc);
 	lsp_highlight_style_init(doc);
 	lsp_semtokens_style_init(doc);
+	lsp_code_lens_style_init(doc);
 
 	if (!srv)
 		return;
@@ -406,6 +409,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			memcpy(text, nt->text, nt->length);
 			text[nt->length] = '\0';
 			lsp_sync_text_document_did_change(srv, doc, pos_start, pos_end, text);
+			lsp_code_lens_send_request(doc);
 
 			g_free(text);
 		}
@@ -416,6 +420,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			gchar *text = g_strdup("");
 
 			lsp_sync_text_document_did_change(srv, doc, pos_start, pos_end, text);
+			lsp_code_lens_send_request(doc);
 
 			g_free(text);
 		}
@@ -608,14 +613,13 @@ static void code_action_cb(GtkWidget *widget, gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();
 	LspServer *srv = lsp_server_get_if_running(doc);
-	GPtrArray *arr = lsp_command_get_resolved_code_actions();
 	guint index = GPOINTER_TO_UINT(user_data);
 	LspCommand *cmd;
 
-	if (!srv || index >= arr->len)
+	if (!srv || index >= commands->len)
 		return;
 
-	cmd = arr->pdata[index];
+	cmd = commands->pdata[index];
 	lsp_command_send_request(srv, cmd->command, cmd->arguments);
 }
 
@@ -628,14 +632,31 @@ static void remove_item(GtkWidget *widget, gpointer data)
 
 static void update_command_menu_items(void)
 {
+	GeanyDocument *doc = document_get_current();
 	GtkWidget *menu = gtk_menu_item_get_submenu(GTK_MENU_ITEM(menu_items.command_item));
 	GPtrArray *arr = lsp_command_get_resolved_code_actions();
 	LspCommand *cmd;
 	guint i;
 
+	if (commands)
+		g_ptr_array_free(commands, TRUE);
+	commands = g_ptr_array_new();
+
 	gtk_container_foreach(GTK_CONTAINER(menu), remove_item, menu);
 
 	foreach_ptr_array(cmd, i, arr)
+	{
+		g_ptr_array_add(commands, cmd);
+	}
+
+	if (doc)
+	{
+		guint line = sci_get_line_from_position(doc->editor->sci, last_click_pos);
+
+		lsp_code_lens_append_commands(commands, line);
+	}
+
+	foreach_ptr_array(cmd, i, commands)
 	{
 		GtkWidget *item = gtk_menu_item_new_with_label(cmd->title);
 
@@ -644,7 +665,7 @@ static void update_command_menu_items(void)
 	}
 
 	gtk_widget_show_all(menu_items.command_item);
-	gtk_widget_set_sensitive(menu_items.command_item, arr->len > 0);
+	gtk_widget_set_sensitive(menu_items.command_item, commands->len > 0);
 }
 
 
