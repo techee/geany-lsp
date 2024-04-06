@@ -217,6 +217,9 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 
 	lsp_autocomplete_set_displayed_symbols(symbols);
 	SSM(sci, SCI_AUTOCSETORDER, SC_ORDER_CUSTOM, 0);
+#ifdef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
+	SSM(sci, SCI_AUTOCSETOPTIONS, SC_AUTOCOMPLETE_SELECT_FIRST_ITEM, 0);
+#endif
 	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH, 0);
 	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
 	SSM(sci, SCI_AUTOCSETMAXHEIGHT, server->config.autocomplete_window_max_displayed, 0);
