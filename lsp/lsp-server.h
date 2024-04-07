@@ -24,6 +24,11 @@
 #include <gio/gio.h>
 
 
+#ifndef HAVE_GEANY_LSP_SUPPORT
+typedef void (*LspSymbolRequestCallback) (gpointer user_data);
+#endif
+
+
 struct LspRpc;
 typedef struct LspRpc LspRpc;
 

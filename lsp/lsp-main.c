@@ -715,6 +715,7 @@ PluginCallback plugin_callbacks[] = {
 };
 
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 static gboolean autocomplete_available(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
@@ -845,6 +846,7 @@ static Lsp lsp = {
 	.symbol_highlight_request = symbol_highlight_request,
 	.symbol_highlight_get_cached = symbol_highlight_get_cached
 };
+#endif
 
 
 static void on_open_project_config(void)
@@ -1212,7 +1214,9 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	stop_and_init_all_servers();
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 	lsp_register(&lsp);
+#endif
 	create_menu_items();
 }
 
@@ -1230,7 +1234,9 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(menu_items.separator1);
 	gtk_widget_destroy(menu_items.separator2);
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 	lsp_unregister(&lsp);
+#endif
 	lsp_server_stop_all(TRUE);
 	destroy_all();
 }
