@@ -314,6 +314,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	GeanyDocument *doc = editor->document;
 	ScintillaObject *sci = editor->sci;
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 	if (nt->nmhdr.code == SCN_AUTOCSELECTION)
 	{
 		LspServer *srv = lsp_server_get_if_running(doc);
@@ -339,7 +340,24 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		lsp_autocomplete_discard_pending_requests();
 		return FALSE;
 	}
-	else if (nt->nmhdr.code == SCN_DWELLSTART)
+	else if (nt->nmhdr.code == SCN_CALLTIPCLICK)
+	{
+		LspServer *srv = lsp_server_get_if_running(doc);
+
+		if (!srv)
+			return FALSE;
+
+		if (srv->config.signature_enable)
+		{
+			if (nt->position == 1)  /* up arrow */
+				lsp_signature_show_prev();
+			if (nt->position == 2)  /* down arrow */
+				lsp_signature_show_next();
+		}
+	}
+#endif
+
+	if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
 		LspServer *srv = lsp_server_get(doc);
 
@@ -423,21 +441,6 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			lsp_code_lens_send_request(doc);
 
 			g_free(text);
-		}
-	}
-	else if (nt->nmhdr.code == SCN_CALLTIPCLICK)
-	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-
-		if (!srv)
-			return FALSE;
-
-		if (srv->config.signature_enable)
-		{
-			if (nt->position == 1)  /* up arrow */
-				lsp_signature_show_prev();
-			if (nt->position == 2)  /* down arrow */
-				lsp_signature_show_next();
 		}
 	}
 	else if (nt->nmhdr.code == SCN_UPDATEUI)
