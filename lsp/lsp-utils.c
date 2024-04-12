@@ -857,7 +857,7 @@ gboolean lsp_utils_doc_ft_has_tags(GeanyDocument *doc)
 	{
 		foreach_ptr_array(file, i, ws->source_files)
 		{
-			if (file->lang == doc->file_type->lang && file->tags_array->len > 0)
+			if (doc->file_type->lang >= 0 && file->lang == doc->file_type->lang && file->tags_array->len > 0)
 			{
 				found = TRUE;
 				break;
@@ -869,7 +869,7 @@ gboolean lsp_utils_doc_ft_has_tags(GeanyDocument *doc)
 	{
 		foreach_ptr_array(tag, i, ws->global_tags)
 		{
-			if (tag->lang == doc->file_type->lang)
+			if (doc->file_type->lang >= 0 && tag->lang == doc->file_type->lang)
 			{
 				found = TRUE;
 				break;

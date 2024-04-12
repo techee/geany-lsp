@@ -126,6 +126,11 @@ struct
 } project_dialog;
 
 
+#ifndef HAVE_GEANY_LSP_SUPPORT
+static void highlight_tags(GeanyDocument *doc);
+#endif
+
+
 static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
@@ -147,6 +152,18 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_highlight_style_init(doc);
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
+
+#ifndef HAVE_GEANY_LSP_SUPPORT
+	if (lsp_utils_doc_ft_has_tags(doc))
+	{
+		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
+
+		dialogs_show_msgbox(GTK_MESSAGE_WARNING, _("Because of conflicting implementations, the LSP plugin requires that symbol generation is disabled for the filetypes for which LSP is enabled.\n\nTo disable it for the current filetype, go to:\n\nTools->Configuration Files->...->filetypes.%s\n\nand under the [settings] section add tag_parser= (with no value after =) which disables the symbol parser."), ft_lower);
+		g_free(ft_lower);
+	}
+
+	highlight_tags(doc);
+#endif
 
 	if (!srv)
 		return;
@@ -305,14 +322,6 @@ static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 {
 	if (!session_opening)
 		on_document_visible(doc);
-
-	if (lsp_utils_doc_ft_has_tags(doc))
-	{
-		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
-
-		dialogs_show_msgbox(GTK_MESSAGE_WARNING, _("Because of conflicting implementations, the LSP plugin requires that symbol generation is disabled for the filetypes for which LSP is enabled.\n\nTo disable it for the current filetype, go to:\n\nTools->Configuration Files->...->filetypes.%s\n\nand under the [settings] section add tag_parser= (with no value after =) which disables the symbol parser."), ft_lower);
-		g_free(ft_lower);
-	}
 }
 
 
@@ -322,8 +331,10 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	GeanyDocument *doc = editor->document;
 	ScintillaObject *sci = editor->sci;
 
+#ifndef HAVE_GEANY_LSP_SUPPORT
 	if (!lsp_utils_doc_ft_has_tags(doc))
 	{
+#endif
 		if (nt->nmhdr.code == SCN_AUTOCSELECTION)
 		{
 			LspServer *srv = lsp_server_get_if_running(doc);
@@ -364,7 +375,9 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 					lsp_signature_show_next();
 			}
 		}
+#ifndef HAVE_GEANY_LSP_SUPPORT
 	}
+#endif
 
 	if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
@@ -408,6 +421,11 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	else if (nt->nmhdr.code == SCN_MODIFIED)
 	{
 		LspServer *srv;
+
+#ifndef HAVE_GEANY_LSP_SUPPORT
+		if (nt->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT))
+			highlight_tags(doc);
+#endif
 
 		// lots of SCN_MODIFIED notifications, filter-out those we are not interested in
 		if (!(nt->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_BEFOREDELETE | SC_MOD_BEFOREINSERT)))
@@ -814,6 +832,7 @@ static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
 {
 	return lsp_symbols_doc_get_cached(doc);
 }
+#endif
 
 
 static gboolean symbol_highlight_available(GeanyDocument *doc)
@@ -840,6 +859,7 @@ static const gchar *symbol_highlight_get_cached(GeanyDocument *doc)
 }
 
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 static Lsp lsp = {
 	.autocomplete_available = autocomplete_available,
 	.autocomplete_perform = autocomplete_perform,
@@ -858,6 +878,85 @@ static Lsp lsp = {
 	.symbol_highlight_request = symbol_highlight_request,
 	.symbol_highlight_get_cached = symbol_highlight_get_cached
 };
+
+#else
+
+typedef struct
+{
+	GeanyDocument *doc;
+	gint keyword_idx;
+} HighlightData;
+
+
+static void highlight_keywords(GeanyDocument *doc, const gchar *keywords, gint keyword_idx)
+{
+	static guint hash = 0;
+	guint new_hash = g_str_hash(keywords);
+
+	if (hash != new_hash)
+	{
+		SSM(doc->editor->sci, SCI_SETKEYWORDS, keyword_idx, (sptr_t) keywords);
+		SSM(doc->editor->sci, SCI_COLOURISE, (uptr_t) 0, -1);
+		hash = new_hash;
+	}
+}
+
+
+static void highlight_cb(gpointer user_data)
+{
+	HighlightData *data = user_data;
+	guint i;
+
+	foreach_document(i)
+	{
+		/* the document could have been closed before the callback fires, check
+		 * if it's still valid */
+		if (documents[i] == data->doc)
+		{
+			const gchar *keywords = symbol_highlight_get_cached(data->doc);
+			highlight_keywords(data->doc, keywords ? keywords : "", data->keyword_idx);
+			break;
+		}
+	}
+
+	g_free(data);
+}
+
+
+static void highlight_tags(GeanyDocument *doc)
+{
+	gint keyword_idx;
+
+	switch (doc->file_type->id)
+	{
+		case GEANY_FILETYPES_C:
+		case GEANY_FILETYPES_CPP:
+		case GEANY_FILETYPES_CS:
+		case GEANY_FILETYPES_D:
+		case GEANY_FILETYPES_JAVA:
+		case GEANY_FILETYPES_OBJECTIVEC:
+		case GEANY_FILETYPES_VALA:
+		case GEANY_FILETYPES_RUST:
+		case GEANY_FILETYPES_GO:
+		{
+			keyword_idx = 3;
+			break;
+		}
+		default:
+			return;
+	}
+
+	if (symbol_highlight_available(doc))
+	{
+		HighlightData *data = g_new0(HighlightData, 1);
+		const gchar *keywords = symbol_highlight_get_cached(doc);
+
+		data->doc = doc;
+		data->keyword_idx = keyword_idx;
+		highlight_keywords(doc, keywords ? keywords : "", keyword_idx);
+		symbol_highlight_request(doc, highlight_cb, data);
+	}
+}
 #endif
 
 
