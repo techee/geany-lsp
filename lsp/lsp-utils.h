@@ -110,4 +110,6 @@ gchar *lsp_utils_get_relative_path(const gchar *utf8_parent, const gchar *utf8_d
 
 void lsp_utils_save_all_docs(void);
 
+gboolean lsp_utils_doc_ft_has_tags(GeanyDocument *doc);
+
 #endif  /* LSP_UTILS_H */

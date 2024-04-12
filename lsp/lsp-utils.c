@@ -21,6 +21,7 @@
 #endif
 
 #include "lsp/lsp-utils.h"
+#include "lsp/lsp-server.h"
 
 #include <geanyplugin.h>
 #include <jsonrpc-glib.h>
@@ -835,4 +836,46 @@ void lsp_utils_save_all_docs(void)
 		if (doc->changed)
 			document_save_file(doc, FALSE);
 	}
+}
+
+
+gboolean lsp_utils_doc_ft_has_tags(GeanyDocument *doc)
+{
+	const TMWorkspace *ws = geany_data->app->tm_workspace;
+	gboolean found = FALSE;
+	TMSourceFile *file;
+	TMTag *tag;
+	guint i;
+
+	if (!lsp_server_get_if_running(doc))
+		return FALSE;
+
+	if (doc->tm_file && doc->tm_file->tags_array->len > 0)
+		found = TRUE;
+
+	if (!found)
+	{
+		foreach_ptr_array(file, i, ws->source_files)
+		{
+			if (file->lang == doc->file_type->lang && file->tags_array->len > 0)
+			{
+				found = TRUE;
+				break;
+			}
+		}
+	}
+
+	if (!found)
+	{
+		foreach_ptr_array(tag, i, ws->global_tags)
+		{
+			if (tag->lang == doc->file_type->lang)
+			{
+				found = TRUE;
+				break;
+			}
+		}
+	}
+
+	return found;
 }

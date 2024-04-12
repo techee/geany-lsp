@@ -305,6 +305,14 @@ static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 {
 	if (!session_opening)
 		on_document_visible(doc);
+
+	if (lsp_utils_doc_ft_has_tags(doc))
+	{
+		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
+
+		dialogs_show_msgbox(GTK_MESSAGE_WARNING, _("Because of conflicting implementations, the LSP plugin requires that symbol generation is disabled for the filetypes for which LSP is enabled.\n\nTo disable it for the current filetype, go to:\n\nTools->Configuration Files->...->filetypes.%s\n\nand under the [settings] section add tag_parser= (with no value after =) which disables the symbol parser."), ft_lower);
+		g_free(ft_lower);
+	}
 }
 
 
@@ -314,48 +322,49 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	GeanyDocument *doc = editor->document;
 	ScintillaObject *sci = editor->sci;
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
-	if (nt->nmhdr.code == SCN_AUTOCSELECTION)
+	if (!lsp_utils_doc_ft_has_tags(doc))
 	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-
-		if (!srv || !srv->config.autocomplete_enable)
-			return FALSE;
-
-		// ignore cursor position change as a result of autocomplete (for highlighting)
-		ignore_selection_change = TRUE;
-
-		sci_start_undo_action(editor->sci);
-		lsp_autocomplete_item_selected(srv, doc, SSM(sci, SCI_AUTOCGETCURRENT, 0, 0));
-		sci_end_undo_action(editor->sci);
-
-		sci_send_command(sci, SCI_AUTOCCANCEL);
-
-		lsp_autocomplete_set_displayed_symbols(NULL);
-		return FALSE;
-	}
-	else if (nt->nmhdr.code == SCN_AUTOCCANCELLED)
-	{
-		lsp_autocomplete_set_displayed_symbols(NULL);
-		lsp_autocomplete_discard_pending_requests();
-		return FALSE;
-	}
-	else if (nt->nmhdr.code == SCN_CALLTIPCLICK)
-	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-
-		if (!srv)
-			return FALSE;
-
-		if (srv->config.signature_enable)
+		if (nt->nmhdr.code == SCN_AUTOCSELECTION)
 		{
-			if (nt->position == 1)  /* up arrow */
-				lsp_signature_show_prev();
-			if (nt->position == 2)  /* down arrow */
-				lsp_signature_show_next();
+			LspServer *srv = lsp_server_get_if_running(doc);
+
+			if (!srv || !srv->config.autocomplete_enable)
+				return FALSE;
+
+			// ignore cursor position change as a result of autocomplete (for highlighting)
+			ignore_selection_change = TRUE;
+
+			sci_start_undo_action(editor->sci);
+			lsp_autocomplete_item_selected(srv, doc, SSM(sci, SCI_AUTOCGETCURRENT, 0, 0));
+			sci_end_undo_action(editor->sci);
+
+			sci_send_command(sci, SCI_AUTOCCANCEL);
+
+			lsp_autocomplete_set_displayed_symbols(NULL);
+			return FALSE;
+		}
+		else if (nt->nmhdr.code == SCN_AUTOCCANCELLED)
+		{
+			lsp_autocomplete_set_displayed_symbols(NULL);
+			lsp_autocomplete_discard_pending_requests();
+			return FALSE;
+		}
+		else if (nt->nmhdr.code == SCN_CALLTIPCLICK)
+		{
+			LspServer *srv = lsp_server_get_if_running(doc);
+
+			if (!srv)
+				return FALSE;
+
+			if (srv->config.signature_enable)
+			{
+				if (nt->position == 1)  /* up arrow */
+					lsp_signature_show_prev();
+				if (nt->position == 2)  /* down arrow */
+					lsp_signature_show_next();
+			}
 		}
 	}
-#endif
 
 	if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
