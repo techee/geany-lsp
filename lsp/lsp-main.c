@@ -95,6 +95,10 @@ enum {
 
   KB_RESTART_SERVERS,
 
+#ifndef HAVE_GEANY_LSP_SUPPORT
+  KB_INVOKE_AUTOCOMPLETE,
+#endif
+
   KB_COUNT
 };
 
@@ -126,7 +130,6 @@ struct
 } project_dialog;
 
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
 static gboolean autocomplete_available(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
@@ -149,6 +152,7 @@ static void autocomplete_perform(GeanyDocument *doc)
 }
 
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 static gboolean calltips_available(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
@@ -758,6 +762,11 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	{
 		// don't hightlight while typing
 		lsp_highlight_clear(doc);
+
+#ifndef HAVE_GEANY_LSP_SUPPORT
+		if (autocomplete_available(doc))
+			autocomplete_perform(doc);
+#endif
 	}
 
 	return FALSE;
@@ -1126,6 +1135,13 @@ static void invoke_kb(guint key_id, gint pos)
 			restart_all_servers();
 			break;
 
+#ifndef HAVE_GEANY_LSP_SUPPORT
+		case KB_INVOKE_AUTOCOMPLETE:
+			if (autocomplete_available(doc))
+				autocomplete_perform(doc);
+			break;
+#endif
+
 		default:
 			break;
 	}
@@ -1311,6 +1327,11 @@ static void create_menu_items()
 		_("Restart all servers"), item);
 
 	gtk_widget_show_all(menu_items.parent_item);
+
+#ifndef HAVE_GEANY_LSP_SUPPORT
+	keybindings_set_item(group, KB_INVOKE_AUTOCOMPLETE, NULL, 0, 0, "invoke_autocompletion",
+		_("Invoke autocompletion"), NULL);
+#endif
 
 	/* context menu */
 	menu_items.separator1 = gtk_separator_menu_item_new();
