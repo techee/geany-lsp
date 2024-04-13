@@ -97,6 +97,7 @@ enum {
 
 #ifndef HAVE_GEANY_LSP_SUPPORT
   KB_INVOKE_AUTOCOMPLETE,
+  KB_SHOW_CALLTIP,
 #endif
 
   KB_COUNT
@@ -152,7 +153,6 @@ static void autocomplete_perform(GeanyDocument *doc)
 }
 
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
 static gboolean calltips_available(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
@@ -173,7 +173,6 @@ static void calltips_show(GeanyDocument *doc)
 
 	lsp_signature_send_request(srv, doc);
 }
-#endif
 
 
 static gboolean goto_available(GeanyDocument *doc)
@@ -766,6 +765,8 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 #ifndef HAVE_GEANY_LSP_SUPPORT
 		if (autocomplete_available(doc))
 			autocomplete_perform(doc);
+		if (calltips_available(doc))
+			calltips_show(doc);
 #endif
 	}
 
@@ -1140,6 +1141,11 @@ static void invoke_kb(guint key_id, gint pos)
 			if (autocomplete_available(doc))
 				autocomplete_perform(doc);
 			break;
+
+		case KB_SHOW_CALLTIP:
+			if (calltips_available(doc))
+				calltips_show(doc);
+			break;
 #endif
 
 		default:
@@ -1331,6 +1337,9 @@ static void create_menu_items()
 #ifndef HAVE_GEANY_LSP_SUPPORT
 	keybindings_set_item(group, KB_INVOKE_AUTOCOMPLETE, NULL, 0, 0, "invoke_autocompletion",
 		_("Invoke autocompletion"), NULL);
+
+	keybindings_set_item(group, KB_SHOW_CALLTIP, NULL, 0, 0, "show_calltip",
+		_("Show calltip"), NULL);
 #endif
 
 	/* context menu */
