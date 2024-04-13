@@ -128,6 +128,8 @@ struct
 
 #ifndef HAVE_GEANY_LSP_SUPPORT
 static void highlight_tags(GeanyDocument *doc);
+static gboolean goto_available(GeanyDocument *doc);
+static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition);
 #endif
 
 
@@ -176,11 +178,59 @@ static void on_document_visible(GeanyDocument *doc)
 }
 
 
+#ifndef HAVE_GEANY_LSP_SUPPORT
+static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
+											 gpointer data)
+{
+	GeanyDocument *doc = data;
+
+	if (!goto_available(doc))
+		return FALSE;
+
+	if (event->button == 1)
+	{
+		guint state = keybindings_get_modifiers(event->state);
+
+		if (event->type == GDK_BUTTON_PRESS && state == GEANY_PRIMARY_MOD_MASK)
+		{
+			gchar *current_word;
+			gint click_pos;
+
+			/* it's very unlikely we got a 'real' click even on 0, 0, so assume it is a
+			 * fake event to show the editor menu triggered by a key event where we want to use the
+			 * text cursor position. */
+			if (event->x > 0.0 && event->y > 0.0)
+				click_pos = SSM(doc->editor->sci, SCI_POSITIONFROMPOINT, (uptr_t) event->x, event->y);
+			else
+				click_pos = sci_get_current_position(doc->editor->sci);
+
+			sci_set_current_position(doc->editor->sci, click_pos, FALSE);
+			current_word = lsp_utils_get_current_iden(doc, click_pos);
+
+			if (current_word)
+			{
+				goto_perform(doc, click_pos, TRUE);
+
+				g_free(current_word);
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
+#endif
+
+
 static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocument *doc,
 	G_GNUC_UNUSED gpointer user_data)
 {
 	if (!session_opening)
 		on_document_visible(doc);
+
+#ifndef HAVE_GEANY_LSP_SUPPORT
+	g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
+#endif
 }
 
 
@@ -256,6 +306,9 @@ static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 		// "new" documents without filename saved for the first time or
 		// "save as" performed
 		lsp_sync_text_document_did_open(srv, doc);
+#ifndef HAVE_GEANY_LSP_SUPPORT
+		g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
+#endif
 	}
 
 	lsp_sync_text_document_did_save(srv, doc);
@@ -788,6 +841,7 @@ static void calltips_show(GeanyDocument *doc)
 
 	lsp_signature_send_request(srv, doc);
 }
+#endif
 
 
 static gboolean goto_available(GeanyDocument *doc)
@@ -810,6 +864,7 @@ static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition)
 }
 
 
+#ifdef HAVE_GEANY_LSP_SUPPORT
 static gboolean doc_symbols_available(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
