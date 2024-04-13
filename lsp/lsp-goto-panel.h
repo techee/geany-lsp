@@ -26,7 +26,7 @@
 
 typedef struct
 {
-	LspGeanyIcon icon;
+	TMIcon icon;
 	gchar *label;
 	gchar *file;
 	gint line;

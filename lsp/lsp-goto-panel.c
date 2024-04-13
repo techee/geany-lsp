@@ -165,7 +165,7 @@ void lsp_goto_panel_fill(GPtrArray *symbols)
 			label = g_markup_printf_escaped("%s", symbol->label);
 
 		gtk_list_store_insert_with_values(panel_data.store, NULL, -1,
-			COL_ICON, lsp_symbol_kinds_get_icon_pixbuf(symbol->icon),
+			COL_ICON, symbols_get_icon_pixbuf(symbol->icon),
 			COL_LABEL, label,
 			COL_PATH, symbol->file,
 			COL_LINENO, symbol->line,

@@ -25,25 +25,7 @@
 #include <gtk/gtk.h>
 
 
-static struct
-{
-	const gchar *icon_name;
-	GdkPixbuf *pixbuf;
-}
-/* keep in sync with Geany */
-geany_icons[TM_N_ICONS] = {
-	[TM_ICON_CLASS]		= { "classviewer-class", NULL },
-	[TM_ICON_MACRO]		= { "classviewer-macro", NULL },
-	[TM_ICON_MEMBER]	= { "classviewer-member", NULL },
-	[TM_ICON_METHOD]	= { "classviewer-method", NULL },
-	[TM_ICON_NAMESPACE]	= { "classviewer-namespace", NULL },
-	[TM_ICON_OTHER]		= { "classviewer-other", NULL },
-	[TM_ICON_STRUCT]	= { "classviewer-struct", NULL },
-	[TM_ICON_VAR]		= { "classviewer-var", NULL },
-};
-
-
-static LspGeanyIcon lsp_symbol_icons[LSP_SYMBOL_KIND_NUM] = {
+static TMIcon lsp_symbol_icons[LSP_SYMBOL_KIND_NUM] = {
 	TM_ICON_NAMESPACE,  /* LspKindFile */
 	TM_ICON_NAMESPACE,  /* LspKindModule */
 	TM_ICON_NAMESPACE,  /* LspKindNamespace */
@@ -73,7 +55,7 @@ static LspGeanyIcon lsp_symbol_icons[LSP_SYMBOL_KIND_NUM] = {
 };
 
 
-static LspGeanyIcon lsp_completion_icons[LSP_COMPLETION_KIND_NUM] = {
+static TMIcon lsp_completion_icons[LSP_COMPLETION_KIND_NUM] = {
 	TM_ICON_MACRO,      // LspKindText - also used for macros by clangd
 	TM_ICON_METHOD,     // LspKindMethod
 	TM_ICON_METHOD,     // LspKindFunction
@@ -102,7 +84,7 @@ static LspGeanyIcon lsp_completion_icons[LSP_COMPLETION_KIND_NUM] = {
 };
 
 
-LspGeanyIcon lsp_symbol_kinds_get_completion_icon(LspCompletionKind kind)
+TMIcon lsp_symbol_kinds_get_completion_icon(LspCompletionKind kind)
 {
 	if (kind < 1 || kind > LSP_COMPLETION_KIND_NUM)
 		return TM_ICON_OTHER;
@@ -111,43 +93,12 @@ LspGeanyIcon lsp_symbol_kinds_get_completion_icon(LspCompletionKind kind)
 }
 
 
-LspGeanyIcon lsp_symbol_kinds_get_symbol_icon(LspSymbolKind kind)
+TMIcon lsp_symbol_kinds_get_symbol_icon(LspSymbolKind kind)
 {
 	if (kind < 1 || kind > LSP_SYMBOL_KIND_NUM)
 		return TM_ICON_OTHER;
 
 	return lsp_symbol_icons[kind - 1];
-}
-
-
-static GdkPixbuf *get_tag_icon(const gchar *icon_name)
-{
-	static GtkIconTheme *icon_theme = NULL;
-	static gint x = -1;
-
-	if (G_UNLIKELY(x < 0))
-	{
-		gint dummy;
-		icon_theme = gtk_icon_theme_get_default();
-		gtk_icon_size_lookup(GTK_ICON_SIZE_MENU, &x, &dummy);
-	}
-	return gtk_icon_theme_load_icon(icon_theme, icon_name, x, 0, NULL);
-}
-
-
-GdkPixbuf *lsp_symbol_kinds_get_icon_pixbuf(LspGeanyIcon icon)
-{
-	if (!geany_icons[TM_ICON_CLASS].pixbuf)
-	{
-		guint i;
-		for (i = 0; i < G_N_ELEMENTS(geany_icons); i++)
-			geany_icons[i].pixbuf = get_tag_icon(geany_icons[i].icon_name);
-	}
-
-	if (icon < TM_N_ICONS)
-		return geany_icons[icon].pixbuf;
-
-	return NULL;
 }
 
 

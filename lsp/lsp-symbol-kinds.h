@@ -23,22 +23,6 @@
 #include <geanyplugin.h>
 
 
-/* keep in sync with icons in Geany */
-typedef enum
-{
-	TM_ICON_CLASS,
-	TM_ICON_MACRO,
-	TM_ICON_MEMBER,
-	TM_ICON_METHOD,
-	TM_ICON_NAMESPACE,
-	TM_ICON_OTHER,
-	TM_ICON_STRUCT,
-	TM_ICON_VAR,
-	TM_ICON_NONE,
-	TM_N_ICONS = TM_ICON_NONE
-} LspGeanyIcon;
-
-
 typedef enum {
 	LspSymbolKindFile = 1,
 	LspSymbolKindModule,
@@ -159,10 +143,8 @@ typedef enum {
 	JSONRPC_MESSAGE_PUT_INT32(25)
 
 
-LspGeanyIcon lsp_symbol_kinds_get_completion_icon(LspCompletionKind kind);
-LspGeanyIcon lsp_symbol_kinds_get_symbol_icon(LspSymbolKind kind);
-
-GdkPixbuf *lsp_symbol_kinds_get_icon_pixbuf(LspGeanyIcon icon);
+TMIcon lsp_symbol_kinds_get_completion_icon(LspCompletionKind kind);
+TMIcon lsp_symbol_kinds_get_symbol_icon(LspSymbolKind kind);
 
 LspSymbolKind lsp_symbol_kinds_tm_to_lsp(TMTagType type);
 
