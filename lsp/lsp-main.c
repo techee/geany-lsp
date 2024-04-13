@@ -195,32 +195,6 @@ static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition)
 }
 
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
-static gboolean doc_symbols_available(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->document_symbols_enable;
-}
-
-
-static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
-{
-	if (doc_symbols_available(doc))
-		lsp_symbols_doc_request(doc, callback, user_data);
-}
-
-
-static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
-{
-	return lsp_symbols_doc_get_cached(doc);
-}
-#endif
-
-
 static gboolean symbol_highlight_available(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
@@ -246,6 +220,30 @@ static const gchar *symbol_highlight_get_cached(GeanyDocument *doc)
 
 
 #ifdef HAVE_GEANY_LSP_SUPPORT
+static gboolean doc_symbols_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return lsp_server_is_usable(doc) && cfg->document_symbols_enable;
+}
+
+
+static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
+{
+	if (doc_symbols_available(doc))
+		lsp_symbols_doc_request(doc, callback, user_data);
+}
+
+
+static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
+{
+	return lsp_symbols_doc_get_cached(doc);
+}
+
+
 static Lsp lsp = {
 	.autocomplete_available = autocomplete_available,
 	.autocomplete_perform = autocomplete_perform,
