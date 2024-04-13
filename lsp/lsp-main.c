@@ -126,10 +126,262 @@ struct
 } project_dialog;
 
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
-static void highlight_tags(GeanyDocument *doc);
-static gboolean goto_available(GeanyDocument *doc);
-static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition);
+#ifdef HAVE_GEANY_LSP_SUPPORT
+static gboolean autocomplete_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return lsp_server_is_usable(doc) && cfg->autocomplete_enable;
+}
+
+
+static void autocomplete_perform(GeanyDocument *doc)
+{
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	lsp_autocomplete_completion(srv, doc);
+}
+
+
+static gboolean calltips_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return lsp_server_is_usable(doc) && cfg->signature_enable;
+}
+
+
+static void calltips_show(GeanyDocument *doc)
+{
+	LspServer *srv = lsp_server_get(doc);
+
+	if (!srv)
+		return;
+
+	lsp_signature_send_request(srv, doc);
+}
+#endif
+
+
+static gboolean goto_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return lsp_server_is_usable(doc) && cfg->goto_enable;
+}
+
+
+static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition)
+{
+	if (definition)
+		lsp_goto_definition(pos);
+	else
+		lsp_goto_declaration(pos);
+}
+
+
+#ifdef HAVE_GEANY_LSP_SUPPORT
+static gboolean doc_symbols_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return lsp_server_is_usable(doc) && cfg->document_symbols_enable;
+}
+
+
+static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
+{
+	if (doc_symbols_available(doc))
+		lsp_symbols_doc_request(doc, callback, user_data);
+}
+
+
+static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
+{
+	return lsp_symbols_doc_get_cached(doc);
+}
+#endif
+
+
+static gboolean symbol_highlight_available(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return FALSE;
+
+	return lsp_server_is_usable(doc) && cfg->semantic_tokens_enable;
+}
+
+
+static void symbol_highlight_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
+{
+	if (symbol_highlight_available(doc))
+		lsp_semtokens_send_request(doc, callback, user_data);
+}
+
+
+static const gchar *symbol_highlight_get_cached(GeanyDocument *doc)
+{
+	return lsp_semtokens_get_cached(doc);
+}
+
+
+#ifdef HAVE_GEANY_LSP_SUPPORT
+static Lsp lsp = {
+	.autocomplete_available = autocomplete_available,
+	.autocomplete_perform = autocomplete_perform,
+
+	.calltips_available = calltips_available,
+	.calltips_show = calltips_show,
+
+	.goto_available = goto_available,
+	.goto_perform = goto_perform,
+
+	.doc_symbols_available = doc_symbols_available,
+	.doc_symbols_request = doc_symbols_request,
+	.doc_symbols_get_cached = doc_symbols_get_cached,
+
+	.symbol_highlight_available = symbol_highlight_available,
+	.symbol_highlight_request = symbol_highlight_request,
+	.symbol_highlight_get_cached = symbol_highlight_get_cached
+};
+
+#else
+
+typedef struct
+{
+	GeanyDocument *doc;
+	gint keyword_idx;
+} HighlightData;
+
+
+static void highlight_keywords(GeanyDocument *doc, const gchar *keywords, gint keyword_idx)
+{
+	static guint hash = 0;
+	guint new_hash = g_str_hash(keywords);
+
+	if (hash != new_hash)
+	{
+		SSM(doc->editor->sci, SCI_SETKEYWORDS, keyword_idx, (sptr_t) keywords);
+		SSM(doc->editor->sci, SCI_COLOURISE, (uptr_t) 0, -1);
+		hash = new_hash;
+	}
+}
+
+
+static void highlight_cb(gpointer user_data)
+{
+	HighlightData *data = user_data;
+	guint i;
+
+	foreach_document(i)
+	{
+		/* the document could have been closed before the callback fires, check
+		 * if it's still valid */
+		if (documents[i] == data->doc)
+		{
+			const gchar *keywords = symbol_highlight_get_cached(data->doc);
+			highlight_keywords(data->doc, keywords ? keywords : "", data->keyword_idx);
+			break;
+		}
+	}
+
+	g_free(data);
+}
+
+
+static void highlight_tags(GeanyDocument *doc)
+{
+	gint keyword_idx;
+
+	switch (doc->file_type->id)
+	{
+		case GEANY_FILETYPES_C:
+		case GEANY_FILETYPES_CPP:
+		case GEANY_FILETYPES_CS:
+		case GEANY_FILETYPES_D:
+		case GEANY_FILETYPES_JAVA:
+		case GEANY_FILETYPES_OBJECTIVEC:
+		case GEANY_FILETYPES_VALA:
+		case GEANY_FILETYPES_RUST:
+		case GEANY_FILETYPES_GO:
+		{
+			keyword_idx = 3;
+			break;
+		}
+		default:
+			return;
+	}
+
+	if (symbol_highlight_available(doc))
+	{
+		HighlightData *data = g_new0(HighlightData, 1);
+		const gchar *keywords = symbol_highlight_get_cached(doc);
+
+		data->doc = doc;
+		data->keyword_idx = keyword_idx;
+		highlight_keywords(doc, keywords ? keywords : "", keyword_idx);
+		symbol_highlight_request(doc, highlight_cb, data);
+	}
+}
+
+
+static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
+											 gpointer data)
+{
+	GeanyDocument *doc = data;
+
+	if (!goto_available(doc))
+		return FALSE;
+
+	if (event->button == 1)
+	{
+		guint state = keybindings_get_modifiers(event->state);
+
+		if (event->type == GDK_BUTTON_PRESS && state == GEANY_PRIMARY_MOD_MASK)
+		{
+			gchar *current_word;
+			gint click_pos;
+
+			/* it's very unlikely we got a 'real' click even on 0, 0, so assume it is a
+			 * fake event to show the editor menu triggered by a key event where we want to use the
+			 * text cursor position. */
+			if (event->x > 0.0 && event->y > 0.0)
+				click_pos = SSM(doc->editor->sci, SCI_POSITIONFROMPOINT, (uptr_t) event->x, event->y);
+			else
+				click_pos = sci_get_current_position(doc->editor->sci);
+
+			sci_set_current_position(doc->editor->sci, click_pos, FALSE);
+			current_word = lsp_utils_get_current_iden(doc, click_pos);
+
+			if (current_word)
+			{
+				goto_perform(doc, click_pos, TRUE);
+
+				g_free(current_word);
+				return TRUE;
+			}
+		}
+	}
+
+	return FALSE;
+}
 #endif
 
 
@@ -176,50 +428,6 @@ static void on_document_visible(GeanyDocument *doc)
 	if (!lsp_sync_is_document_open(doc))
 		lsp_sync_text_document_did_open(srv, doc);
 }
-
-
-#ifndef HAVE_GEANY_LSP_SUPPORT
-static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
-											 gpointer data)
-{
-	GeanyDocument *doc = data;
-
-	if (!goto_available(doc))
-		return FALSE;
-
-	if (event->button == 1)
-	{
-		guint state = keybindings_get_modifiers(event->state);
-
-		if (event->type == GDK_BUTTON_PRESS && state == GEANY_PRIMARY_MOD_MASK)
-		{
-			gchar *current_word;
-			gint click_pos;
-
-			/* it's very unlikely we got a 'real' click even on 0, 0, so assume it is a
-			 * fake event to show the editor menu triggered by a key event where we want to use the
-			 * text cursor position. */
-			if (event->x > 0.0 && event->y > 0.0)
-				click_pos = SSM(doc->editor->sci, SCI_POSITIONFROMPOINT, (uptr_t) event->x, event->y);
-			else
-				click_pos = sci_get_current_position(doc->editor->sci);
-
-			sci_set_current_position(doc->editor->sci, click_pos, FALSE);
-			current_word = lsp_utils_get_current_iden(doc, click_pos);
-
-			if (current_word)
-			{
-				goto_perform(doc, click_pos, TRUE);
-
-				g_free(current_word);
-				return TRUE;
-			}
-		}
-	}
-
-	return FALSE;
-}
-#endif
 
 
 static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocument *doc,
@@ -796,223 +1004,6 @@ PluginCallback plugin_callbacks[] = {
 	{"project-dialog-close", (GCallback) &on_project_dialog_close, FALSE, NULL},
 	{NULL, NULL, FALSE, NULL}
 };
-
-
-#ifdef HAVE_GEANY_LSP_SUPPORT
-static gboolean autocomplete_available(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->autocomplete_enable;
-}
-
-
-static void autocomplete_perform(GeanyDocument *doc)
-{
-	LspServer *srv = lsp_server_get(doc);
-
-	if (!srv)
-		return;
-
-	lsp_autocomplete_completion(srv, doc);
-}
-
-
-static gboolean calltips_available(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->signature_enable;
-}
-
-
-static void calltips_show(GeanyDocument *doc)
-{
-	LspServer *srv = lsp_server_get(doc);
-
-	if (!srv)
-		return;
-
-	lsp_signature_send_request(srv, doc);
-}
-#endif
-
-
-static gboolean goto_available(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->goto_enable;
-}
-
-
-static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition)
-{
-	if (definition)
-		lsp_goto_definition(pos);
-	else
-		lsp_goto_declaration(pos);
-}
-
-
-#ifdef HAVE_GEANY_LSP_SUPPORT
-static gboolean doc_symbols_available(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->document_symbols_enable;
-}
-
-
-static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
-{
-	if (doc_symbols_available(doc))
-		lsp_symbols_doc_request(doc, callback, user_data);
-}
-
-
-static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
-{
-	return lsp_symbols_doc_get_cached(doc);
-}
-#endif
-
-
-static gboolean symbol_highlight_available(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->semantic_tokens_enable;
-}
-
-
-static void symbol_highlight_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
-{
-	if (symbol_highlight_available(doc))
-		lsp_semtokens_send_request(doc, callback, user_data);
-}
-
-
-static const gchar *symbol_highlight_get_cached(GeanyDocument *doc)
-{
-	return lsp_semtokens_get_cached(doc);
-}
-
-
-#ifdef HAVE_GEANY_LSP_SUPPORT
-static Lsp lsp = {
-	.autocomplete_available = autocomplete_available,
-	.autocomplete_perform = autocomplete_perform,
-
-	.calltips_available = calltips_available,
-	.calltips_show = calltips_show,
-
-	.goto_available = goto_available,
-	.goto_perform = goto_perform,
-
-	.doc_symbols_available = doc_symbols_available,
-	.doc_symbols_request = doc_symbols_request,
-	.doc_symbols_get_cached = doc_symbols_get_cached,
-
-	.symbol_highlight_available = symbol_highlight_available,
-	.symbol_highlight_request = symbol_highlight_request,
-	.symbol_highlight_get_cached = symbol_highlight_get_cached
-};
-
-#else
-
-typedef struct
-{
-	GeanyDocument *doc;
-	gint keyword_idx;
-} HighlightData;
-
-
-static void highlight_keywords(GeanyDocument *doc, const gchar *keywords, gint keyword_idx)
-{
-	static guint hash = 0;
-	guint new_hash = g_str_hash(keywords);
-
-	if (hash != new_hash)
-	{
-		SSM(doc->editor->sci, SCI_SETKEYWORDS, keyword_idx, (sptr_t) keywords);
-		SSM(doc->editor->sci, SCI_COLOURISE, (uptr_t) 0, -1);
-		hash = new_hash;
-	}
-}
-
-
-static void highlight_cb(gpointer user_data)
-{
-	HighlightData *data = user_data;
-	guint i;
-
-	foreach_document(i)
-	{
-		/* the document could have been closed before the callback fires, check
-		 * if it's still valid */
-		if (documents[i] == data->doc)
-		{
-			const gchar *keywords = symbol_highlight_get_cached(data->doc);
-			highlight_keywords(data->doc, keywords ? keywords : "", data->keyword_idx);
-			break;
-		}
-	}
-
-	g_free(data);
-}
-
-
-static void highlight_tags(GeanyDocument *doc)
-{
-	gint keyword_idx;
-
-	switch (doc->file_type->id)
-	{
-		case GEANY_FILETYPES_C:
-		case GEANY_FILETYPES_CPP:
-		case GEANY_FILETYPES_CS:
-		case GEANY_FILETYPES_D:
-		case GEANY_FILETYPES_JAVA:
-		case GEANY_FILETYPES_OBJECTIVEC:
-		case GEANY_FILETYPES_VALA:
-		case GEANY_FILETYPES_RUST:
-		case GEANY_FILETYPES_GO:
-		{
-			keyword_idx = 3;
-			break;
-		}
-		default:
-			return;
-	}
-
-	if (symbol_highlight_available(doc))
-	{
-		HighlightData *data = g_new0(HighlightData, 1);
-		const gchar *keywords = symbol_highlight_get_cached(doc);
-
-		data->doc = doc;
-		data->keyword_idx = keyword_idx;
-		highlight_keywords(doc, keywords ? keywords : "", keyword_idx);
-		symbol_highlight_request(doc, highlight_cb, data);
-	}
-}
-#endif
 
 
 static void on_open_project_config(void)
