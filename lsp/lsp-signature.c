@@ -143,7 +143,7 @@ void lsp_signature_show_next(void)
 }
 
 
-void lsp_signature_send_request(LspServer *server, GeanyDocument *doc)
+void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean force)
 {
 	GVariant *node;
 	LspSignatureData *data;
@@ -155,7 +155,7 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc)
 	gint lexer = sci_get_lexer(sci);
 	gint style = sci_get_style_at(sci, pos);
 
-	if (!server->signature_trigger_chars || !strchr(server->signature_trigger_chars, c))
+	if (!server->signature_trigger_chars || (!strchr(server->signature_trigger_chars, c) && !force))
 		return;
 
 	// highlighting_is_code_style(lexer, style) also checks for preprocessor

@@ -164,14 +164,14 @@ static gboolean calltips_available(GeanyDocument *doc)
 }
 
 
-static void calltips_show(GeanyDocument *doc)
+static void calltips_show(GeanyDocument *doc, gboolean force)
 {
 	LspServer *srv = lsp_server_get(doc);
 
 	if (!srv)
 		return;
 
-	lsp_signature_send_request(srv, doc);
+	lsp_signature_send_request(srv, doc, force);
 }
 
 
@@ -764,7 +764,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		if (autocomplete_available(doc))
 			autocomplete_perform(doc);
 		if (calltips_available(doc))
-			calltips_show(doc);
+			calltips_show(doc, FALSE);
 #endif
 	}
 
@@ -1142,7 +1142,7 @@ static void invoke_kb(guint key_id, gint pos)
 
 		case KB_SHOW_CALLTIP:
 			if (calltips_available(doc))
-				calltips_show(doc);
+				calltips_show(doc, TRUE);
 			break;
 #endif
 

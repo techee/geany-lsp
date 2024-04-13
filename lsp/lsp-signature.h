@@ -23,7 +23,7 @@
 
 #include <glib.h>
 
-void lsp_signature_send_request(LspServer *server, GeanyDocument *doc);
+void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean force);
 
 void lsp_signature_show_prev(void);
 void lsp_signature_show_next(void);
