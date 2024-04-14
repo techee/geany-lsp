@@ -231,13 +231,6 @@ static gboolean doc_symbols_available(GeanyDocument *doc)
 }
 
 
-static void doc_symbols_request(GeanyDocument *doc, LspSymbolRequestCallback callback, gpointer user_data)
-{
-	if (doc_symbols_available(doc))
-		lsp_symbols_doc_request(doc, callback, user_data);
-}
-
-
 static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
 {
 	return lsp_symbols_doc_get_cached(doc);
@@ -255,7 +248,6 @@ static Lsp lsp = {
 	.goto_perform = goto_perform,
 
 	.doc_symbols_available = doc_symbols_available,
-	.doc_symbols_request = doc_symbols_request,
 	.doc_symbols_get_cached = doc_symbols_get_cached,
 
 	.symbol_highlight_available = symbol_highlight_available,
@@ -393,6 +385,15 @@ static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 }
 
 
+static void lsp_symbol_request_cb(gpointer user_data)
+{
+	GeanyDocument *doc = user_data;
+
+	if (doc == document_get_current())
+		sidebar_reload_symbols();
+}
+
+
 static void on_document_visible(GeanyDocument *doc)
 {
 	LspServer *srv;
@@ -418,6 +419,9 @@ static void on_document_visible(GeanyDocument *doc)
 	}
 
 	highlight_tags(doc);
+#else
+	if (doc_symbols_available(doc))
+		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
 
 	if (!srv)
@@ -684,10 +688,15 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	{
 		LspServer *srv;
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
 		if (nt->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_DELETETEXT))
+		{
+#ifndef HAVE_GEANY_LSP_SUPPORT
 			highlight_tags(doc);
+#else
+			if (doc_symbols_available(doc))
+				lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
+		}
 
 		// lots of SCN_MODIFIED notifications, filter-out those we are not interested in
 		if (!(nt->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_BEFOREDELETE | SC_MOD_BEFOREINSERT)))
