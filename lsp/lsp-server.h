@@ -23,11 +23,7 @@
 
 #include <gio/gio.h>
 
-
-#ifndef HAVE_GEANY_LSP_SUPPORT
-typedef void (*LspSymbolRequestCallback) (gpointer user_data);
-#endif
-
+typedef void (*LspCallback) (gpointer user_data);
 
 struct LspRpc;
 typedef struct LspRpc LspRpc;
@@ -74,6 +70,7 @@ typedef struct
 	gboolean document_symbols_enable;
 
 	gboolean semantic_tokens_enable;
+	gint semantic_tokens_lexer_kw_index;
 	gchar *semantic_tokens_type_style;
 
 	gboolean highlighting_enable;

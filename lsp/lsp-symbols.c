@@ -31,7 +31,7 @@
 
 typedef struct {
 	GeanyDocument *doc;
-	LspSymbolRequestCallback callback;
+	LspCallback callback;
 	gpointer user_data;
 } LspSymbolUserData;
 
@@ -235,7 +235,7 @@ static gboolean retry_cb(gpointer user_data)
 }
 
 
-void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
+void lsp_symbols_doc_request(GeanyDocument *doc, LspCallback callback,
 	gpointer user_data)
 {
 	LspServer *server = lsp_server_get_if_running(doc);

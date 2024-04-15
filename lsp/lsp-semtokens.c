@@ -30,9 +30,7 @@
 
 typedef struct {
 	GeanyDocument *doc;
-	LspSymbolRequestCallback callback;
 	gboolean delta;
-	gpointer user_data;
 } LspSemtokensUserData;
 
 
@@ -59,6 +57,7 @@ static gint style_index;
 
 //TODO: destroy on plugin unload
 static GHashTable *cached_tokens;
+static guint keyword_hash = 0;
 
 
 static void cached_data_free(CachedData *data)
@@ -133,7 +132,7 @@ static void sem_tokens_edit_apply(CachedData *data, SemanticTokensEdit *edit)
 }
 
 
-const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
+static const gchar *get_cached(GeanyDocument *doc)
 {
 	CachedData *data;
 
@@ -145,6 +144,23 @@ const gchar *lsp_semtokens_get_cached(GeanyDocument *doc)
 		return "";
 
 	return data->tokens_str;
+}
+
+
+static void highlight_keywords(LspServer *srv, GeanyDocument *doc)
+{
+	const gchar *keywords = get_cached(doc);
+	guint new_hash;
+
+	keywords = keywords != NULL ? keywords : "";
+	new_hash = g_str_hash(keywords);
+
+	if (keyword_hash != new_hash)
+	{
+		SSM(doc->editor->sci, SCI_SETKEYWORDS, srv->config.semantic_tokens_lexer_kw_index, (sptr_t) keywords);
+		SSM(doc->editor->sci, SCI_COLOURISE, (uptr_t) 0, -1);
+		keyword_hash = new_hash;
+	}
 }
 
 
@@ -381,10 +397,10 @@ static void semtokens_cb(GVariant *return_value, GError *error, gpointer user_da
 				process_delta_result(doc, return_value, srv->semantic_token_mask);
 			else
 				process_full_result(doc, return_value, srv->semantic_token_mask);
+
+			highlight_keywords(srv, doc);
 		}
 	}
-
-	data->callback(data->user_data);
 
 	g_free(user_data);
 }
@@ -405,7 +421,7 @@ static gboolean retry_cb(gpointer user_data)
 		else
 		{
 			// should be successful now
-			lsp_semtokens_send_request(data->doc, data->callback, data->user_data);
+			lsp_semtokens_send_request(data->doc);
 			g_free(data);
 			return FALSE;
 		}
@@ -417,8 +433,7 @@ static gboolean retry_cb(gpointer user_data)
 }
 
 
-void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
-	gpointer user_data)
+void lsp_semtokens_send_request(GeanyDocument *doc)
 {
 	LspSemtokensUserData *data = g_new0(LspSemtokensUserData, 1);
 	LspServer *server = lsp_server_get_if_running(doc);
@@ -426,9 +441,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 	GVariant *node;
 	CachedData *cached_data;
 
-	data->user_data = user_data;
 	data->doc = doc;
-	data->callback = callback;
 
 	if (!server)
 	{
@@ -436,6 +449,8 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 		plugin_timeout_add(geany_plugin, 300, retry_cb, data);
 		return;
 	}
+
+	highlight_keywords(server, doc);
 
 	doc_uri = lsp_utils_get_doc_uri(doc);
 
@@ -480,6 +495,8 @@ void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback cal
 void lsp_semtokens_clear(GeanyDocument *doc)
 {
 	g_hash_table_remove(cached_tokens, doc->real_path);
+	keyword_hash = 0;
+
 	if (style_index > 0)
 	{
 		sci_indicator_set(doc->editor->sci, style_index);

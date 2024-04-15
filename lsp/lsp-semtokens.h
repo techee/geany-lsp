@@ -23,11 +23,8 @@
 
 #include <glib.h>
 
-void lsp_semtokens_send_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
-	gpointer user_data);
+void lsp_semtokens_send_request(GeanyDocument *doc);
 void lsp_semtokens_clear(GeanyDocument *doc);
-
-const gchar *lsp_semtokens_get_cached(GeanyDocument *doc);
 
 void lsp_semtokens_style_init(GeanyDocument *doc);
 

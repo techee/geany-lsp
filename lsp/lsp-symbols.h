@@ -23,7 +23,7 @@
 
 #include <glib.h>
 
-void lsp_symbols_doc_request(GeanyDocument *doc, LspSymbolRequestCallback callback,
+void lsp_symbols_doc_request(GeanyDocument *doc, LspCallback callback,
 	gpointer user_data);
 
 GPtrArray *lsp_symbols_doc_get_cached(GeanyDocument *doc);
