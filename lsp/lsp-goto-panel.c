@@ -28,7 +28,6 @@
 #include "lsp/lsp-symbols.h"
 #include "lsp/lsp-symbol-kinds.h"
 #include "lsp/lsp-utils.h"
-#include "lsp/lsp-tm-tag.h"
 
 #include <gtk/gtk.h>
 #include <geanyplugin.h>
@@ -142,36 +141,53 @@ static void tree_view_activate_focused_row(GtkTreeView *view)
 }
 
 
-void lsp_goto_panel_fill(GPtrArray *symbols)
+void lsp_goto_panel_fill(GPtrArray *tags)
 {
 	GtkTreeView *view = GTK_TREE_VIEW(panel_data.tree_view);
 	GtkTreeIter iter;
-	LspGotoPanelSymbol *symbol;
+	TMTag *tag;
 	guint i;
 
 	gtk_list_store_clear(panel_data.store);
 
-	foreach_ptr_array(symbol, i, symbols)
+	foreach_ptr_array(tag, i, tags)
 	{
+		gchar *fname = NULL;
 		gchar *label;
+		TMIcon icon = TM_ICON_NONE;
 
-		if (symbol->file && symbol->line > 0)
-			label = g_markup_printf_escaped("%s\n<small><i>%s:%d</i></small>",
-				symbol->label, symbol->file, symbol->line);
-		else if (symbol->file)
-			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
-				symbol->label, symbol->file);
+		if (tag->file_name)  // LSP tag
+		{
+			icon = tag->icon;
+			fname = g_strdup(tag->file_name);
+		}
+		else if (tag->file && tag->file->file_name)  // TM tag
+		{
+			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
+			icon = lsp_symbol_kinds_get_symbol_icon(kind);
+			fname = utils_get_utf8_from_locale(tag->file->file_name);
+		}
 		else
-			label = g_markup_printf_escaped("%s", symbol->label);
+			continue;
+
+		if (fname && tag->line > 0)
+			label = g_markup_printf_escaped("%s\n<small><i>%s:%lu</i></small>",
+				tag->name, fname, tag->line);
+		else if (fname)
+			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
+				tag->name, fname);
+		else
+			label = g_markup_printf_escaped("%s", tag->name);
 
 		gtk_list_store_insert_with_values(panel_data.store, NULL, -1,
-			COL_ICON, symbols_get_icon_pixbuf(symbol->icon),
+			COL_ICON, symbols_get_icon_pixbuf(icon),
 			COL_LABEL, label,
-			COL_PATH, symbol->file,
-			COL_LINENO, symbol->line,
+			COL_PATH, fname,
+			COL_LINENO, tag->line,
 			-1);
 
 		g_free(label);
+		g_free(fname);
 	}
 
 	if (gtk_tree_model_get_iter_first(gtk_tree_view_get_model(view), &iter))
@@ -388,30 +404,22 @@ void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func)
 }
 
 
-void lsp_goto_panel_symbol_free(LspGotoPanelSymbol *symbol)
-{
-	g_free(symbol->label);
-	g_free(symbol->file);
-	g_free(symbol);
-}
-
-
-GPtrArray *lsp_goto_panel_filter(GPtrArray *symbols, const gchar *filter)
+GPtrArray *lsp_goto_panel_filter(GPtrArray *tags, const gchar *filter)
 {
 	GPtrArray *ret = g_ptr_array_new();
 	gchar **tf_strv;
 	guint i;
 	guint j = 0;
 
-	if (!symbols)
+	if (!tags)
 		return ret;
 
 	tf_strv = g_strsplit_set(filter, " ", -1);
 
-	for (i = 0; i < symbols->len && j < 100; ++i)
+	for (i = 0; i < tags->len && j < 100; ++i)
 	{
-		LspGotoPanelSymbol *symbol = symbols->pdata[i];
-		gchar *normalized_name = g_utf8_normalize(symbol->label, -1, G_NORMALIZE_ALL);
+		TMTag *tag = tags->pdata[i];
+		gchar *normalized_name = g_utf8_normalize(tag->name, -1, G_NORMALIZE_ALL);
 		gboolean filtered = FALSE;
 		gchar **val;
 
@@ -435,7 +443,7 @@ GPtrArray *lsp_goto_panel_filter(GPtrArray *symbols, const gchar *filter)
 		}
 		if (!filtered)
 		{
-			g_ptr_array_add(ret, symbol);
+			g_ptr_array_add(ret, tag);
 			j++;
 		}
 

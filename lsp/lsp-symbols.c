@@ -24,7 +24,7 @@
 #include "lsp/lsp-rpc.h"
 #include "lsp/lsp-utils.h"
 #include "lsp/lsp-sync.h"
-#include "lsp/lsp-tm-tag.h"
+#include "lsp/lsp-symbol-kinds.h"
 
 #include <jsonrpc-glib.h>
 
@@ -134,11 +134,12 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 
-		tag = lsp_tm_tag_new();
+		tag = tm_tag_new();
+		tag->is_external = TRUE;
 		tag->name = g_strdup(name);
 		tag->line = line_num + 1;
-		tag->type = kind;
-		tag->arglist = detail ? g_strdup(detail) : NULL;
+		tag->icon = lsp_symbol_kinds_get_symbol_icon(kind);
+		tag->tooltip = detail ? g_strdup(detail) : NULL;
 
 		if (scope)
 			tag->scope = g_strdup(scope);
@@ -146,10 +147,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 			tag->scope = g_strdup(container_name);
 
 		if (uri_str)
-		{
-			// TODO: total hack, just storing path "somewhere"
-			tag->inheritance = lsp_utils_get_real_path_from_uri_utf8(uri_str);
-		}
+			tag->file_name = lsp_utils_get_real_path_from_uri_utf8(uri_str);
 
 		g_ptr_array_add(symbols, tag);
 
@@ -185,7 +183,7 @@ static void symbols_cb(GVariant *return_value, GError *error, gpointer user_data
 		if (data->doc == document_get_current())
 		{
 			lsp_symbols_destroy();
-			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
+			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
 			cached_symbols_fname = g_strdup(data->doc->real_path);
 
 			parse_symbols(cached_symbols, return_value, NULL,
@@ -280,7 +278,7 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspCallback callback,
 static void workspace_symbols_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
 	LspWorkspaceSymbolUserData *data = user_data;
-	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_tm_tag_unref);
+	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
 
 	if (!error)
 	{

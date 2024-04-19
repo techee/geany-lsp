@@ -23,22 +23,11 @@
 
 #include <glib.h>
 
-
-typedef struct
-{
-	TMIcon icon;
-	gchar *label;
-	gchar *file;
-	gint line;
-} LspGotoPanelSymbol;
-
 typedef void (*LspGotoPanelLookupFunction) (const char *);
 
 
 void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func);
-void lsp_goto_panel_fill(GPtrArray *symbols);
-GPtrArray *lsp_goto_panel_filter(GPtrArray *symbols, const gchar *filter);
-
-void lsp_goto_panel_symbol_free(LspGotoPanelSymbol *symbol);
+void lsp_goto_panel_fill(GPtrArray *tags);
+GPtrArray *lsp_goto_panel_filter(GPtrArray *tags, const gchar *filter);
 
 #endif  /* LSP_LOOKUP_PANEL_H */
