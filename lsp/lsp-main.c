@@ -297,7 +297,7 @@ static void lsp_symbol_request_cb(gpointer user_data)
 	GeanyDocument *doc = user_data;
 
 	if (doc == document_get_current())
-		sidebar_reload_symbols();
+		symbols_reload_tag_list();
 }
 
 
