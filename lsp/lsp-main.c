@@ -95,7 +95,7 @@ enum {
 
   KB_RESTART_SERVERS,
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
   KB_INVOKE_AUTOCOMPLETE,
   KB_SHOW_CALLTIP,
 #endif
@@ -131,7 +131,7 @@ struct
 } project_dialog;
 
 
-static gboolean autocomplete_available(GeanyDocument *doc)
+static gboolean autocomplete_provided(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
@@ -153,7 +153,7 @@ static void autocomplete_perform(GeanyDocument *doc)
 }
 
 
-static gboolean calltips_available(GeanyDocument *doc)
+static gboolean calltips_provided(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
@@ -175,7 +175,7 @@ static void calltips_show(GeanyDocument *doc, gboolean force)
 }
 
 
-static gboolean goto_available(GeanyDocument *doc)
+static gboolean goto_provided(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
@@ -195,7 +195,7 @@ static void goto_perform(GeanyDocument *doc, gint pos, gboolean definition)
 }
 
 
-static gboolean symbol_highlight_available(GeanyDocument *doc)
+static gboolean symbol_highlight_provided(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
@@ -206,8 +206,8 @@ static gboolean symbol_highlight_available(GeanyDocument *doc)
 }
 
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
-static gboolean doc_symbols_available(GeanyDocument *doc)
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+static gboolean doc_symbols_provided(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
@@ -218,26 +218,26 @@ static gboolean doc_symbols_available(GeanyDocument *doc)
 }
 
 
-static GPtrArray *doc_symbols_get_cached(GeanyDocument *doc)
+static GPtrArray *doc_symbols_get(GeanyDocument *doc)
 {
 	return lsp_symbols_doc_get_cached(doc);
 }
 
 
-static Lsp lsp = {
-	.autocomplete_available = autocomplete_available,
+static PluginExtension extension = {
+	.autocomplete_provided = autocomplete_provided,
 	.autocomplete_perform = autocomplete_perform,
 
-	.calltips_available = calltips_available,
+	.calltips_provided = calltips_provided,
 	.calltips_show = calltips_show,
 
-	.goto_available = goto_available,
+	.goto_provided = goto_provided,
 	.goto_perform = goto_perform,
 
-	.doc_symbols_available = doc_symbols_available,
-	.doc_symbols_get_cached = doc_symbols_get_cached,
+	.doc_symbols_provided = doc_symbols_provided,
+	.doc_symbols_get = doc_symbols_get,
 
-	.symbol_highlight_available = symbol_highlight_available,
+	.symbol_highlight_provided = symbol_highlight_provided,
 };
 
 #else
@@ -247,7 +247,7 @@ static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
 {
 	GeanyDocument *doc = data;
 
-	if (!goto_available(doc))
+	if (!goto_provided(doc))
 		return FALSE;
 
 	if (event->button == 1)
@@ -316,7 +316,7 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 	if (lsp_utils_doc_ft_has_tags(doc))
 	{
 		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
@@ -325,11 +325,11 @@ static void on_document_visible(GeanyDocument *doc)
 		g_free(ft_lower);
 	}
 #else
-	if (doc_symbols_available(doc))
+	if (doc_symbols_provided(doc))
 		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
 
-	if (symbol_highlight_available(doc))
+	if (symbol_highlight_provided(doc))
 		lsp_semtokens_send_request(doc);
 
 	if (!srv)
@@ -349,7 +349,7 @@ static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocu
 	if (!session_opening)
 		on_document_visible(doc);
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 	g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
 #endif
 }
@@ -427,7 +427,7 @@ static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 		// "new" documents without filename saved for the first time or
 		// "save as" performed
 		lsp_sync_text_document_did_open(srv, doc);
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 		g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
 #endif
 	}
@@ -505,7 +505,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	GeanyDocument *doc = editor->document;
 	ScintillaObject *sci = editor->sci;
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 	if (!lsp_utils_doc_ft_has_tags(doc))
 	{
 #endif
@@ -549,7 +549,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 					lsp_signature_show_next();
 			}
 		}
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 	}
 #endif
 
@@ -641,10 +641,10 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 
 		if (nt->modificationType & (SC_MOD_INSERTTEXT | SC_MOD_BEFOREDELETE))
 		{
-			if (symbol_highlight_available(doc))
+			if (symbol_highlight_provided(doc))
 				lsp_semtokens_send_request(doc);
-#ifdef HAVE_GEANY_LSP_SUPPORT
-			if (doc_symbols_available(doc))
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+			if (doc_symbols_provided(doc))
 				lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
 		}
@@ -677,10 +677,10 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		// don't hightlight while typing
 		lsp_highlight_clear(doc);
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
-		if (autocomplete_available(doc))
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+		if (autocomplete_provided(doc))
 			autocomplete_perform(doc);
-		if (calltips_available(doc))
+		if (calltips_provided(doc))
 			calltips_show(doc, FALSE);
 #endif
 	}
@@ -1051,14 +1051,14 @@ static void invoke_kb(guint key_id, gint pos)
 			restart_all_servers();
 			break;
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 		case KB_INVOKE_AUTOCOMPLETE:
-			if (autocomplete_available(doc))
+			if (autocomplete_provided(doc))
 				autocomplete_perform(doc);
 			break;
 
 		case KB_SHOW_CALLTIP:
-			if (calltips_available(doc))
+			if (calltips_provided(doc))
 				calltips_show(doc, TRUE);
 			break;
 #endif
@@ -1249,7 +1249,7 @@ static void create_menu_items()
 
 	gtk_widget_show_all(menu_items.parent_item);
 
-#ifndef HAVE_GEANY_LSP_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
 	keybindings_set_item(group, KB_INVOKE_AUTOCOMPLETE, NULL, 0, 0, "invoke_autocompletion",
 		_("Invoke autocompletion"), NULL);
 
@@ -1316,8 +1316,8 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	stop_and_init_all_servers();
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
-	lsp_register(&lsp);
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+	plugin_extension_register(&extension);
 #endif
 	create_menu_items();
 }
@@ -1336,15 +1336,15 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(menu_items.separator1);
 	gtk_widget_destroy(menu_items.separator2);
 
-#ifdef HAVE_GEANY_LSP_SUPPORT
-	lsp_unregister(&lsp);
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+	plugin_extension_unregister(&extension);
 #endif
 	lsp_server_stop_all(TRUE);
 	destroy_all();
 }
 
 
-void plugin_help (void)
+void plugin_help(void)
 {
 	//utils_open_browser("http://plugins.geany.org/projectorganizer.html");
 }
