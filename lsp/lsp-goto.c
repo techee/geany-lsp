@@ -185,7 +185,7 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 						foreach_ptr_array(loc, i, locations)
 						{
 							TMTag *tag = tm_tag_new();
-							tag->is_external = TRUE;
+							tag->plugin_extension = TRUE;
 							tag->file_name = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
 							tag->name = g_path_get_basename(tag->file_name);
 							tag->line = loc->range.start.line+1;

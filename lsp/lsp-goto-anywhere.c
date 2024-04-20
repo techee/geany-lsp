@@ -80,7 +80,7 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 
 	foreach_ptr_array(tag, i, arr)
 	{
-		tag->is_external = TRUE;
+		tag->plugin_extension = TRUE;
 		tag->file_name = utils_get_utf8_from_locale(doc->real_path);
 		tag->icon = TM_ICON_OTHER;
 		switch (i)
@@ -133,7 +133,7 @@ static void goto_file(const gchar *file_str)
 			continue;
 
 		tag = tm_tag_new();
-		tag->is_external = TRUE;
+		tag->plugin_extension = TRUE;
 		tag->name = g_path_get_basename(doc->real_path);
 		tag->file_name = utils_get_utf8_from_locale(doc->real_path);
 		tag->icon = TM_ICON_OTHER;

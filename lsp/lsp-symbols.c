@@ -135,7 +135,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 
 		tag = tm_tag_new();
-		tag->is_external = TRUE;
+		tag->plugin_extension = TRUE;
 		tag->name = g_strdup(name);
 		tag->line = line_num + 1;
 		tag->icon = lsp_symbol_kinds_get_symbol_icon(kind);
