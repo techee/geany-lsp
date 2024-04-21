@@ -143,6 +143,7 @@ static void tree_view_activate_focused_row(GtkTreeView *view)
 
 void lsp_goto_panel_fill(GPtrArray *tags)
 {
+	GeanyDocument *doc = document_get_current();
 	GtkTreeView *view = GTK_TREE_VIEW(panel_data.tree_view);
 	GtkTreeIter iter;
 	TMTag *tag;
@@ -156,16 +157,18 @@ void lsp_goto_panel_fill(GPtrArray *tags)
 		gchar *label;
 		TMIcon icon = TM_ICON_NONE;
 
-		if (tag->file_name)  // LSP tag
-		{
-			icon = tag->icon;
-			fname = g_strdup(tag->file_name);
-		}
-		else if (tag->file && tag->file->file_name)  // TM tag
+		if (tag->file && tag->file->file_name)  // TM tag
 		{
 			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
 			icon = lsp_symbol_kinds_get_symbol_icon(kind);
 			fname = utils_get_utf8_from_locale(tag->file->file_name);
+		}
+		else if (tag->file_name || doc)  // LSP tag
+		{
+			icon = tag->icon;
+			fname = g_strdup(tag->file_name);
+			if (!fname)
+				fname = utils_get_utf8_from_locale(doc->real_path);
 		}
 		else
 			continue;
