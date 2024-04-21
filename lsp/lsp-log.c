@@ -103,7 +103,7 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 	if (log.type == 0 && !log.stream)
 		return;
 
-	err_msg = error ? g_strdup_printf("\n%s", error->message) : g_strdup("");
+	err_msg = error ? g_strdup_printf("\n  ^-- %s", error->message) : g_strdup("");
 
 	time = g_date_time_new_now_local();
 	if (req_time)
