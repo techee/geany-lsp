@@ -95,7 +95,7 @@ enum {
 
   KB_RESTART_SERVERS,
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
   KB_INVOKE_AUTOCOMPLETE,
   KB_SHOW_CALLTIP,
 #endif
@@ -206,7 +206,7 @@ static gboolean symbol_highlight_provided(GeanyDocument *doc)
 }
 
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
 static gboolean doc_symbols_provided(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
@@ -316,7 +316,7 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 	if (lsp_utils_doc_ft_has_tags(doc))
 	{
 		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
@@ -324,7 +324,7 @@ static void on_document_visible(GeanyDocument *doc)
 		dialogs_show_msgbox(GTK_MESSAGE_WARNING, _("Because of conflicting implementations, the LSP plugin requires that symbol generation is disabled for the filetypes for which LSP is enabled.\n\nTo disable it for the current filetype, go to:\n\nTools->Configuration Files->...->filetypes.%s\n\nand under the [settings] section add tag_parser= (with no value after =) which disables the symbol parser."), ft_lower);
 		g_free(ft_lower);
 	}
-#else
+#elif defined HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
 	if (doc_symbols_provided(doc))
 		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
@@ -349,7 +349,7 @@ static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocu
 	if (!session_opening)
 		on_document_visible(doc);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 	g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
 #endif
 }
@@ -427,7 +427,7 @@ static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 		// "new" documents without filename saved for the first time or
 		// "save as" performed
 		lsp_sync_text_document_did_open(srv, doc);
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 		g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
 #endif
 	}
@@ -505,7 +505,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	GeanyDocument *doc = editor->document;
 	ScintillaObject *sci = editor->sci;
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 	if (!lsp_utils_doc_ft_has_tags(doc))
 	{
 #endif
@@ -549,7 +549,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 					lsp_signature_show_next();
 			}
 		}
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 	}
 #endif
 
@@ -643,7 +643,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		{
 			if (symbol_highlight_provided(doc))
 				lsp_semtokens_send_request(doc);
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
 			if (doc_symbols_provided(doc))
 				lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
@@ -677,7 +677,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		// don't hightlight while typing
 		lsp_highlight_clear(doc);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 		if (autocomplete_provided(doc))
 			autocomplete_perform(doc);
 		if (calltips_provided(doc))
@@ -1051,7 +1051,7 @@ static void invoke_kb(guint key_id, gint pos)
 			restart_all_servers();
 			break;
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 		case KB_INVOKE_AUTOCOMPLETE:
 			if (autocomplete_provided(doc))
 				autocomplete_perform(doc);
@@ -1249,7 +1249,7 @@ static void create_menu_items()
 
 	gtk_widget_show_all(menu_items.parent_item);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
 	keybindings_set_item(group, KB_INVOKE_AUTOCOMPLETE, NULL, 0, 0, "invoke_autocompletion",
 		_("Invoke autocompletion"), NULL);
 
@@ -1316,7 +1316,7 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	stop_and_init_all_servers();
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION
 	plugin_extension_register(&extension);
 #endif
 	create_menu_items();
@@ -1336,7 +1336,7 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(menu_items.separator1);
 	gtk_widget_destroy(menu_items.separator2);
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_SUPPORT
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION
 	plugin_extension_unregister(&extension);
 #endif
 	lsp_server_stop_all(TRUE);
