@@ -314,16 +314,21 @@ static void process_delta_result(GeanyDocument *doc, GVariant *result, guint64 t
 	if (cached_tokens)
 		data = g_hash_table_lookup(cached_tokens, doc->real_path);
 
-	if (data && iter && result_id)
+	// in case of some error clangd returns iter == NULL but still requires that
+	// result_id gets updated otherwise subsequent requests fail
+	if (data && result_id)
+	{
+		g_free(data->result_id);
+		data->result_id = g_strdup(result_id);
+	}
+
+	if (data && iter)
 	{
 		GPtrArray *edits = g_ptr_array_new_full(4, (GDestroyNotify)sem_tokens_edit_free);
 		SemanticTokensEdit *edit;
 		GVariant *val = NULL;
 		guint i;
  
-		g_free(data->result_id);
-		data->result_id = g_strdup(result_id);
-
 		while (g_variant_iter_loop(iter, "v", &val))
 		{
 			GVariantIter *iter2 = NULL;
