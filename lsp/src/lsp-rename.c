@@ -53,9 +53,9 @@ static gchar *show_dialog_rename(const gchar *old_name)
 		rename_dialog.widget = gtk_dialog_new_with_buttons(
 			_("Rename in Project"), GTK_WINDOW(geany->main_widgets->window),
 			GTK_DIALOG_DESTROY_WITH_PARENT,
-			GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, NULL);
+			_("_Cancel"), GTK_RESPONSE_CANCEL,
+			_("_Rename"), GTK_RESPONSE_ACCEPT, NULL);
 		gtk_window_set_default_size(GTK_WINDOW(rename_dialog.widget), 600, -1);
-		gtk_dialog_add_button(GTK_DIALOG(rename_dialog.widget), "Rename", GTK_RESPONSE_ACCEPT);
 		gtk_dialog_set_default_response(GTK_DIALOG(rename_dialog.widget), GTK_RESPONSE_CANCEL);
 
 		vbox = ui_dialog_vbox_new(GTK_DIALOG(rename_dialog.widget));
@@ -66,20 +66,20 @@ static gchar *show_dialog_rename(const gchar *old_name)
 		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, FALSE, 0);
 
 		label = gtk_label_new(_("By pressing the <i>Rename</i> button below, you are going to replace <i>Old name</i> with <i>New name</i> <b>in the whole project</b>. There is no further confirmation or change review after this step."));
-		gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
 		gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
 		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, FALSE, 0);
 
 		label = gtk_label_new(_("Since this operation cannot be undone easily, it is highly recommended to perform this action only after committing all modified files into VCS in case something goes wrong."));
-		gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
 		gtk_box_pack_start(GTK_BOX(vbox), label, TRUE, FALSE, 0);
 
 		size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
 		label = gtk_label_new(_("New name:"));
-		gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_size_group_add_widget(size_group, label);
 		rename_dialog.combo = gtk_combo_box_text_new_with_entry();
 		entry = gtk_bin_get_child(GTK_BIN(rename_dialog.combo));
@@ -88,20 +88,20 @@ static gchar *show_dialog_rename(const gchar *old_name)
 		ui_entry_add_clear_icon(GTK_ENTRY(entry));
 		gtk_entry_set_activates_default(GTK_ENTRY(entry), TRUE);
 
-		ebox = gtk_hbox_new(FALSE, 6);
+		ebox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
 		gtk_box_pack_start(GTK_BOX(ebox), label, FALSE, FALSE, 0);
 		gtk_box_pack_start(GTK_BOX(ebox), rename_dialog.combo, TRUE, TRUE, 0);
 
 		gtk_box_pack_start(GTK_BOX(vbox), ebox, TRUE, FALSE, 0);
 
 		label = gtk_label_new(_("Old name:"));
-		gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+		gtk_label_set_xalign(GTK_LABEL(label), 0.0);
 		gtk_size_group_add_widget(size_group, label);
 		rename_dialog.old_label = gtk_label_new("");
 		gtk_label_set_use_markup(GTK_LABEL(rename_dialog.old_label), TRUE);
-		gtk_misc_set_alignment(GTK_MISC(rename_dialog.old_label), 0, 0.5);
+		gtk_label_set_xalign(GTK_LABEL(rename_dialog.old_label), 0.0);
 
-		ebox = gtk_hbox_new(FALSE, 6);
+		ebox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
 		gtk_box_pack_start(GTK_BOX(ebox), label, FALSE, FALSE, 0);
 		gtk_box_pack_start(GTK_BOX(ebox), rename_dialog.old_label, TRUE, TRUE, 0);
 

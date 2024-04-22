@@ -341,7 +341,7 @@ static void create_panel(void)
 	gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(panel_data.panel), frame);
 
-	box = gtk_vbox_new(FALSE, 0);
+	box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_container_add(GTK_CONTAINER(frame), box);
 
 	panel_data.entry = gtk_entry_new();

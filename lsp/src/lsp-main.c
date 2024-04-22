@@ -757,16 +757,18 @@ static void on_combo_changed(void)
 
 static void add_project_properties_tab(GtkWidget *notebook)
 {
-	GtkWidget *vbox, *hbox;
-	GtkWidget *table;
+	GtkWidget *vbox, *hbox, *ebox, *table_box;
 	GtkWidget *label;
+	GtkSizeGroup *size_group;
 
-	table = gtk_table_new(2, 2, FALSE);
-	gtk_table_set_row_spacings(GTK_TABLE(table), 6);
-	gtk_table_set_col_spacings(GTK_TABLE(table), 12);
+	table_box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 12);
+	gtk_box_set_spacing(GTK_BOX(table_box), 6);
+
+	size_group = gtk_size_group_new(GTK_SIZE_GROUP_HORIZONTAL);
 
 	label = gtk_label_new(_("Configuration:"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+	gtk_size_group_add_widget(size_group, label);
 
 	project_dialog.settings_type_combo = gtk_combo_box_text_new();
 	gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(project_dialog.settings_type_combo), _("Use user configuration"));
@@ -775,10 +777,14 @@ static void add_project_properties_tab(GtkWidget *notebook)
 	gtk_combo_box_set_active(GTK_COMBO_BOX(project_dialog.settings_type_combo), project_configuration_type);
 	g_signal_connect(project_dialog.settings_type_combo, "changed", on_combo_changed, NULL);
 
-	ui_table_add_row(GTK_TABLE(table), 0, label, project_dialog.settings_type_combo, NULL);
+	ebox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_pack_start(GTK_BOX(ebox), label, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(ebox), project_dialog.settings_type_combo, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(table_box), ebox, TRUE, FALSE, 0);
 
 	label = gtk_label_new(_("Configuration file:"));
-	gtk_misc_set_alignment(GTK_MISC(label), 0, 0);
+	gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+	gtk_size_group_add_widget(size_group, label);
 
 	project_dialog.config_file_entry = gtk_entry_new();
 	ui_entry_add_clear_icon(GTK_ENTRY(project_dialog.config_file_entry));
@@ -789,11 +795,14 @@ static void add_project_properties_tab(GtkWidget *notebook)
 
 	update_sensitivity(project_configuration_type);
 
-	ui_table_add_row(GTK_TABLE(table), 1, label, project_dialog.path_box, NULL);
+	ebox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 6);
+	gtk_box_pack_start(GTK_BOX(ebox), label, FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(ebox), project_dialog.path_box, TRUE, TRUE, 0);
+	gtk_box_pack_start(GTK_BOX(table_box), ebox, TRUE, FALSE, 0);
 
-	hbox = gtk_hbox_new(FALSE, 0);
-	gtk_box_pack_start(GTK_BOX(hbox), table, TRUE, TRUE, 12);
-	vbox = gtk_vbox_new(FALSE, 0);
+	hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+	gtk_box_pack_start(GTK_BOX(hbox), table_box, TRUE, TRUE, 12);
+	vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 	gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 6);
 
 	label = gtk_label_new(_("LSP Client"));
