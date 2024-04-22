@@ -636,7 +636,7 @@ static void get_int(gint *dest, GKeyFile *kf, const gchar *section, const gchar 
 }
 
 
-static void load_config(GKeyFile *kf, gchar *section, LspServer *s)
+static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 {
 	get_bool(&s->config.use_outside_project_dir, kf, section, "lsp_use_outside_project_dir");
 	get_bool(&s->config.use_without_project, kf, section, "lsp_use_without_project");
@@ -722,11 +722,11 @@ static LspServer *server_get_or_start_for_ft(GeanyFiletype *ft, gboolean launch_
 
 	if (s->config.ref_lang)
 	{
-		GeanyFiletype *ft = filetypes_lookup_by_name(s->config.ref_lang);
+		GeanyFiletype *ref_ft = filetypes_lookup_by_name(s->config.ref_lang);
 
-		if (ft)
+		if (ref_ft)
 		{
-			s2 = g_ptr_array_index(lsp_servers, ft->id);
+			s2 = g_ptr_array_index(lsp_servers, ref_ft->id);
 			s->referenced = s2;
 			if (s2->process)
 				return s2;

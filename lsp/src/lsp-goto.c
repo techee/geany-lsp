@@ -161,9 +161,9 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 						GHashTable *sci_table = g_hash_table_new_full(g_str_hash,
 							g_str_equal, g_free, (GDestroyNotify)g_object_unref);
 						LspLocation *loc;
-						guint i;
+						guint j;
 
-						foreach_ptr_array(loc, i, locations)
+						foreach_ptr_array(loc, j, locations)
 						{
 							show_in_msgwin(loc, sci_table);
 						}
@@ -175,20 +175,20 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 					else
 					{
 						LspLocation *loc;
-						guint i;
+						guint j;
 
 						if (last_result)
 							g_ptr_array_free(last_result, TRUE);
 
 						last_result = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
 
-						foreach_ptr_array(loc, i, locations)
+						foreach_ptr_array(loc, j, locations)
 						{
 							TMTag *tag = tm_tag_new();
 							tag->plugin_extension = TRUE;
 							tag->file_name = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
 							tag->name = g_path_get_basename(tag->file_name);
-							tag->line = loc->range.start.line+1;
+							tag->line = loc->range.start.line + 1;
 							tag->icon = TM_ICON_OTHER;
 							g_ptr_array_add(last_result, tag);
 						}

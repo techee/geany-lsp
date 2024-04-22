@@ -166,7 +166,7 @@ static gboolean handle_call(JsonrpcClient *client, gchar* method, GVariant *id, 
 	}
 	else if (g_strcmp0(method, "workspace/applyEdit") == 0)
 	{
-		GVariant *edit, *node;
+		GVariant *edit, *msg;
 		gboolean success = FALSE;
 
 		JSONRPC_MESSAGE_PARSE(params,
@@ -175,13 +175,13 @@ static gboolean handle_call(JsonrpcClient *client, gchar* method, GVariant *id, 
 
 		success = lsp_utils_apply_workspace_edit(edit);
 
-		node = JSONRPC_MESSAGE_NEW(
+		msg = JSONRPC_MESSAGE_NEW(
 			"applied", JSONRPC_MESSAGE_PUT_BOOLEAN(success)
 		);
 
-		jsonrpc_client_reply_async(client, id, node, NULL, NULL, NULL);
+		jsonrpc_client_reply_async(client, id, msg, NULL, NULL, NULL);
 
-		g_variant_unref(node);
+		g_variant_unref(msg);
 		g_variant_unref(edit);
 		ret = TRUE;
 	}
