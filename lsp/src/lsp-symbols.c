@@ -25,6 +25,7 @@
 #include "lsp-utils.h"
 #include "lsp-sync.h"
 #include "lsp-symbol-kinds.h"
+#include "lsp-symbol.h"
 
 #include <jsonrpc-glib.h>
 
@@ -62,6 +63,7 @@ void lsp_symbols_destroy(void)
 static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gchar *scope,
 	const gchar *scope_sep, gboolean workspace)
 {
+	GeanyDocument *doc = document_get_current();
 	GVariant *member = NULL;
 	GVariantIter iter;
 
@@ -69,7 +71,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 
 	while (g_variant_iter_loop(&iter, "v", &member))
 	{
-		TMTag *tag;
+		LspSymbol *sym;
 		const gchar *name = NULL;
 		const gchar *detail = NULL;
 		const gchar *uri = NULL;
@@ -134,31 +136,32 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 
-		tag = tm_tag_new();
-		tag->plugin_extension = TRUE;
-		tag->name = g_strdup(name);
-		tag->line = line_num + 1;
-		tag->icon = lsp_symbol_kinds_get_symbol_icon(kind);
-		tag->tooltip = detail ? g_strdup(detail) : NULL;
+		sym = g_new0(LspSymbol, 1);
+		sym->name = g_strdup(name);
+		sym->line = line_num + 1;
+		sym->icon = lsp_symbol_kinds_get_symbol_icon(kind);
+		sym->tooltip = detail ? g_strdup(detail) : NULL;
 
 		if (scope)
-			tag->scope = g_strdup(scope);
+			sym->scope = g_strdup(scope);
 		else if (container_name)
-			tag->scope = g_strdup(container_name);
+			sym->scope = g_strdup(container_name);
 
 		if (uri_str)
-			tag->file_name = lsp_utils_get_real_path_from_uri_utf8(uri_str);
+			sym->file_name = lsp_utils_get_real_path_from_uri_utf8(uri_str);
+		else if (doc)
+			sym->file_name = utils_get_utf8_from_locale(doc->real_path);
 
-		g_ptr_array_add(symbols, tag);
+		g_ptr_array_add(symbols, sym);
 
 		if (JSONRPC_MESSAGE_PARSE(member, "children", JSONRPC_MESSAGE_GET_VARIANT(&children)))
 		{
 			gchar *new_scope;
 
 			if (scope)
-				new_scope = g_strconcat(scope, scope_sep, tag->name, NULL);
+				new_scope = g_strconcat(scope, scope_sep, sym->name, NULL);
 			else
-				new_scope = g_strdup(tag->name);
+				new_scope = g_strdup(sym->name);
 			parse_symbols(symbols, children, new_scope, scope_sep, FALSE);
 			g_free(new_scope);
 		}
@@ -183,7 +186,7 @@ static void symbols_cb(GVariant *return_value, GError *error, gpointer user_data
 		if (data->doc == document_get_current())
 		{
 			lsp_symbols_destroy();
-			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
 			cached_symbols_fname = g_strdup(data->doc->real_path);
 
 			parse_symbols(cached_symbols, return_value, NULL,
@@ -278,7 +281,7 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspCallback callback,
 static void workspace_symbols_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
 	LspWorkspaceSymbolUserData *data = user_data;
-	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
 
 	if (!error)
 	{

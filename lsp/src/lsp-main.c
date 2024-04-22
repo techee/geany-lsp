@@ -36,6 +36,7 @@
 #include "lsp-rename.h"
 #include "lsp-command.h"
 #include "lsp-code-lens.h"
+#include "lsp-symbol.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -210,21 +211,56 @@ static gboolean symbol_highlight_provided(GeanyDocument *doc)
 }
 
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION
 static gboolean doc_symbols_provided(GeanyDocument *doc)
 {
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
 	if (!cfg)
 		return FALSE;
 
 	return lsp_server_is_usable(doc) && cfg->document_symbols_enable;
+#else
+	return FALSE;
+#endif
 }
 
 
 static GPtrArray *doc_symbols_get(GeanyDocument *doc)
 {
-	return lsp_symbols_doc_get_cached(doc);
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
+	static GPtrArray *ret = NULL;  // static!
+
+	GPtrArray *symbols = lsp_symbols_doc_get_cached(doc);
+	LspSymbol *sym;
+	guint i;
+
+	if (ret)
+		g_ptr_array_free(ret, TRUE);
+	ret = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+
+	if (symbols)
+	{
+		foreach_ptr_array(sym, i, symbols)
+		{
+			TMTag *tag = tm_tag_new();
+			tag->plugin_extension = TRUE;
+			tag->name = g_strdup(sym->name);
+			tag->file_name = g_strdup(sym->file_name);
+			tag->scope = g_strdup(sym->scope);
+			tag->tooltip = g_strdup(sym->tooltip);
+			tag->line = sym->line;
+			tag->icon = sym->icon;
+
+			g_ptr_array_add(ret, tag);
+		}
+	}
+
+	return ret;
+#else
+	return NULL;
+#endif
 }
 
 
@@ -244,7 +280,18 @@ static PluginExtension extension = {
 	.symbol_highlight_provided = symbol_highlight_provided,
 };
 
-#else
+
+static void lsp_symbol_request_cb(gpointer user_data)
+{
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
+	GeanyDocument *doc = user_data;
+
+	if (doc == document_get_current())
+		symbols_reload_tag_list();
+#endif
+}
+
+#else  // without HAVE_GEANY_PLUGIN_EXTENSION
 
 static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
 											 gpointer data)
@@ -286,7 +333,7 @@ static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
 
 	return FALSE;
 }
-#endif
+#endif  // HAVE_GEANY_PLUGIN_EXTENSION
 
 
 static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
@@ -294,17 +341,6 @@ static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 {
 	// we don't know the filename yet - nothing for the LSP server
 }
-
-
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
-static void lsp_symbol_request_cb(gpointer user_data)
-{
-	GeanyDocument *doc = user_data;
-
-	if (doc == document_get_current())
-		symbols_reload_tag_list();
-}
-#endif
 
 
 static void on_document_visible(GeanyDocument *doc)
@@ -322,7 +358,10 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION
+	if (doc_symbols_provided(doc))
+		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
+#else
 	if (lsp_utils_doc_ft_has_tags(doc))
 	{
 		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
@@ -330,9 +369,6 @@ static void on_document_visible(GeanyDocument *doc)
 		dialogs_show_msgbox(GTK_MESSAGE_WARNING, _("Because of conflicting implementations, the LSP plugin requires that symbol generation is disabled for the filetypes for which LSP is enabled.\n\nTo disable it for the current filetype, go to:\n\nTools->Configuration Files->...->filetypes.%s\n\nand under the [settings] section add tag_parser= (with no value after =) which disables the symbol parser."), ft_lower);
 		g_free(ft_lower);
 	}
-#elif defined HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
-	if (doc_symbols_provided(doc))
-		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif
 
 	if (symbol_highlight_provided(doc))
@@ -649,7 +685,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		{
 			if (symbol_highlight_provided(doc))
 				lsp_semtokens_send_request(doc);
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION
 			if (doc_symbols_provided(doc))
 				lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 #endif

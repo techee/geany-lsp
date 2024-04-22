@@ -24,6 +24,7 @@
 #include "lsp-utils.h"
 #include "lsp-rpc.h"
 #include "lsp-goto-panel.h"
+#include "lsp-symbol.h"
 
 #include <jsonrpc-glib.h>
 
@@ -180,17 +181,16 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 						if (last_result)
 							g_ptr_array_free(last_result, TRUE);
 
-						last_result = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+						last_result = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
 
 						foreach_ptr_array(loc, j, locations)
 						{
-							TMTag *tag = tm_tag_new();
-							tag->plugin_extension = TRUE;
-							tag->file_name = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
-							tag->name = g_path_get_basename(tag->file_name);
-							tag->line = loc->range.start.line + 1;
-							tag->icon = TM_ICON_OTHER;
-							g_ptr_array_add(last_result, tag);
+							LspSymbol *sym = g_new0(LspSymbol, 1);
+							sym->file_name = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
+							sym->name = g_path_get_basename(sym->file_name);
+							sym->line = loc->range.start.line + 1;
+							sym->icon = TM_ICON_OTHER;
+							g_ptr_array_add(last_result, sym);
 						}
 
 						lsp_goto_panel_show("", filter_symbols);

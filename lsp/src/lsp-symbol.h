@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Jiri Techet <techet@gmail.com>
+ * Copyright 2024 Jiri Techet <techet@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,15 +16,38 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef LSP_LOOKUP_PANEL_H
-#define LSP_LOOKUP_PANEL_H 1
+#ifndef LSP_SYMBOL_H
+#define LSP_SYMBOL_H 1
+
+#include "lsp-symbol-kinds.h"
 
 #include <glib.h>
 
-typedef void (*LspGotoPanelLookupFunction) (const char *);
 
-void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func);
-void lsp_goto_panel_fill(GPtrArray *symbols);
-GPtrArray *lsp_goto_panel_filter(GPtrArray *symbols, const gchar *filter);
+typedef struct
+{
+	gchar *name;
+	gchar *file_name;
+	gchar *scope;
+	gchar *tooltip;
+	gint line;
+	TMIcon icon;
+} LspSymbol;
 
-#endif  /* LSP_LOOKUP_PANEL_H */
+
+void lsp_symbol_free(LspSymbol *symbol);
+
+
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
+
+#include <geanyplugin.h>
+
+
+TMTag *tm_tag_new(void);
+
+void tm_tag_unref(TMTag *tag);
+
+TMTag *tm_tag_ref(TMTag *tag);
+#endif
+
+#endif  /* LSP_SYMBOL_H */

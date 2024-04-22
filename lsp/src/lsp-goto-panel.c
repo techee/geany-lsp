@@ -28,6 +28,7 @@
 #include "lsp-symbols.h"
 #include "lsp-symbol-kinds.h"
 #include "lsp-utils.h"
+#include "lsp-symbol.h"
 
 #include <gtk/gtk.h>
 #include <geanyplugin.h>
@@ -57,6 +58,57 @@ static LspGotoPanelLookupFunction lookup_function;
 
 
 extern GeanyData *geany_data;
+
+
+#ifndef HAVE_GEANY_PLUGIN_EXTENSION
+static struct
+{
+	const gchar *icon_name;
+	GdkPixbuf *pixbuf;
+}
+/* keep in sync with Geany */
+geany_icons[TM_N_ICONS] = {
+	[TM_ICON_CLASS]		= { "classviewer-class", NULL },
+	[TM_ICON_MACRO]		= { "classviewer-macro", NULL },
+	[TM_ICON_MEMBER]	= { "classviewer-member", NULL },
+	[TM_ICON_METHOD]	= { "classviewer-method", NULL },
+	[TM_ICON_NAMESPACE]	= { "classviewer-namespace", NULL },
+	[TM_ICON_OTHER]		= { "classviewer-other", NULL },
+	[TM_ICON_STRUCT]	= { "classviewer-struct", NULL },
+	[TM_ICON_VAR]		= { "classviewer-var", NULL },
+};
+
+
+static GdkPixbuf *get_tag_icon(const gchar *icon_name)
+{
+	static GtkIconTheme *icon_theme = NULL;
+	static gint x = -1;
+
+	if (G_UNLIKELY(x < 0))
+	{
+		gint dummy;
+		icon_theme = gtk_icon_theme_get_default();
+		gtk_icon_size_lookup(GTK_ICON_SIZE_MENU, &x, &dummy);
+	}
+	return gtk_icon_theme_load_icon(icon_theme, icon_name, x, 0, NULL);
+}
+
+
+GdkPixbuf *symbols_get_icon_pixbuf(TMIcon icon)
+{
+	if (!geany_icons[TM_ICON_CLASS].pixbuf)
+	{
+		guint i;
+		for (i = 0; i < G_N_ELEMENTS(geany_icons); i++)
+			geany_icons[i].pixbuf = get_tag_icon(geany_icons[i].icon_name);
+	}
+
+	if (icon < TM_N_ICONS)
+		return geany_icons[icon].pixbuf;
+
+	return NULL;
+}
+#endif
 
 
 static void tree_view_set_cursor_from_iter(GtkTreeView *view, GtkTreeIter *iter)
@@ -141,56 +193,39 @@ static void tree_view_activate_focused_row(GtkTreeView *view)
 }
 
 
-void lsp_goto_panel_fill(GPtrArray *tags)
+void lsp_goto_panel_fill(GPtrArray *symbols)
 {
-	GeanyDocument *doc = document_get_current();
 	GtkTreeView *view = GTK_TREE_VIEW(panel_data.tree_view);
 	GtkTreeIter iter;
-	TMTag *tag;
+	LspSymbol *sym;
 	guint i;
 
 	gtk_list_store_clear(panel_data.store);
 
-	foreach_ptr_array(tag, i, tags)
+	foreach_ptr_array(sym, i, symbols)
 	{
-		gchar *fname = NULL;
 		gchar *label;
-		TMIcon icon = TM_ICON_NONE;
 
-		if (tag->file && tag->file->file_name)  // TM tag
-		{
-			LspSymbolKind kind = lsp_symbol_kinds_tm_to_lsp(tag->type);
-			icon = lsp_symbol_kinds_get_symbol_icon(kind);
-			fname = utils_get_utf8_from_locale(tag->file->file_name);
-		}
-		else if (tag->file_name || doc)  // LSP tag
-		{
-			icon = tag->icon;
-			fname = g_strdup(tag->file_name);
-			if (!fname)
-				fname = utils_get_utf8_from_locale(doc->real_path);
-		}
-		else
+		if (!sym->file_name)
 			continue;
 
-		if (fname && tag->line > 0)
-			label = g_markup_printf_escaped("%s\n<small><i>%s:%lu</i></small>",
-				tag->name, fname, tag->line);
-		else if (fname)
+		if (sym->file_name && sym->line > 0)
+			label = g_markup_printf_escaped("%s\n<small><i>%s:%d</i></small>",
+				sym->name, sym->file_name, sym->line);
+		else if (sym->file_name)
 			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
-				tag->name, fname);
+				sym->name, sym->file_name);
 		else
-			label = g_markup_printf_escaped("%s", tag->name);
+			label = g_markup_printf_escaped("%s", sym->name);
 
 		gtk_list_store_insert_with_values(panel_data.store, NULL, -1,
-			COL_ICON, symbols_get_icon_pixbuf(icon),
+			COL_ICON, symbols_get_icon_pixbuf(sym->icon),
 			COL_LABEL, label,
-			COL_PATH, fname,
-			COL_LINENO, tag->line,
+			COL_PATH, sym->file_name,
+			COL_LINENO, sym->line,
 			-1);
 
 		g_free(label);
-		g_free(fname);
 	}
 
 	if (gtk_tree_model_get_iter_first(gtk_tree_view_get_model(view), &iter))
@@ -407,22 +442,22 @@ void lsp_goto_panel_show(const gchar *query, LspGotoPanelLookupFunction func)
 }
 
 
-GPtrArray *lsp_goto_panel_filter(GPtrArray *tags, const gchar *filter)
+GPtrArray *lsp_goto_panel_filter(GPtrArray *symbols, const gchar *filter)
 {
 	GPtrArray *ret = g_ptr_array_new();
 	gchar **tf_strv;
 	guint i;
 	guint j = 0;
 
-	if (!tags)
+	if (!symbols)
 		return ret;
 
 	tf_strv = g_strsplit_set(filter, " ", -1);
 
-	for (i = 0; i < tags->len && j < 100; ++i)
+	for (i = 0; i < symbols->len && j < 100; i++)
 	{
-		TMTag *tag = tags->pdata[i];
-		gchar *normalized_name = g_utf8_normalize(tag->name, -1, G_NORMALIZE_ALL);
+		LspSymbol *symbol = symbols->pdata[i];
+		gchar *normalized_name = g_utf8_normalize(symbol->name, -1, G_NORMALIZE_ALL);
 		gboolean filtered = FALSE;
 		gchar **val;
 
@@ -446,7 +481,7 @@ GPtrArray *lsp_goto_panel_filter(GPtrArray *tags, const gchar *filter)
 		}
 		if (!filtered)
 		{
-			g_ptr_array_add(ret, tag);
+			g_ptr_array_add(ret, symbol);
 			j++;
 		}
 

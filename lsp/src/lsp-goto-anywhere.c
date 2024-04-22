@@ -24,6 +24,7 @@
 #include "lsp-goto-panel.h"
 #include "lsp-symbols.h"
 #include "lsp-utils.h"
+#include "lsp-symbol.h"
 
 #include <gtk/gtk.h>
 #include <geanyplugin.h>
@@ -67,49 +68,47 @@ static void doc_symbol_cb(gpointer user_data)
 
 static void goto_line(GeanyDocument *doc, const gchar *line_str)
 {
-	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
 	gint lineno = atoi(line_str);
-	TMTag *tag;
 	gint linenum = sci_get_line_count(doc->editor->sci);
 	guint i;
 
-	g_ptr_array_add(arr, tm_tag_new());
-	g_ptr_array_add(arr, tm_tag_new());
-	g_ptr_array_add(arr, tm_tag_new());
-	g_ptr_array_add(arr, tm_tag_new());
-
-	foreach_ptr_array(tag, i, arr)
+	for (i = 0; i < 4; i++)
 	{
-		tag->plugin_extension = TRUE;
-		tag->file_name = utils_get_utf8_from_locale(doc->real_path);
-		tag->icon = TM_ICON_OTHER;
+		LspSymbol *sym = g_new0(LspSymbol, 1);
+
+		sym->file_name = utils_get_utf8_from_locale(doc->real_path);
+		sym->icon = TM_ICON_OTHER;
+
 		switch (i)
 		{
 			case 0:
-				tag->name = g_strdup(_("line typed above"));
+				sym->name = g_strdup(_("line typed above"));
 				if (lineno == 0)
-					tag->line = sci_get_current_line(doc->editor->sci) + 1;
+					sym->line = sci_get_current_line(doc->editor->sci) + 1;
 				else if (lineno > linenum)
-					tag->line = linenum;
+					sym->line = linenum;
 				else
-					tag->line = lineno;
+					sym->line = lineno;
 				break;
 
 			case 1:
-				tag->name = g_strdup(_("start"));
-				tag->line = 1;
+				sym->name = g_strdup(_("start"));
+				sym->line = 1;
 				break;
 
 			case 2:
-				tag->name = g_strdup(_("middle"));
-				tag->line = linenum / 2;
+				sym->name = g_strdup(_("middle"));
+				sym->line = linenum / 2;
 				break;
 
 			case 3:
-				tag->name = g_strdup(_("end"));
-				tag->line = linenum;
+				sym->name = g_strdup(_("end"));
+				sym->line = linenum;
 				break;
 		}
+
+		g_ptr_array_add(arr, sym);
 	}
 
 	lsp_goto_panel_fill(arr);
@@ -120,24 +119,23 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 
 static void goto_file(const gchar *file_str)
 {
-	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
 	GPtrArray *filtered;
 	guint i;
 
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
-		TMTag *tag;
+		LspSymbol *sym;
 
 		if (!doc->real_path)
 			continue;
 
-		tag = tm_tag_new();
-		tag->plugin_extension = TRUE;
-		tag->name = g_path_get_basename(doc->real_path);
-		tag->file_name = utils_get_utf8_from_locale(doc->real_path);
-		tag->icon = TM_ICON_OTHER;
-		g_ptr_array_add(arr, tag);
+		sym = g_new0(LspSymbol, 1);
+		sym->name = g_path_get_basename(doc->real_path);
+		sym->file_name = utils_get_utf8_from_locale(doc->real_path);
+		sym->icon = TM_ICON_OTHER;
+		g_ptr_array_add(arr, sym);
 	}
 
 	filtered = lsp_goto_panel_filter(arr, file_str);
@@ -150,7 +148,7 @@ static void goto_file(const gchar *file_str)
 
 static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lang)
 {
-	GPtrArray *filtered_lang = g_ptr_array_new();
+	GPtrArray *converted = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
 	GPtrArray *filtered;
 	TMTag *tag;
 	guint i;
@@ -159,16 +157,24 @@ static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lan
 	{
 		foreach_ptr_array(tag, i, tags)
 		{
-			if (tag->lang == lang && tag->type != tm_tag_local_var_t)
-				g_ptr_array_add(filtered_lang, tag);
+			if (tag->lang == lang && tag->type != tm_tag_local_var_t && tag->file)
+			{
+				LspSymbol *sym = g_new0(LspSymbol, 1);
+				sym->name = g_strdup(tag->name);
+				sym->file_name = utils_get_utf8_from_locale(tag->file->file_name);
+				sym->line = tag->line;
+				sym->icon = lsp_symbol_kinds_get_symbol_icon(lsp_symbol_kinds_tm_to_lsp(tag->type));
+
+				g_ptr_array_add(converted, sym);
+			}
 		}
 	}
-	filtered = lsp_goto_panel_filter(filtered_lang, query);
 
+	filtered = lsp_goto_panel_filter(converted, query);
 	lsp_goto_panel_fill(filtered);
 
 	g_ptr_array_free(filtered, TRUE);
-	g_ptr_array_free(filtered_lang, TRUE);
+	g_ptr_array_free(converted, TRUE);
 }
 
 
