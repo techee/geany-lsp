@@ -20,9 +20,7 @@
  * Author:
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
-
-#ifndef __JSON_GENERATOR_H__
-#define __JSON_GENERATOR_H__
+#pragma once
 
 #if !defined(__JSON_GLIB_INSIDE__) && !defined(JSON_COMPILATION)
 #error "Only <json-glib/json-glib.h> can be included directly."
@@ -113,5 +111,3 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (JsonGenerator, g_object_unref)
 #endif
 
 G_END_DECLS
-
-#endif /* __JSON_GENERATOR_H__ */

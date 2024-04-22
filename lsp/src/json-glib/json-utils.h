@@ -17,8 +17,7 @@
  * License along with this library. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __JSON_UTILS_H__
-#define __JSON_UTILS_H__
+#pragma once
 
 #if !defined(__JSON_GLIB_INSIDE__) && !defined(JSON_COMPILATION)
 #error "Only <json-glib/json-glib.h> can be included directly."
@@ -36,5 +35,3 @@ char *          json_to_string          (JsonNode    *node,
                                          gboolean     pretty);
 
 G_END_DECLS
-
-#endif /* __JSON_UTILS_H__ */

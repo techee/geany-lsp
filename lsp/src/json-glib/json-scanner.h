@@ -29,32 +29,45 @@
  * JsonScanner: modified by Emmanuele Bassi <ebassi@openedhand.com>
  */
 
-#ifndef __JSON_SCANNER_H__
-#define __JSON_SCANNER_H__
+#pragma once
 
+#include <stdbool.h>
 #include <glib.h>
 
 G_BEGIN_DECLS
 
 typedef struct _JsonScanner       JsonScanner;
-typedef struct _JsonScannerConfig JsonScannerConfig;
 
 typedef void (* JsonScannerMsgFunc) (JsonScanner *scanner,
-                                     gchar       *message);
+                                     const char  *message,
+                                     gpointer     user_data);
 
-/**
- * JsonTokenType:
- * @JSON_TOKEN_INVALID: marker
- * @JSON_TOKEN_TRUE: symbol for 'true' bareword
- * @JSON_TOKEN_FALSE: symbol for 'false' bareword
- * @JSON_TOKEN_NULL: symbol for 'null' bareword
- * @JSON_TOKEN_VAR: symbol for 'var' bareword
- * @JSON_TOKEN_LAST: marker
- *
- * Tokens for JsonScanner-based parser, extending #GTokenType.
- */
-typedef enum {
-  JSON_TOKEN_INVALID = G_TOKEN_LAST,
+/* Token types */
+typedef enum
+{
+  JSON_TOKEN_EOF		=   0,
+
+  JSON_TOKEN_LEFT_CURLY		= '{',
+  JSON_TOKEN_RIGHT_CURLY	= '}',
+  JSON_TOKEN_LEFT_BRACE		= '[',
+  JSON_TOKEN_RIGHT_BRACE	= ']',
+  JSON_TOKEN_EQUAL_SIGN		= '=',
+  JSON_TOKEN_COMMA		= ',',
+  JSON_TOKEN_COLON              = ':',
+
+  JSON_TOKEN_NONE		= 256,
+
+  JSON_TOKEN_ERROR,
+
+  JSON_TOKEN_INT,
+  JSON_TOKEN_FLOAT,
+  JSON_TOKEN_STRING,
+
+  JSON_TOKEN_SYMBOL,
+  JSON_TOKEN_IDENTIFIER,
+
+  JSON_TOKEN_COMMENT_SINGLE,
+  JSON_TOKEN_COMMENT_MULTI,
 
   JSON_TOKEN_TRUE,
   JSON_TOKEN_FALSE,
@@ -64,84 +77,44 @@ typedef enum {
   JSON_TOKEN_LAST
 } JsonTokenType;
 
-/**
- * JsonScanner:
- *
- * Tokenizer scanner for JSON. See #GScanner
- *
- * Since: 0.6
- */
-struct _JsonScanner
-{
-  /*< private >*/
-  /* unused fields */
-  gpointer user_data;
-  guint max_parse_errors;
-  
-  /* json_scanner_error() increments this field */
-  guint parse_errors;
-  
-  /* name of input stream, featured by the default message handler */
-  const gchar *input_name;
-  
-  /* quarked data */
-  GData *qdata;
-  
-  /* link into the scanner configuration */
-  JsonScannerConfig *config;
-  
-  /* fields filled in after json_scanner_get_next_token() */
-  GTokenType token;
-  GTokenValue value;
-  guint line;
-  guint position;
-  
-  /* fields filled in after json_scanner_peek_next_token() */
-  GTokenType next_token;
-  GTokenValue next_value;
-  guint next_line;
-  guint next_position;
-  
-  /* to be considered private */
-  GHashTable *symbol_table;
-  const gchar *text;
-  const gchar *text_end;
-  gchar *buffer;
-  guint scope_id;
-  
-  /* handler function for _warn and _error */
-  JsonScannerMsgFunc msg_handler;
-};
-
 G_GNUC_INTERNAL
-JsonScanner *json_scanner_new                  (void);
+JsonScanner *json_scanner_new                  (bool strict);
 G_GNUC_INTERNAL
 void         json_scanner_destroy              (JsonScanner *scanner);
 G_GNUC_INTERNAL
-void         json_scanner_input_text           (JsonScanner *scanner,
-                                                const gchar *text,
-                                                guint        text_len);
+void         json_scanner_input_text           (JsonScanner  *scanner,
+                                                const char   *text,
+                                                unsigned int  text_len);
 G_GNUC_INTERNAL
-GTokenType   json_scanner_get_next_token       (JsonScanner *scanner);
+unsigned int json_scanner_get_next_token       (JsonScanner *scanner);
 G_GNUC_INTERNAL
-GTokenType   json_scanner_peek_next_token      (JsonScanner *scanner);
+unsigned int json_scanner_peek_next_token      (JsonScanner *scanner);
 G_GNUC_INTERNAL
-void         json_scanner_scope_add_symbol     (JsonScanner *scanner,
-                                                guint        scope_id,
-                                                const gchar *symbol,
-                                                gpointer     value);
+void         json_scanner_set_msg_handler      (JsonScanner        *scanner,
+                                                JsonScannerMsgFunc  msg_handler,
+                                                gpointer            user_data);
 G_GNUC_INTERNAL
-void         json_scanner_unexp_token          (JsonScanner *scanner,
-                                                GTokenType   expected_token,
-                                                const gchar *identifier_spec,
-                                                const gchar *symbol_spec,
-                                                const gchar *symbol_name,
-                                                const gchar *message);
+void         json_scanner_unknown_token        (JsonScanner  *scanner,
+                                                unsigned int  token);
+
 G_GNUC_INTERNAL
-void         json_scanner_error                (JsonScanner *scanner,
-                                                const gchar *format,
-                                                ...) G_GNUC_PRINTF (2,3);
+gint64       json_scanner_get_int64_value      (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+double       json_scanner_get_float_value      (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+const char * json_scanner_get_string_value     (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+char *       json_scanner_dup_string_value     (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+const char * json_scanner_get_identifier       (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+char *       json_scanner_dup_identifier       (const JsonScanner *scanner);
+
+G_GNUC_INTERNAL
+unsigned int json_scanner_get_current_line     (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+unsigned int json_scanner_get_current_position (const JsonScanner *scanner);
+G_GNUC_INTERNAL
+unsigned int json_scanner_get_current_token    (const JsonScanner *scanner);
 
 G_END_DECLS
-
-#endif /* __JSON_SCANNER_H__ */

@@ -20,8 +20,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifndef __JSON_READER_H__
-#define __JSON_READER_H__
+#pragma once
 
 #if !defined(__JSON_GLIB_INSIDE__) && !defined(JSON_COMPILATION)
 #error "Only <json-glib/json-glib.h> can be included directly."
@@ -160,5 +159,3 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (JsonReader, g_object_unref)
 #endif
 
 G_END_DECLS
-
-#endif /* __JSON_READER_H__ */

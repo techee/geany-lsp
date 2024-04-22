@@ -21,8 +21,7 @@
  *   Eduardo Lima Mitev  <elima@igalia.com>
  */
 
-#ifndef __JSON_GVARIANT_H__
-#define __JSON_GVARIANT_H__
+#pragma once
 
 #if !defined(__JSON_GLIB_INSIDE__) && !defined(JSON_COMPILATION)
 #error "Only <json-glib/json-glib.h> can be included directly."
@@ -49,5 +48,3 @@ GVariant * json_gvariant_deserialize_data (const gchar  *json,
                                            GError      **error);
 
 G_END_DECLS
-
-#endif /* __JSON_GVARIANT_H__ */

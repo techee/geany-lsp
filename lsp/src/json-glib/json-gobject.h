@@ -21,8 +21,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifndef __JSON_GOBJECT_H__
-#define __JSON_GOBJECT_H__
+#pragma once
 
 #include <json-glib/json-types.h>
 
@@ -249,5 +248,3 @@ G_DEFINE_AUTOPTR_CLEANUP_FUNC (JsonSerializable, g_object_unref)
 #endif
 
 G_END_DECLS
-
-#endif /* __JSON_GOBJECT_H__ */

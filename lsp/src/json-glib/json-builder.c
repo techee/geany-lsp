@@ -757,7 +757,7 @@ json_builder_add_boolean_value (JsonBuilder *builder,
  * @builder: a builder
  * @value: the value of the member or element
  *
- * Adds a boolean value to the currently open object member or array.
+ * Adds a string value to the currently open object member or array.
  *
  * If called after [method@Json.Builder.set_member_name], sets the given value
  * as the value of the current member in the open object; otherwise, the value

@@ -21,8 +21,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifndef __JSON_VERSION_H__
-#define __JSON_VERSION_H__
+#pragma once
 
 #if !defined(__JSON_GLIB_INSIDE__) && !defined(JSON_COMPILATION)
 #error "Only <json-glib/json-glib.h> can be included directly."
@@ -40,7 +39,7 @@
  *
  * Json minor version component (e.g. 2 if `JSON_VERSION` is "1.2.3")
  */
-#define JSON_MINOR_VERSION              (8)
+#define JSON_MINOR_VERSION              (9)
 
 /**
  * JSON_MICRO_VERSION:
@@ -54,7 +53,7 @@
  *
  * The version of JSON-GLib.
  */
-#define JSON_VERSION                    (1.8.1)
+#define JSON_VERSION                    (1.9.1)
 
 /**
  * JSON_VERSION_S:
@@ -62,7 +61,7 @@
  * The version of JSON-GLib, encoded as a string, useful for printing and
  * concatenation.
  */
-#define JSON_VERSION_S                  "1.8.1"
+#define JSON_VERSION_S                  "1.9.1"
 
 /**
  * JSON_ENCODE_VERSION:
@@ -99,5 +98,3 @@
          (JSON_MAJOR_VERSION == (major) && JSON_MINOR_VERSION > (minor)) || \
          (JSON_MAJOR_VERSION == (major) && JSON_MINOR_VERSION == (minor) && \
           JSON_MICRO_VERSION >= (micro)))
-
-#endif /* __JSON_VERSION_H__ */

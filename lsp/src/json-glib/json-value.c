@@ -224,7 +224,7 @@ json_value_hash (gconstpointer key)
     }
 
   /* Mask out the top 3 bits of the @value_hash. */
-  value_hash &= ~(7 << (sizeof (guint) * 8 - 3));
+  value_hash &= ~(7u << (sizeof (guint) * 8 - 3));
 
   return (type_hash | value_hash);
 }

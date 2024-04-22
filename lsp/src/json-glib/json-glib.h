@@ -20,9 +20,7 @@
  * Author:
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
-
-#ifndef __JSON_GLIB_H__
-#define __JSON_GLIB_H__
+#pragma once
 
 #define __JSON_GLIB_INSIDE__
 
@@ -44,5 +42,3 @@
 #include <json-glib/json-gvariant.h>
 
 #undef __JSON_GLIB_INSIDE__
-
-#endif /* __JSON_GLIB_H__ */

@@ -21,8 +21,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifndef __JSON_TYPES_PRIVATE_H__
-#define __JSON_TYPES_PRIVATE_H__
+#pragma once
 
 #include "json-types.h"
 
@@ -184,5 +183,3 @@ G_GNUC_INTERNAL
 guint           json_value_hash                 (gconstpointer    key);
 
 G_END_DECLS
-
-#endif /* __JSON_TYPES_PRIVATE_H__ */

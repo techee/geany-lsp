@@ -21,8 +21,7 @@
  *   Emmanuele Bassi  <ebassi@linux.intel.com>
  */
 
-#ifndef __JSON_GOBJECT_PRIVATE_H__
-#define __JSON_GOBJECT_PRIVATE_H__
+#pragma once
 
 #include "json-gobject.h"
 
@@ -35,5 +34,3 @@ gboolean  json_deserialize_pspec (GValue       *value,
                                   JsonNode     *node);
 
 G_END_DECLS
-
-#endif /* __JSON_GOBJECT_PRIVATE_H__ */
