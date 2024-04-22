@@ -39,7 +39,7 @@ static GPtrArray *commands;
 static void set_color(GeanyDocument *doc)
 {
 	LspServerConfig *cfg = lsp_server_get_config(doc);
-	GdkColor bg_color, fg_color, color;
+	GdkRGBA bg_color, fg_color, color;
 	ScintillaObject *sci;
 	gint style_offset;
 	gint i = 0;
@@ -52,8 +52,8 @@ static void set_color(GeanyDocument *doc)
 
 	style_offset = SSM(sci, SCI_EOLANNOTATIONGETSTYLEOFFSET, 0, 0);
 
-	gdk_color_parse("yellow", &bg_color);
-	gdk_color_parse("black", &fg_color);
+	gdk_rgba_parse(&bg_color, "yellow");
+	gdk_rgba_parse(&fg_color, "black");
 
 	comps = g_strsplit(cfg->code_lens_style, ";", -1);
 
@@ -62,21 +62,21 @@ static void set_color(GeanyDocument *doc)
 		switch (i)
 		{
 			case 0:
-				if (!gdk_color_parse(comps[i], &color))
+				if (!gdk_rgba_parse(&color, comps[i]))
 					color = fg_color;
 				SSM(sci, SCI_STYLESETFORE, style_offset,
-					((color.red * 255) / 65535) |
-					(((color.green * 255) / 65535) << 8) |
-					(((color.blue * 255) / 65535) << 16));
+					((unsigned char)(color.red * 255)) |
+					((unsigned char)(color.green * 255) << 8) |
+					((unsigned char)(color.blue * 255) << 16));
 				break;
 			case 1:
 			{
-				if (!gdk_color_parse(comps[i], &color))
+				if (!gdk_rgba_parse(&color, comps[i]))
 					color = bg_color;
 				SSM(sci, SCI_STYLESETBACK, style_offset,
-					((color.red * 255) / 65535) |
-					(((color.green * 255) / 65535) << 8) |
-					(((color.blue * 255) / 65535) << 16));
+					((unsigned char)(color.red * 255)) |
+					((unsigned char)(color.green * 255) << 8) |
+					((unsigned char)(color.blue * 255) << 16));
 				break;
 			}
 		}

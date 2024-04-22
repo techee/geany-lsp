@@ -752,14 +752,14 @@ gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos)
 gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str)
 {
 	gchar **comps = g_strsplit(style_str, ";", -1);
-	GdkColor color;
+	GdkRGBA color;
 	gint indicator = 13;
 	gint alpha_fill = 255;
 	gint alpha_outline = 255;
 	gint style = 0;
 	gint i = 0;
 
-	gdk_color_parse("red", &color);
+	gdk_rgba_parse(&color, "red");
 
 	for (i = 0; comps && comps[i]; i++)
 	{
@@ -770,8 +770,8 @@ gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str)
 				break;
 			case 1:
 			{
-				if (!gdk_color_parse(comps[i], &color))
-					gdk_color_parse("red", &color);
+				if (!gdk_rgba_parse(&color, comps[i]))
+					gdk_rgba_parse(&color, "red");
 				break;
 			}
 			case 2:
@@ -788,9 +788,9 @@ gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str)
 
 	SSM(sci, SCI_INDICSETSTYLE, indicator, style);
 	SSM(sci, SCI_INDICSETFORE, indicator,
-		((color.red * 255) / 65535) |
-		(((color.green * 255) / 65535) << 8) |
-		(((color.blue * 255) / 65535) << 16));
+		((unsigned char)(color.red * 255)) |
+		((unsigned char)(color.green * 255) << 8) |
+		((unsigned char)(color.blue * 255) << 16));
 	SSM(sci, SCI_INDICSETALPHA, indicator, alpha_fill);
 	SSM(sci, SCI_INDICSETOUTLINEALPHA, indicator, alpha_outline);
 
