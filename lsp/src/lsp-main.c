@@ -296,6 +296,7 @@ static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 }
 
 
+#ifdef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
 static void lsp_symbol_request_cb(gpointer user_data)
 {
 	GeanyDocument *doc = user_data;
@@ -303,6 +304,7 @@ static void lsp_symbol_request_cb(gpointer user_data)
 	if (doc == document_get_current())
 		symbols_reload_tag_list();
 }
+#endif
 
 
 static void on_document_visible(GeanyDocument *doc)
