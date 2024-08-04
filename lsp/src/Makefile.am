@@ -1,5 +1,4 @@
 include $(top_srcdir)/build/vars.build.mk
-
 plugin = lsp
 
 geanyplugins_LTLIBRARIES = lsp.la
