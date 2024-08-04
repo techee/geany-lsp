@@ -60,57 +60,6 @@ static LspGotoPanelLookupFunction lookup_function;
 extern GeanyData *geany_data;
 
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-static struct
-{
-	const gchar *icon_name;
-	GdkPixbuf *pixbuf;
-}
-/* keep in sync with Geany */
-geany_icons[TM_N_ICONS] = {
-	[TM_ICON_CLASS]		= { "classviewer-class", NULL },
-	[TM_ICON_MACRO]		= { "classviewer-macro", NULL },
-	[TM_ICON_MEMBER]	= { "classviewer-member", NULL },
-	[TM_ICON_METHOD]	= { "classviewer-method", NULL },
-	[TM_ICON_NAMESPACE]	= { "classviewer-namespace", NULL },
-	[TM_ICON_OTHER]		= { "classviewer-other", NULL },
-	[TM_ICON_STRUCT]	= { "classviewer-struct", NULL },
-	[TM_ICON_VAR]		= { "classviewer-var", NULL },
-};
-
-
-static GdkPixbuf *get_tag_icon(const gchar *icon_name)
-{
-	static GtkIconTheme *icon_theme = NULL;
-	static gint x = -1;
-
-	if (G_UNLIKELY(x < 0))
-	{
-		gint dummy;
-		icon_theme = gtk_icon_theme_get_default();
-		gtk_icon_size_lookup(GTK_ICON_SIZE_MENU, &x, &dummy);
-	}
-	return gtk_icon_theme_load_icon(icon_theme, icon_name, x, 0, NULL);
-}
-
-
-GdkPixbuf *symbols_get_icon_pixbuf(TMIcon icon)
-{
-	if (!geany_icons[TM_ICON_CLASS].pixbuf)
-	{
-		guint i;
-		for (i = 0; i < G_N_ELEMENTS(geany_icons); i++)
-			geany_icons[i].pixbuf = get_tag_icon(geany_icons[i].icon_name);
-	}
-
-	if (icon < TM_N_ICONS)
-		return geany_icons[icon].pixbuf;
-
-	return NULL;
-}
-#endif
-
-
 static void tree_view_set_cursor_from_iter(GtkTreeView *view, GtkTreeIter *iter)
 {
 	GtkTreePath *path;

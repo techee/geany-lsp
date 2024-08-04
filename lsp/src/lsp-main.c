@@ -108,11 +108,6 @@ enum {
 
   KB_RESTART_SERVERS,
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-  KB_INVOKE_AUTOCOMPLETE,
-  KB_SHOW_CALLTIP,
-#endif
-
   KB_COUNT
 };
 
@@ -295,8 +290,6 @@ static GPtrArray *doc_symbols_get(GeanyDocument *doc)
 #endif
 
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION
-
 static PluginExtension extension = {
 	.autocomplete_provided = autocomplete_provided,
 	.autocomplete_perform = autocomplete_perform,
@@ -320,50 +313,6 @@ static void lsp_symbol_request_cb(gpointer user_data)
 		symbols_reload_tag_list();
 }
 */
-
-#else  // without HAVE_GEANY_PLUGIN_EXTENSION
-
-static gboolean on_button_press_event(GtkWidget *widget, GdkEventButton *event,
-											 gpointer data)
-{
-	GeanyDocument *doc = data;
-
-	if (!goto_provided(doc, NULL))
-		return FALSE;
-
-	if (event->button == 1)
-	{
-		guint state = keybindings_get_modifiers(event->state);
-
-		if (event->type == GDK_BUTTON_PRESS && state == GEANY_PRIMARY_MOD_MASK)
-		{
-			gchar *current_word;
-			gint click_pos;
-
-			/* it's very unlikely we got a 'real' click even on 0, 0, so assume it is a
-			 * fake event to show the editor menu triggered by a key event where we want to use the
-			 * text cursor position. */
-			if (event->x > 0.0 && event->y > 0.0)
-				click_pos = SSM(doc->editor->sci, SCI_POSITIONFROMPOINT, (uptr_t) event->x, event->y);
-			else
-				click_pos = sci_get_current_position(doc->editor->sci);
-
-			sci_set_current_position(doc->editor->sci, click_pos, FALSE);
-			current_word = lsp_utils_get_current_iden(doc, click_pos);
-
-			if (current_word)
-			{
-				goto_perform(doc, click_pos, TRUE, NULL);
-
-				g_free(current_word);
-				return TRUE;
-			}
-		}
-	}
-
-	return FALSE;
-}
-#endif  // HAVE_GEANY_PLUGIN_EXTENSION
 
 
 static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
@@ -457,25 +406,6 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_workspace_folders_doc_open(doc);
 
 	on_update_idle(doc);
-
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-	if (lsp_utils_doc_ft_has_tags(doc))
-	{
-		gchar *ft_lower = g_utf8_strdown(doc->file_type->name, -1);
-
-		dialogs_show_msgbox(GTK_MESSAGE_WARNING, _("Because of conflicting implementations, the LSP plugin requires that symbol generation is disabled for the filetypes for which LSP is enabled.\n\nTo disable it for the current filetype, go to:\n\nTools->Configuration Files->...->filetypes.%s\n\nand under the [settings] section add tag_parser= (with no value after =) which disables the symbol parser. Plugin reload or Geany restart may be required afterwards."), ft_lower);
-		g_free(ft_lower);
-	}
-#endif
-}
-
-
-static void on_document_open(G_GNUC_UNUSED GObject *obj, G_GNUC_UNUSED GeanyDocument *doc,
-	G_GNUC_UNUSED gpointer user_data)
-{
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-	g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
-#endif
 }
 
 
@@ -564,9 +494,6 @@ static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 		// "new" documents without filename saved for the first time or
 		// "save as" performed
 		on_document_visible(doc);
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-		g_signal_connect(doc->editor->sci, "button-press-event", G_CALLBACK(on_button_press_event), doc);
-#endif
 	}
 
 	lsp_sync_text_document_did_save(srv, doc);
@@ -755,54 +682,46 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	if (nt->nmhdr.code == SCN_PAINTED)  // e.g. caret blinking
 		return FALSE;
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-	if ((nt->nmhdr.code == SCN_AUTOCSELECTION || nt->nmhdr.code == SCN_AUTOCCANCELLED ||
-		nt->nmhdr.code == SCN_CALLTIPCLICK) && !lsp_utils_doc_ft_has_tags(doc))
+	if (nt->nmhdr.code == SCN_AUTOCSELECTION)
 	{
-#endif
-		if (nt->nmhdr.code == SCN_AUTOCSELECTION)
-		{
-			LspServer *srv = lsp_server_get_if_running(doc);
+		LspServer *srv = lsp_server_get_if_running(doc);
 
-			if (!srv || !srv->config.autocomplete_enable)
-				return FALSE;
-
-			// ignore cursor position change as a result of autocomplete (for highlighting)
-			ignore_selection_change = TRUE;
-
-			sci_start_undo_action(editor->sci);
-			lsp_autocomplete_item_selected(srv, doc, SSM(sci, SCI_AUTOCGETCURRENT, 0, 0));
-			sci_end_undo_action(editor->sci);
-
-			sci_send_command(sci, SCI_AUTOCCANCEL);
-
-			lsp_autocomplete_set_displayed_symbols(NULL);
+		if (!srv || !srv->config.autocomplete_enable)
 			return FALSE;
-		}
-		else if (nt->nmhdr.code == SCN_AUTOCCANCELLED)
-		{
-			lsp_autocomplete_set_displayed_symbols(NULL);
-			lsp_autocomplete_discard_pending_requests();
-			return FALSE;
-		}
-		else if (nt->nmhdr.code == SCN_CALLTIPCLICK)
-		{
-			LspServer *srv = lsp_server_get_if_running(doc);
 
-			if (!srv)
-				return FALSE;
+		// ignore cursor position change as a result of autocomplete (for highlighting)
+		ignore_selection_change = TRUE;
 
-			if (srv->config.signature_enable)
-			{
-				if (nt->position == 1)  /* up arrow */
-					lsp_signature_show_prev();
-				if (nt->position == 2)  /* down arrow */
-					lsp_signature_show_next();
-			}
-		}
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
+		sci_start_undo_action(editor->sci);
+		lsp_autocomplete_item_selected(srv, doc, SSM(sci, SCI_AUTOCGETCURRENT, 0, 0));
+		sci_end_undo_action(editor->sci);
+
+		sci_send_command(sci, SCI_AUTOCCANCEL);
+
+		lsp_autocomplete_set_displayed_symbols(NULL);
+		return FALSE;
 	}
-#endif
+	else if (nt->nmhdr.code == SCN_AUTOCCANCELLED)
+	{
+		lsp_autocomplete_set_displayed_symbols(NULL);
+		lsp_autocomplete_discard_pending_requests();
+		return FALSE;
+	}
+	else if (nt->nmhdr.code == SCN_CALLTIPCLICK)
+	{
+		LspServer *srv = lsp_server_get_if_running(doc);
+
+		if (!srv)
+			return FALSE;
+
+		if (srv->config.signature_enable)
+		{
+			if (nt->position == 1)  /* up arrow */
+				lsp_signature_show_prev();
+			if (nt->position == 2)  /* down arrow */
+				lsp_signature_show_next();
+		}
+	}
 
 	if (nt->nmhdr.code == SCN_DWELLSTART)
 	{
@@ -944,12 +863,6 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		// don't hightlight while typing
 		lsp_highlight_clear(doc);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-		if (autocomplete_provided(doc, NULL))
-			autocomplete_perform(doc, FALSE, NULL);
-		if (calltips_provided(doc, NULL))
-			calltips_show(doc, FALSE, NULL);
-#endif
 	}
 
 	return FALSE;
@@ -1230,7 +1143,6 @@ static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 
 PluginCallback plugin_callbacks[] = {
 	{"document-new", (GCallback) &on_document_new, FALSE, NULL},
-	{"document-open", (GCallback) &on_document_open, FALSE, NULL},
 	{"document-close", (GCallback) &on_document_close, FALSE, NULL},
 	{"document-reload", (GCallback) &on_document_reload, FALSE, NULL},
 	{"document-activate", (GCallback) &on_document_activate, FALSE, NULL},
@@ -1432,18 +1344,6 @@ static void invoke_kb(guint key_id, gint pos)
 		case KB_RESTART_SERVERS:
 			restart_all_servers();
 			break;
-
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-		case KB_INVOKE_AUTOCOMPLETE:
-			if (doc && autocomplete_provided(doc, NULL))
-				autocomplete_perform(doc, TRUE, NULL);
-			break;
-
-		case KB_SHOW_CALLTIP:
-			if (doc && calltips_provided(doc, NULL))
-				calltips_show(doc, TRUE, NULL);
-			break;
-#endif
 
 		default:
 			break;
@@ -1649,14 +1549,6 @@ static void create_menu_items()
 
 	gtk_widget_show_all(menu_items.parent_item);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION
-	keybindings_set_item(group, KB_INVOKE_AUTOCOMPLETE, NULL, 0, 0, "invoke_autocompletion",
-		_("Invoke autocompletion"), NULL);
-
-	keybindings_set_item(group, KB_SHOW_CALLTIP, NULL, 0, 0, "show_calltip",
-		_("Show calltip"), NULL);
-#endif
-
 	for (i = 0; i < all_cfg->command_keybinding_num; i++)
 	{
 		gchar *kb_name = g_strdup_printf("lsp_command_%d", i + 1);
@@ -1763,9 +1655,8 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	stop_and_init_all_servers();
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION
 	plugin_extension_register(&extension, 100, NULL);
-#endif
+
 	create_menu_items();
 
 	if (doc)
@@ -1788,9 +1679,8 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(context_menu_items.separator1);
 	gtk_widget_destroy(context_menu_items.separator2);
 
-#ifdef HAVE_GEANY_PLUGIN_EXTENSION
 	plugin_extension_unregister(&extension);
-#endif
+
 	lsp_server_set_initialized_cb(NULL);
 	lsp_server_stop_all(TRUE);
 	destroy_all();
