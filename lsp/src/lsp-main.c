@@ -1655,7 +1655,7 @@ void plugin_init(G_GNUC_UNUSED GeanyData * data)
 
 	stop_and_init_all_servers();
 
-	plugin_extension_register(&extension, 100, NULL);
+	plugin_extension_register(&extension, "LSP", 100, NULL);
 
 	create_menu_items();
 
