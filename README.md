@@ -1,8 +1,15 @@
 geany-lsp
 ---------
 
-This is a development repository of the LSP plugin for Geany. The plugin
-provides the following LSP features:
+This is a development repository of the LSP plugin for Geany.
+
+Main development of the plugin happens in this repository so please report
+bugs here. In addition, the plugin code will be uploaded to the
+[geany-plugins](https://github.com/geany/geany-plugins) before every release
+so if you are interested in the release version only, you can get it from
+there.
+
+The plugin provides the following LSP features:
 
 * Autocompletion
 * Function signagure
@@ -24,12 +31,6 @@ provides the following LSP features:
 The plugin API of Geany currently does not support modifying document symbols
 in the sidebar so the Symbols tab contents is based on Geany's ctags
 symbols instead of LSP symbols.
-
-Main development of the plugin happens in this repository so please report
-bugs here. In addition, the plugin code will be uploaded to the
-[geany-plugins](https://github.com/geany/geany-plugins) before every release
-so if you are interested in the release version only, you can get it from
-there.
 
 For building the plugin, you need to compile and install the latest Geany
 version (2.1) from git master. Then, you can build and install the LSP plugin
