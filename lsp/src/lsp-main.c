@@ -62,7 +62,7 @@ gchar *project_configuration_file;
 static gint last_click_pos;
 
 
-PLUGIN_VERSION_CHECK(246)  //TODO
+PLUGIN_VERSION_CHECK(248)
 PLUGIN_SET_TRANSLATABLE_INFO(
 	LOCALEDIR,
 	GETTEXT_PACKAGE,
