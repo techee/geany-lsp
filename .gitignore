@@ -22,9 +22,9 @@ cscope.files
 #-----------------------------------------------------------------------
 /aclocal.m4
 /autom4te.cache
-/build/*.pyc
-/build/cache
-/build-aux/
+/m4/*.pyc
+/m4/cache
+/build
 /build-stamp
 /geanygdb/src/ttyhelper
 /codenames
@@ -44,7 +44,6 @@ cscope.files
 /libtool
 /localwin32.mk
 /ltmain.sh
-/m4/
 /make_deb.sh
 /missing
 /mkinstalldirs

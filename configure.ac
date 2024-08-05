@@ -7,7 +7,7 @@ m4_ifdef([AM_SILENT_RULES],[AM_SILENT_RULES([yes])])
 
 AC_CONFIG_SRCDIR([lsp/Makefile.am])
 AC_CONFIG_HEADERS([config.h])
-AC_CONFIG_MACRO_DIR([build/cache])
+AC_CONFIG_MACRO_DIR([m4/cache])
 
 AC_USE_SYSTEM_EXTENSIONS
 AC_PROG_CC

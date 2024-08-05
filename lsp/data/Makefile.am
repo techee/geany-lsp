@@ -1,4 +1,4 @@
-include $(top_srcdir)/build/vars.docs.mk
+include $(top_srcdir)/m4/vars.docs.mk
 
 plugin = lsp
 

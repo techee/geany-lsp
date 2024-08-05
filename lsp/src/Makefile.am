@@ -1,4 +1,4 @@
-include $(top_srcdir)/build/vars.build.mk
+include $(top_srcdir)/m4/vars.build.mk
 plugin = lsp
 
 geanyplugins_LTLIBRARIES = lsp.la
@@ -62,4 +62,4 @@ lsp_la_CPPFLAGS = $(AM_CPPFLAGS) \
 lsp_la_CFLAGS = $(AM_CFLAGS)
 lsp_la_LIBADD = $(COMMONLIBS) $(top_builddir)/lsp/deps/libjsonrpc.la
 
-include $(top_srcdir)/build/cppcheck.mk
+include $(top_srcdir)/m4/cppcheck.mk

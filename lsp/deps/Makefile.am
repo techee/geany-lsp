@@ -1,4 +1,4 @@
-include $(top_srcdir)/build/vars.build.mk
+include $(top_srcdir)/m4/vars.build.mk
 
 noinst_LTLIBRARIES = libjsonrpc.la
 
@@ -71,4 +71,4 @@ libjsonrpc_la_CFLAGS = $(AM_CFLAGS)
 # do not enable cppcheck for json-glib or jsonrpc-glib as it generates lots of
 # false positives and it's not "our" code anyway
 #
-# include $(top_srcdir)/build/cppcheck.mk
+# include $(top_srcdir)/m4/cppcheck.mk
