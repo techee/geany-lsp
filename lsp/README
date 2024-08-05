@@ -11,22 +11,6 @@ LSP Client is a language server protocol client plugin that allows to run multip
 language servers for various programming languages, making their functionality
 accessible to Geany.
 
-Important limitation
-====================
-
-The plugin is currently incompatible with Geany's symbol parsing
-functionality. This means that in order to make this plugin work correctly,
-symbol parsing has to be disabled for all file types for which the plugin
-is used. This can be achieved by going to
-
-::
-
-    Tools->Configuration Files->...->filetype.some_langguage
-
-(where ``some_language`` is the language for which symbol
-parsing is being disabled) and under the ``[settings]`` section, adding
-``tag_parser=`` (no value after ``=``).
-
 Configuration
 =============
 
@@ -235,6 +219,14 @@ cautious when using it. The plugin does not perform any additional
 checks and does not show any preview of the changes so it is best to use this
 feature only after committing all modified files so you can
 easily revert to a working state if needed.
+
+Missing features
+================
+
+The plugin currently does not support displaying document symbols in the
+Symbols tab in the sidebar because there is no API in Geany allowing plugins to
+populate the symbol tree with their own symbols. This means that symbols in the
+Symbol tab are populated by Geany using its own ctags parser.
 
 License
 =======
