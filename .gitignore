@@ -8,6 +8,7 @@
 *.dll
 *.exe
 *.pyc
+*.geany
 deps.mak
 .deps/
 .libs/
