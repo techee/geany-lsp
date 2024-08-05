@@ -27,10 +27,6 @@
 #include <jsonrpc-glib.h>
 
 
-#ifdef GEANY_LSP_COMBINED_PROJECT
-# define PLUGIN "lsp"
-#endif
-
 extern GeanyData *geany_data;
 
 extern LspProjectConfiguration project_configuration;
@@ -222,9 +218,6 @@ gchar *lsp_utils_get_project_base_path(void)
 
 static gchar *get_data_dir_path(const gchar *filename)
 {
-#ifdef GEANY_LSP_COMBINED_PROJECT
-	return g_build_filename(geany_data->app->datadir, PLUGIN, filename, NULL);
-#else
 	gchar *prefix = NULL;
 	gchar *path;
 
@@ -238,7 +231,6 @@ static gchar *get_data_dir_path(const gchar *filename)
 	path = g_build_filename(prefix ? prefix : "", PLUGINDATADIR, filename, NULL);
 	g_free(prefix);
 	return path;
-#endif
 }
 
 

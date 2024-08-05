@@ -62,21 +62,13 @@ gchar *project_configuration_file;
 static gint last_click_pos;
 
 
-#ifdef GEANY_LSP_COMBINED_PROJECT
-# define PLUGIN_LOCALEDIR GEANY_LOCALEDIR
-# define PLUGIN_VERSION "0.1"
-#else
-# define PLUGIN_LOCALEDIR LOCALEDIR
-# define PLUGIN_VERSION VERSION
-#endif
-
 PLUGIN_VERSION_CHECK(246)  //TODO
 PLUGIN_SET_TRANSLATABLE_INFO(
-	PLUGIN_LOCALEDIR,
+	LOCALEDIR,
 	GETTEXT_PACKAGE,
 	_("LSP Client"),
 	_("Language server protocol client for Geany"),
-	PLUGIN_VERSION,
+	VERSION,
 	"Jiri Techet <techet@gmail.com>")
 
 #define UPDATE_SOURCE_DOC_DATA "lsp_update_source"
