@@ -7,15 +7,46 @@ project(
 
 plugin_name = 'lsp'
 
+
+geany_dep = dependency('geany', version : '>=2.1')
+
+
 i18n = import('i18n')
 # define GETTEXT_PACKAGE
 add_project_arguments('-DGETTEXT_PACKAGE="intltest"', language:'c')
 i18n.gettext(meson.project_name())
 
-subdir('meson_config')
 
+docdir = get_option('datadir') / 'doc'
+project_datadir = get_option('datadir') / 'geany-plugins'
+project_libdir = get_option('libdir') / 'geany-plugins'
+project_docdir = docdir / 'geany-plugins'
 
-geany_dep = dependency('geany')
+plugin_datadir = project_datadir / plugin_name
+plugin_libdir = project_libdir / plugin_name
+plugin_docdir = project_docdir / plugin_name
+
+plugin_path = get_option('libdir') / 'geany'
+
+conf_data = configuration_data()
+
+conf_data.set_quoted('VERSION', meson.project_version())
+conf_data.set_quoted('GEANY_VERSION', '2.0.0')
+conf_data.set_quoted('PLUGIN', plugin_name)
+conf_data.set_quoted('DOCDIR', get_option('prefix') / docdir)
+conf_data.set_quoted('LIBDIR', get_option('prefix') / get_option('libdir'))
+conf_data.set_quoted('LOCALEDIR', get_option('prefix') / get_option('localedir'))
+conf_data.set_quoted('GEANYPLUGINS_DATADIR', get_option('prefix') / plugin_datadir)
+conf_data.set_quoted('DBGPLUG_DATA_DIR', get_option('prefix') / plugin_datadir)
+conf_data.set_quoted('PLUGINDATADIR', get_option('prefix') / plugin_datadir)
+conf_data.set_quoted('PLUGINDOCDIR', get_option('prefix') / plugin_docdir)
+conf_data.set_quoted('PLUGINHTMLDOCDIR', get_option('prefix') / plugin_docdir / 'html')
+
+configure_file(
+  output: 'config.h',
+  configuration: conf_data,
+)
+
 
 plugin_suffix = []
 if (host_machine.system() == 'darwin')
@@ -77,8 +108,8 @@ shared_module('lsp',
 	name_prefix: '',  # "lib" seems to be the default prefix
 	name_suffix: plugin_suffix,
 	include_directories: plugin_inc,
-	c_args: ['-DJSON_COMPILATION', '-DJSONRPC_GLIB_COMPILATION'],
-	dependencies: [config_dep, geany_dep],
+	c_args: ['-DHAVE_CONFIG_H', '-DJSON_COMPILATION', '-DJSONRPC_GLIB_COMPILATION'],
+	dependencies: [geany_dep],
 	install_dir: plugin_path,
 	install: true
 )
