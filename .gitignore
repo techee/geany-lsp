@@ -16,6 +16,7 @@ Makefile.in
 cscope.out
 cscope.files
 .dirstamp
+.cache/
 
 #-----------------------------------------------------------------------
 # / (root)
