@@ -505,7 +505,6 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 
 static void perform_initialize(LspServer *server)
 {
-	gchar *locale = lsp_utils_get_locale();
 	gchar *project_base = lsp_utils_get_project_base_path();
 	GVariant *workspace_folders = NULL;
 	GVariant *node, *capabilities;
@@ -616,7 +615,7 @@ static void perform_initialize(LspServer *server)
 			"version", JSONRPC_MESSAGE_PUT_STRING(VERSION),
 		"}",
 		"processId", JSONRPC_MESSAGE_PUT_INT64(getpid()),
-		"locale", JSONRPC_MESSAGE_PUT_STRING(locale),
+		"locale", JSONRPC_MESSAGE_PUT_STRING("en"),
 		"trace", JSONRPC_MESSAGE_PUT_STRING("off"),
 		"rootPath", JSONRPC_MESSAGE_PUT_STRING(project_base),
 		"rootUri", JSONRPC_MESSAGE_PUT_STRING(project_base_uri)
@@ -648,7 +647,6 @@ static void perform_initialize(LspServer *server)
 	server->startup_shutdown = TRUE;
 	lsp_rpc_call_startup_shutdown(server, "initialize", node, initialize_cb, server);
 
-	g_free(locale);
 	g_free(project_base);
 	g_free(project_base_uri);
 	g_variant_unref(node);

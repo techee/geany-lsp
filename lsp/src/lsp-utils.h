@@ -80,7 +80,6 @@ gchar *lsp_utils_get_lsp_lang_id(GeanyDocument *doc);
 gchar *lsp_utils_get_real_path_from_uri_locale(const gchar *uri);
 gchar *lsp_utils_get_real_path_from_uri_utf8(const gchar *uri);
 
-gchar *lsp_utils_get_locale(void);
 gchar *lsp_utils_json_pretty_print(GVariant *variant);
 
 gchar *lsp_utils_get_project_base_path(void);

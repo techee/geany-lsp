@@ -97,6 +97,7 @@ gchar *lsp_utils_get_lsp_lang_id(GeanyDocument *doc)
 }
 
 
+#if 0
 gchar *lsp_utils_get_locale()
 {
 	gchar *locale = setlocale(LC_CTYPE, NULL);
@@ -113,6 +114,7 @@ gchar *lsp_utils_get_locale()
 	}
 	return locale;
 }
+#endif
 
 
 gchar *lsp_utils_json_pretty_print(GVariant *variant)
