@@ -1,7 +1,8 @@
 geany-lsp
 =========
 
-This is the development repository of the LSP plugin for Geany.
+This is the development repository of the LSP plugin for
+[Geany](https://github.com/geany/geany).
 
 Main development of the plugin happens in this repository so please report
 bugs here. In addition, the plugin code will be uploaded to the
