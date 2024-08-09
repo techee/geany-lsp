@@ -161,7 +161,12 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 		return;
 
 	sym = displayed_autocomplete_symbols->pdata[index];
-	if (sym->text_edit)
+	/* The sent_request_id == received_request_id detects the condition when
+	 * user typed a character and pressed enter immediately afterwards in which
+	 * case the autocompletion list doesn't contain up-to-date text edits.
+	 * In this case we have to fall back to insert text based autocompletion
+	 * below. */
+	if (sym->text_edit && sent_request_id == received_request_id)
 	{
 		if (server->config.autocomplete_apply_additional_edits && sym->additional_edits)
 			lsp_utils_apply_text_edits(sci, sym->text_edit, sym->additional_edits);
@@ -180,6 +185,10 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 			sci_insert_text(sci, pos, insert_text);
 			sci_set_current_position(sci, pos + strlen(insert_text), TRUE);
 		}
+		/* See comment above, prevents re-showing the autocompletion popup
+		 * in this case. */
+		if (sent_request_id != received_request_id)
+			lsp_autocomplete_discard_pending_requests();
 	}
 
 #if 0
