@@ -39,6 +39,12 @@ The plugin API of Geany currently does not support modifying document symbols
 in the sidebar so the Symbols tab contents is based on Geany's ctags
 symbols instead of LSP symbols.
 
+The plugin currently only works over stdin/stdout and takes over the
+responsibility for starting and stopping LSP servers. Some LSP servers,
+such as Godot, have to run all the time because they provide other functionality
+and have to be connected using sockets - this is not supported by the server at
+the moment.
+
 Building
 --------
 
