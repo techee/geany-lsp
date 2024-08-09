@@ -57,12 +57,13 @@ Quick Start
 -----------
 
 1. Install the LSP server you want to use.
-2. Check the configuration file under `Tools->LSP Client->User Configuration`
+2. Enable the LSP Client plugin under `Tools->Plugin Manager`.
+3. Check the configuration file under `Tools->LSP Client->User Configuration`
 and make sure the LSP server is configured correctly, following the documentation
 of the LSP server you wish to use.
-3. Create a Geany project and set its base path to the root directory of
+4. Create a Geany project and set its base path to the root directory of
 your sources.
-4. Enable the LSP plugin for the project under `Project->Properties->LSP Client`.
+5. Enable the LSP plugin for the project under `Project->Properties->LSP Client`.
 
 Documentation
 -------------
