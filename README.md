@@ -1,5 +1,5 @@
 geany-lsp
----------
+=========
 
 This is the development repository of the LSP plugin for Geany.
 
@@ -8,6 +8,9 @@ bugs here. In addition, the plugin code will be uploaded to the
 [geany-plugins](https://github.com/geany/geany-plugins) before every release
 so if you are interested in the release version only, you can get it from
 there.
+
+Features
+--------
 
 The plugin provides the following LSP features:
 
@@ -28,9 +31,15 @@ The plugin provides the following LSP features:
 * Document symbol renaming
 * Project-wide renaming
 
+Limitations
+-----------
+
 The plugin API of Geany currently does not support modifying document symbols
 in the sidebar so the Symbols tab contents is based on Geany's ctags
 symbols instead of LSP symbols.
+
+Building
+--------
 
 For building the plugin, you need to compile and install the latest Geany
 version (2.1) from git master. Then, you can build and install the LSP plugin
@@ -43,9 +52,23 @@ or
 meson setup build && cd build && ninja && sudo ninja install
 ```
 
-More information about the supported features and configuration can be found
-* [in the plugin documentation](https://github.com/techee/geany-lsp/tree/master/lsp/README)
-* [in the configuration file](https://github.com/techee/geany-lsp/blob/master/lsp/data/lsp.conf)
+Quick Start
+-----------
+
+1. Install the LSP server you want to use.
+2. Check the configuration file under `Tools->LSP Client->User Configuration`
+and make sure the LSP server is configured correctly, following the documentation
+of the LSP server you wish to use.
+3. Create a Geany project and set its base path to the root directory of
+your sources.
+4. Enable the LSP plugin for the project under `Project->Properties->LSP Client`.
+
+Documentation
+-------------
+
+More information about the supported features and configuration can be found in
+* [the plugin documentation](https://github.com/techee/geany-lsp/tree/master/lsp/README)
+* [the configuration file](https://github.com/techee/geany-lsp/blob/master/lsp/data/lsp.conf)
 
 ---
 
