@@ -1620,21 +1620,15 @@ static void on_server_initialized(LspServer *srv)
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
+		LspServer *s2 = lsp_server_get_if_running(doc);
 
 		// see on_document_visible() for detailed comment
-		if (lsp_server_get_ft(doc, NULL)->id == srv->filetype &&
-			(doc->changed || doc == current_doc))
+		if (s2 == srv && (doc->changed || doc == current_doc))
 		{
-			// returns NULL if e.g. configured not to use LSP outside project dir
-			LspServer *s2 = lsp_server_get_if_running(doc);
-
-			if (s2)
-			{
-				if (doc == current_doc)
-					on_document_visible(doc);
-				else  // unsaved open file
-					lsp_sync_text_document_did_open(srv, doc);
-			}
+			if (doc == current_doc)
+				on_document_visible(doc);
+			else  // unsaved open file
+				lsp_sync_text_document_did_open(srv, doc);
 		}
 	}
 }
