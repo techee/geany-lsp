@@ -788,7 +788,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 {
 	gint i;
 
-	get_bool(&s->config.use_outside_project_dir, kf, section, "enable_by_default");
+	get_bool(&s->config.enable_by_default, kf, section, "enable_by_default");
 	get_bool(&s->config.use_outside_project_dir, kf, section, "use_outside_project_dir");
 	get_bool(&s->config.use_without_project, kf, section, "use_without_project");
 	get_bool(&s->config.rpc_log_full, kf, section, "rpc_log_full");
