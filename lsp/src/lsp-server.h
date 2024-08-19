@@ -105,7 +105,7 @@ typedef struct LspServerConfig
 	gboolean code_action_enable;
 	gchar *command_on_save_regex;
 	gint command_keybinding_num;
-	gchar **command_regexes;
+	GPtrArray *command_regexes;
 
 	gboolean rename_enable;
 } LspServerConfig;

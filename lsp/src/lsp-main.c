@@ -38,6 +38,7 @@
 #include "lsp-code-lens.h"
 #include "lsp-symbol.h"
 #include "lsp-extension.h"
+#include "lsp-workspace-folders.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -1214,7 +1215,7 @@ static gboolean on_code_actions_received_kb(GPtrArray *code_action_commands, gpo
 	{
 		GPtrArray *code_lens_commands = lsp_code_lens_get_commands();
 		gint cmd_id = GPOINTER_TO_INT(user_data);
-		gchar *cmd_str = srv->config.command_regexes[cmd_id];
+		gchar *cmd_str = srv->config.command_regexes->pdata[cmd_id];
 		gint line = sci_get_current_line(doc->editor->sci);
 		LspCommand *cmd;
 		guint i;

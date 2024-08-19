@@ -70,7 +70,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->initialization_options_file);
 	g_free(cfg->initialization_options);
 	g_strfreev(cfg->lang_id_mappings);
-	g_strfreev(cfg->command_regexes);
+	g_ptr_array_free(cfg->command_regexes, TRUE);
 	g_strfreev(cfg->project_root_marker_patterns);
 }
 
@@ -845,21 +845,17 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 
 	// create for the first time, then just update
 	if (!s->config.command_regexes)
-	{
-		GPtrArray *cmds = g_ptr_array_new_full(s->config.command_keybinding_num + 1, NULL);
-		for (i = 0; i < s->config.command_keybinding_num; i++)
-			g_ptr_array_add(cmds, NULL);
-		g_ptr_array_add(cmds, NULL);  // final strv NULL
-		s->config.command_regexes = (gchar **)g_ptr_array_free(cmds, FALSE);
-	}
+		s->config.command_regexes = g_ptr_array_new_full(s->config.command_keybinding_num, g_free);
+
+	g_ptr_array_set_size(s->config.command_regexes, s->config.command_keybinding_num);
 
 	for (i = 0; i < s->config.command_keybinding_num; i++)
 	{
 		gchar *key = g_strdup_printf("command_%d_regex", i + 1);
 
-		get_str(&s->config.command_regexes[i], kf, section, key);
-		if (!s->config.command_regexes[i])
-			s->config.command_regexes[i] = g_strdup("");
+		get_str((gchar **)&s->config.command_regexes->pdata[i], kf, section, key);
+		if (!s->config.command_regexes->pdata[i])
+			s->config.command_regexes->pdata[i] = g_strdup("");
 
 		g_free(key);
 	}
