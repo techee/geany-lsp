@@ -980,5 +980,8 @@ gchar *lsp_utils_find_project_root(GeanyDocument *doc, LspServerConfig *cfg)
 		dirname = new_dirname;
 	}
 
+	if (dirname && !g_str_has_suffix(dirname, G_DIR_SEPARATOR_S))
+		SETPTR(dirname, g_strconcat(dirname, G_DIR_SEPARATOR_S, NULL));
+
 	return dirname;
 }

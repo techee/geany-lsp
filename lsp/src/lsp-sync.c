@@ -26,6 +26,7 @@
 #include "lsp-diagnostics.h"
 #include "lsp-highlight.h"
 #include "lsp-semtokens.h"
+#include "lsp-workspace-folders.h"
 
 #include <jsonrpc-glib.h>
 
@@ -76,6 +77,8 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 	if (lsp_sync_is_document_open(doc))
 		return;
 
+	lsp_workspace_folders_doc_open(doc);
+
 	g_hash_table_add(open_docs, doc);
 
 	lsp_server_get_ft(doc, &lang_id);
@@ -125,6 +128,8 @@ void lsp_sync_text_document_did_close(LspServer *server, GeanyDocument *doc)
 	g_hash_table_remove(open_docs, doc);
 
 	lsp_rpc_notify(server, "textDocument/didClose", node, NULL, NULL);
+
+	lsp_workspace_folders_doc_closed(doc);
 
 	g_free(doc_uri);
 	g_variant_unref(node);
