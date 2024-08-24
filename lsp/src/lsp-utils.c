@@ -882,48 +882,6 @@ void lsp_utils_save_all_docs(void)
 }
 
 
-gboolean lsp_utils_doc_ft_has_tags(GeanyDocument *doc)
-{
-	const TMWorkspace *ws = geany_data->app->tm_workspace;
-	gboolean found = FALSE;
-	TMSourceFile *file;
-	TMTag *tag;
-	guint i;
-
-	if (!lsp_server_get_if_running(doc))
-		return FALSE;
-
-	if (doc->tm_file && doc->tm_file->tags_array->len > 0)
-		found = TRUE;
-
-	if (!found)
-	{
-		foreach_ptr_array(file, i, ws->source_files)
-		{
-			if (doc->file_type->lang >= 0 && file->lang == doc->file_type->lang && file->tags_array->len > 0)
-			{
-				found = TRUE;
-				break;
-			}
-		}
-	}
-
-	if (!found)
-	{
-		foreach_ptr_array(tag, i, ws->global_tags)
-		{
-			if (doc->file_type->lang >= 0 && tag->lang == doc->file_type->lang)
-			{
-				found = TRUE;
-				break;
-			}
-		}
-	}
-
-	return found;
-}
-
-
 static gboolean content_matches_pattern(const gchar *dirname, gchar **patterns)
 {
 	gboolean success = FALSE;
