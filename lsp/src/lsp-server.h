@@ -74,6 +74,7 @@ typedef struct LspServerConfig
 	gboolean goto_enable;
 
 	gboolean document_symbols_enable;
+	gchar *document_symbols_tab_label;
 	gboolean document_symbols_available;
 
 	gboolean semantic_tokens_enable;

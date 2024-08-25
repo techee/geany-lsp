@@ -70,55 +70,60 @@ static void doc_symbol_cb(gpointer user_data)
 
 static void goto_line(GeanyDocument *doc, const gchar *line_str)
 {
-	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_unref);
 	gint lineno = atoi(line_str);
 	gint linenum = sci_get_line_count(doc->editor->sci);
 	guint i;
 
 	for (i = 0; i < 4; i++)
 	{
-		LspSymbol *sym = g_new0(LspSymbol, 1);
-
-		sym->file_name = utils_get_utf8_from_locale(doc->real_path);
-		sym->icon = TM_ICON_OTHER;
+		LspSymbol *sym;
+		gchar *file_name = utils_get_utf8_from_locale(doc->real_path);
+		TMIcon icon = TM_ICON_OTHER;
+		const gchar *name = "";
+		gint line = 0;
 
 		switch (i)
 		{
 			case 0:
 				/* For translators: Item in a list which, when selected, navigates
 				 * to the line typed in the entry above the list */
-				sym->name = g_strdup(_("line typed above"));
+				name = _("line typed above");
 				if (lineno == 0)
-					sym->line = sci_get_current_line(doc->editor->sci) + 1;
+					line = sci_get_current_line(doc->editor->sci) + 1;
 				else if (lineno > linenum)
-					sym->line = linenum;
+					line = linenum;
 				else
-					sym->line = lineno;
+					line = lineno;
 				break;
 
 			case 1:
 				/* For translators: Item in a list which, when selected, navigates
 				 * to the beginning of the current document */
-				sym->name = g_strdup(_("beginning"));
-				sym->line = 1;
+				name = _("beginning");
+				line = 1;
 				break;
 
 			case 2:
 				/* For translators: Item in a list which, when selected, navigates
 				 * to the middle of the current document */
-				sym->name = g_strdup(_("middle"));
-				sym->line = linenum / 2;
+				name = _("middle");
+				line = linenum / 2;
 				break;
 
 			case 3:
 				/* For translators: Item in a list which, when selected, navigates
 				 * to the end of the current document */
-				sym->name = g_strdup(_("end"));
-				sym->line = linenum;
+				name = _("end");
+				line = linenum;
 				break;
 		}
 
+		sym = lsp_symbol_new(name, "", "", file_name, 0, 0, line, 0, icon);
+
 		g_ptr_array_add(arr, sym);
+
+		g_free(file_name);
 	}
 
 	lsp_goto_panel_fill(arr);
@@ -129,23 +134,27 @@ static void goto_line(GeanyDocument *doc, const gchar *line_str)
 
 static void goto_file(const gchar *file_str)
 {
-	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
+	GPtrArray *arr = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_unref);
 	GPtrArray *filtered;
 	guint i;
 
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
+		gchar *file_name, *name;
 		LspSymbol *sym;
 
 		if (!doc->real_path)
 			continue;
 
-		sym = g_new0(LspSymbol, 1);
-		sym->name = g_path_get_basename(doc->real_path);
-		sym->file_name = utils_get_utf8_from_locale(doc->real_path);
-		sym->icon = TM_ICON_OTHER;
+		name = g_path_get_basename(doc->real_path);
+		file_name = utils_get_utf8_from_locale(doc->real_path);
+		sym = lsp_symbol_new(name, "", "", file_name, 0, 0, 0, 0, TM_ICON_OTHER);
+
 		g_ptr_array_add(arr, sym);
+
+		g_free(name);
+		g_free(file_name);
 	}
 
 	filtered = lsp_goto_panel_filter(arr, file_str);
@@ -158,7 +167,7 @@ static void goto_file(const gchar *file_str)
 
 static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lang)
 {
-	GPtrArray *converted = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
+	GPtrArray *converted = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_unref);
 	GPtrArray *filtered;
 	TMTag *tag;
 	guint i;
@@ -169,13 +178,19 @@ static void goto_tm_symbol(const gchar *query, GPtrArray *tags, TMParserType lan
 		{
 			if (tag->lang == lang && tag->type != tm_tag_local_var_t && tag->file)
 			{
-				LspSymbol *sym = g_new0(LspSymbol, 1);
-				sym->name = g_strdup(tag->name);
-				sym->file_name = utils_get_utf8_from_locale(tag->file->file_name);
-				sym->line = tag->line;
-				sym->icon = lsp_symbol_kinds_get_symbol_icon(lsp_symbol_kinds_tm_to_lsp(tag->type));
+				gchar *file_name, *name;
+				LspSymbol *sym;
+
+				name = g_strdup(tag->name);
+				file_name = utils_get_utf8_from_locale(tag->file->file_name);
+
+				sym = lsp_symbol_new(name, "", "", file_name, 0, 0, tag->line, 0,
+					lsp_symbol_kinds_get_symbol_icon(lsp_symbol_kinds_tm_to_lsp(tag->type)));
 
 				g_ptr_array_add(converted, sym);
+
+				g_free(name);
+				g_free(file_name);
 			}
 		}
 	}

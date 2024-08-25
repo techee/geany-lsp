@@ -29,6 +29,7 @@
 
 #include <jsonrpc-glib.h>
 
+#define CACHED_SYMBOLS_KEY "lsp_symbols_cached"
 
 typedef struct {
 	GeanyDocument *doc;
@@ -44,19 +45,27 @@ typedef struct {
 
 
 extern GeanyPlugin *geany_plugin;
+extern GeanyData *geany_data;
 
-//TODO: possibly cache symbols of multiple files
-static GPtrArray *cached_symbols;
-static gchar *cached_symbols_fname;
+
+static void arr_free(GPtrArray *arr)
+{
+	if (arr)
+		g_ptr_array_free(arr, TRUE);
+}
 
 
 void lsp_symbols_destroy(void)
 {
-	if (cached_symbols)
-		g_ptr_array_free(cached_symbols, TRUE);
-	cached_symbols = NULL;
-	g_free(cached_symbols_fname);
-	cached_symbols_fname = NULL;
+	guint i;
+
+	foreach_document(i)
+	{
+		GeanyDocument *doc = documents[i];
+
+		plugin_set_document_data_full(geany_plugin, doc, CACHED_SYMBOLS_KEY,
+				NULL, (GDestroyNotify)arr_free);
+	}
 }
 
 
@@ -81,6 +90,9 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 		gchar *uri_str = NULL;
 		gint64 kind = 0;
 		gint line_num = 0;
+		gint line_pos = 0;
+		gchar *file_name = NULL;
+		const gchar *sym_scope = NULL;
 
 		if (!JSONRPC_MESSAGE_PARSE(member, "name", JSONRPC_MESSAGE_GET_STRING(&name)))
 			continue;
@@ -91,11 +103,13 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 		{
 			LspRange range = lsp_utils_parse_range(loc_variant);
 			line_num = range.start.line;
+			line_pos = range.start.character;
 		}
 		else if (JSONRPC_MESSAGE_PARSE(member, "range", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
 		{
 			LspRange range = lsp_utils_parse_range(loc_variant);
 			line_num = range.start.line;
+			line_pos = range.start.character;
 		}
 		else if (JSONRPC_MESSAGE_PARSE(member, "location", JSONRPC_MESSAGE_GET_VARIANT(&loc_variant)))
 		{
@@ -103,6 +117,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 			if (loc)
 			{
 				line_num = loc->range.start.line;
+				line_pos = loc->range.start.character;
 				if (loc->uri)
 					uri_str = g_strdup(loc->uri);
 				lsp_utils_free_lsp_location(loc);
@@ -136,21 +151,18 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 
-		sym = g_new0(LspSymbol, 1);
-		sym->name = g_strdup(name);
-		sym->line = line_num + 1;
-		sym->icon = lsp_symbol_kinds_get_symbol_icon(kind);
-		sym->tooltip = detail ? g_strdup(detail) : NULL;
-
 		if (scope)
-			sym->scope = g_strdup(scope);
+			sym_scope = scope;
 		else if (container_name)
-			sym->scope = g_strdup(container_name);
+			sym_scope = container_name;
 
 		if (uri_str)
-			sym->file_name = lsp_utils_get_real_path_from_uri_utf8(uri_str);
+			file_name = lsp_utils_get_real_path_from_uri_utf8(uri_str);
 		else if (doc && doc->real_path)
-			sym->file_name = utils_get_utf8_from_locale(doc->real_path);
+			file_name = utils_get_utf8_from_locale(doc->real_path);
+
+		sym = lsp_symbol_new(name, detail, sym_scope, file_name, doc->file_type->id, kind,
+			line_num + 1, line_pos, lsp_symbol_kinds_get_symbol_icon(kind));
 
 		g_ptr_array_add(symbols, sym);
 
@@ -159,9 +171,9 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 			gchar *new_scope;
 
 			if (scope)
-				new_scope = g_strconcat(scope, scope_sep, sym->name, NULL);
+				new_scope = g_strconcat(scope, scope_sep, lsp_symbol_get_name(sym), NULL);
 			else
-				new_scope = g_strdup(sym->name);
+				new_scope = g_strdup(lsp_symbol_get_name(sym));
 			parse_symbols(symbols, children, new_scope, scope_sep, FALSE);
 			g_free(new_scope);
 		}
@@ -171,6 +183,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 		if (children)
 			g_variant_unref(children);
 		g_free(uri_str);
+		g_free(file_name);
 	}
 }
 
@@ -185,12 +198,12 @@ static void symbols_cb(GVariant *return_value, GError *error, gpointer user_data
 
 		if (data->doc == document_get_current())
 		{
-			lsp_symbols_destroy();
-			cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
-			cached_symbols_fname = g_strdup(data->doc->real_path);
+			GPtrArray *cached_symbols = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_unref);
 
-			parse_symbols(cached_symbols, return_value, NULL,
-				symbols_get_context_separator(data->doc->file_type->id), FALSE);
+			parse_symbols(cached_symbols, return_value, NULL, LSP_SCOPE_SEPARATOR, FALSE);
+
+			plugin_set_document_data_full(geany_plugin, data->doc, CACHED_SYMBOLS_KEY,
+				cached_symbols, (GDestroyNotify)arr_free);
 		}
 	}
 
@@ -202,10 +215,10 @@ static void symbols_cb(GVariant *return_value, GError *error, gpointer user_data
 
 GPtrArray *lsp_symbols_doc_get_cached(GeanyDocument *doc)
 {
-	if (g_strcmp0(doc->real_path, cached_symbols_fname) == 0)
-		return cached_symbols;
+	if (!doc)
+		return NULL;
 
-	return NULL;
+	return plugin_get_document_data(geany_plugin, doc, CACHED_SYMBOLS_KEY);
 }
 
 
@@ -251,7 +264,7 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspCallback callback,
 static void workspace_symbols_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
 	LspWorkspaceSymbolUserData *data = user_data;
-	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
+	GPtrArray *ret = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_unref);
 
 	if (!error && g_variant_is_of_type(return_value, G_VARIANT_TYPE_ARRAY))
 	{

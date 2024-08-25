@@ -21,32 +21,40 @@
 
 #include "lsp-symbol-kinds.h"
 
+#include <geanyplugin.h>
 #include <glib.h>
 
+#define LSP_SCOPE_SEPARATOR "->"
 
-typedef struct
-{
-	gchar *name;
-	gchar *file_name;
-	gchar *scope;
-	gchar *tooltip;
-	gint line;
-	TMIcon icon;
-} LspSymbol;
+struct LspSymbol;
+typedef struct LspSymbol LspSymbol;
 
+/* The GType for a LspSymbol */
+#define LSP_TYPE_SYMBOL (lsp_symbol_get_type())
 
-void lsp_symbol_free(LspSymbol *symbol);
+GType lsp_symbol_get_type(void) G_GNUC_CONST;
+void lsp_symbol_unref(LspSymbol *sym);
+LspSymbol *lsp_symbol_ref(LspSymbol *sym);
 
+LspSymbol *lsp_symbol_new(const gchar *name, const gchar *detail, const gchar *scope, const gchar *file,
+	GeanyFiletypeID ft_id, glong kind, gulong line, gulong pos, guint icon);
 
-#ifndef HAVE_GEANY_PLUGIN_EXTENSION_DOC_SYMBOLS
+gulong lsp_symbol_get_line(const LspSymbol *sym);
+gulong lsp_symbol_get_pos(const LspSymbol *sym);
+glong lsp_symbol_get_kind(const LspSymbol *sym);
+TMIcon lsp_symbol_get_icon(const LspSymbol *sym);
+const gchar *lsp_symbol_get_scope(const LspSymbol *sym);
+const gchar *lsp_symbol_get_name(const LspSymbol *sym);
+const gchar *lsp_symbol_get_file(const LspSymbol *sym);
+const gchar *lsp_symbol_get_detail(const LspSymbol *sym);
 
-#include <geanyplugin.h>
+gchar *lsp_symbol_get_name_with_scope(const LspSymbol *sym);
 
-TMTag *tm_tag_new(void);
+gchar *lsp_symbol_get_symtree_name(const LspSymbol *sym, gboolean include_scope);
+gchar *lsp_symbol_get_symtree_tooltip(const LspSymbol *sym, const gchar *encoding);
 
-void tm_tag_unref(TMTag *tag);
+gboolean lsp_symbol_equal(const LspSymbol *a, const LspSymbol *b);
 
-TMTag *tm_tag_ref(TMTag *tag);
-#endif
+G_END_DECLS
 
 #endif  /* LSP_SYMBOL_H */

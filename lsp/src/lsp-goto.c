@@ -170,16 +170,23 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 						if (last_result)
 							g_ptr_array_free(last_result, TRUE);
 
-						last_result = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_free);
+						last_result = g_ptr_array_new_full(0, (GDestroyNotify)lsp_symbol_unref);
 
 						foreach_ptr_array(loc, j, locations)
 						{
-							LspSymbol *sym = g_new0(LspSymbol, 1);
-							sym->file_name = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
-							sym->name = g_path_get_basename(sym->file_name);
-							sym->line = loc->range.start.line + 1;
-							sym->icon = TM_ICON_OTHER;
+							gchar *file_name, *name;
+							LspSymbol *sym;
+
+							file_name = lsp_utils_get_real_path_from_uri_utf8(loc->uri);
+							name = g_path_get_basename(file_name);
+
+							sym = lsp_symbol_new(name, "", "", file_name, 0, 0, loc->range.start.line + 1, 0,
+								TM_ICON_OTHER);
+
 							g_ptr_array_add(last_result, sym);
+
+							g_free(name);
+							g_free(file_name);
 						}
 
 						lsp_goto_panel_show("", filter_symbols);

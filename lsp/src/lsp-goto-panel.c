@@ -155,23 +155,21 @@ void lsp_goto_panel_fill(GPtrArray *symbols)
 	{
 		gchar *label;
 
-		if (!sym->file_name)
+		if (!lsp_symbol_get_file(sym))
 			continue;
 
-		if (sym->file_name && sym->line > 0)
-			label = g_markup_printf_escaped("%s\n<small><i>%s:%d</i></small>",
-				sym->name, sym->file_name, sym->line);
-		else if (sym->file_name)
-			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
-				sym->name, sym->file_name);
+		if (lsp_symbol_get_line(sym) > 0)
+			label = g_markup_printf_escaped("%s\n<small><i>%s:%lu</i></small>",
+				lsp_symbol_get_name(sym), lsp_symbol_get_file(sym), lsp_symbol_get_line(sym));
 		else
-			label = g_markup_printf_escaped("%s", sym->name);
+			label = g_markup_printf_escaped("%s\n<small><i>%s</i></small>",
+				lsp_symbol_get_name(sym), lsp_symbol_get_file(sym));
 
 		gtk_list_store_insert_with_values(panel_data.store, NULL, -1,
-			COL_ICON, symbols_get_icon_pixbuf(sym->icon),
+			COL_ICON, symbols_get_icon_pixbuf(lsp_symbol_get_icon(sym)),
 			COL_LABEL, label,
-			COL_PATH, sym->file_name,
-			COL_LINENO, sym->line,
+			COL_PATH, lsp_symbol_get_file(sym),
+			COL_LINENO, lsp_symbol_get_line(sym),
 			-1);
 
 		g_free(label);
@@ -415,7 +413,7 @@ GPtrArray *lsp_goto_panel_filter(GPtrArray *symbols, const gchar *filter)
 		gchar *case_normalized_name;
 		gchar **val;
 
-		case_normalized_name = g_utf8_normalize(symbol->name, -1, G_NORMALIZE_ALL);
+		case_normalized_name = g_utf8_normalize(lsp_symbol_get_name(symbol), -1, G_NORMALIZE_ALL);
 		SETPTR(case_normalized_name, g_utf8_casefold(case_normalized_name, -1));
 
 		foreach_strv(val, tf_strv)

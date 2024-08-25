@@ -69,6 +69,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->formatting_options);
 	g_free(cfg->initialization_options_file);
 	g_free(cfg->initialization_options);
+	g_free(cfg->document_symbols_tab_label);
 	g_free(cfg->rpc_log);
 	g_strfreev(cfg->lang_id_mappings);
 	g_ptr_array_free(cfg->command_regexes, TRUE);
@@ -747,14 +748,7 @@ static void get_str(gchar **dest, GKeyFile *kf, const gchar *section, const gcha
 	gchar *str_val = g_key_file_get_string(kf, section, key, NULL);
 
 	if (str_val)
-	{
 		g_strstrip(str_val);
-		if (!*str_val)
-		{
-			g_free(str_val);
-			str_val = NULL;
-		}
-	}
 
 	if (str_val)
 	{
@@ -792,7 +786,6 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 {
 	gint i;
 
-	get_bool(&s->config.enable_by_default, kf, section, "enable_by_default");
 	get_bool(&s->config.use_outside_project_dir, kf, section, "use_outside_project_dir");
 	get_bool(&s->config.use_without_project, kf, section, "use_without_project");
 	get_bool(&s->config.rpc_log_full, kf, section, "rpc_log_full");
@@ -821,8 +814,9 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_int(&s->config.hover_popup_max_paragraphs, kf, section, "hover_popup_max_paragraphs");
 	get_bool(&s->config.signature_enable, kf, section, "signature_enable");
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
-	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");
+
+	get_bool(&s->config.document_symbols_enable, kf, section, "document_symbols_enable");
 
 	get_bool(&s->config.semantic_tokens_enable, kf, section, "semantic_tokens_enable");
 	get_bool(&s->config.semantic_tokens_force_full, kf, section, "semantic_tokens_force_full");
@@ -841,9 +835,6 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 
 	get_bool(&s->config.format_on_save, kf, section, "format_on_save");
 	get_str(&s->config.command_on_save_regex, kf, section, "command_on_save_regex");
-
-	get_int(&s->config.command_keybinding_num, kf, section, "command_keybinding_num");
-	s->config.command_keybinding_num = CLAMP(s->config.command_keybinding_num, 1, 1000);
 
 	get_bool(&s->config.progress_enable, kf, section, "progress_enable");
 
@@ -880,7 +871,18 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 }
 
 
-static void load_filetype_only_config(GKeyFile *kf, gchar *section, LspServer *s)
+static void load_all_section_only_config(GKeyFile *kf, const gchar *section, LspServer *s)
+{
+	get_bool(&s->config.enable_by_default, kf, section, "enable_by_default");
+
+	get_int(&s->config.command_keybinding_num, kf, section, "command_keybinding_num");
+	s->config.command_keybinding_num = CLAMP(s->config.command_keybinding_num, 1, 1000);
+
+	get_str(&s->config.document_symbols_tab_label, kf, section, "document_symbols_tab_label");
+}
+
+
+static void load_filetype_only_config(GKeyFile *kf, const gchar *section, LspServer *s)
 {
 	get_str(&s->config.cmd, kf, section, "cmd");
 	get_strv(&s->config.env, kf, section, "env");
@@ -1176,9 +1178,13 @@ static LspServer *lsp_server_new(GKeyFile *kf_global, GKeyFile *kf, GeanyFiletyp
 
 	s->filetype = ft->id;
 
+	load_all_section_only_config(kf_global, "all", s);
+	load_all_section_only_config(kf, "all", s);
+
 	load_config(kf_global, "all", s);
-	load_config(kf_global, ft->name, s);
 	load_config(kf, "all", s);
+
+	load_config(kf_global, ft->name, s);
 	load_config(kf, ft->name, s);
 
 	load_filetype_only_config(kf_global, ft->name, s);

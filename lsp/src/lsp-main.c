@@ -39,6 +39,7 @@
 #include "lsp-symbol.h"
 #include "lsp-extension.h"
 #include "lsp-workspace-folders.h"
+#include "lsp-symbol-tree.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -236,52 +237,6 @@ static gboolean symbol_highlight_provided(GeanyDocument *doc, gpointer user_data
 }
 
 
-#if 0
-static gboolean doc_symbols_provided(GeanyDocument *doc)
-{
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-
-	if (!cfg)
-		return FALSE;
-
-	return lsp_server_is_usable(doc) && cfg->document_symbols_enable;
-}
-
-
-static GPtrArray *doc_symbols_get(GeanyDocument *doc)
-{
-	static GPtrArray *ret = NULL;  // static!
-
-	GPtrArray *symbols = lsp_symbols_doc_get_cached(doc);
-	LspSymbol *sym;
-	guint i;
-
-	if (ret)
-		g_ptr_array_free(ret, TRUE);
-	ret = g_ptr_array_new_full(0, (GDestroyNotify)tm_tag_unref);
-
-	if (symbols)
-	{
-		foreach_ptr_array(sym, i, symbols)
-		{
-			TMTag *tag = tm_tag_new();
-			tag->plugin_extension = TRUE;
-			tag->name = g_strdup(sym->name);
-			tag->file_name = g_strdup(sym->file_name);
-			tag->scope = g_strdup(sym->scope);
-			tag->tooltip = g_strdup(sym->tooltip);
-			tag->line = sym->line;
-			tag->icon = sym->icon;
-
-			g_ptr_array_add(ret, tag);
-		}
-	}
-
-	return ret;
-}
-#endif
-
-
 static PluginExtension extension = {
 	.autocomplete_provided = autocomplete_provided,
 	.autocomplete_perform = autocomplete_perform,
@@ -296,15 +251,13 @@ static PluginExtension extension = {
 };
 
 
-/*
 static void lsp_symbol_request_cb(gpointer user_data)
 {
 	GeanyDocument *doc = user_data;
 
 	if (doc == document_get_current())
-		symbols_reload_tag_list();
+		lsp_symbol_tree_refresh();
 }
-*/
 
 
 static void on_document_new(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
@@ -354,19 +307,20 @@ static void update_menu(GeanyDocument *doc)
 static gboolean on_update_idle(gpointer data)
 {
 	GeanyDocument *doc = data;
+	LspServerConfig *cfg;
 
 	if (!DOC_VALID(doc))
 		return G_SOURCE_REMOVE;
+
+	cfg = lsp_server_get_config(doc);
 
 	plugin_set_document_data(geany_plugin, doc, UPDATE_SOURCE_DOC_DATA, GUINT_TO_POINTER(0));
 
 	lsp_code_lens_send_request(doc);
 	if (symbol_highlight_provided(doc, NULL))
 		lsp_semtokens_send_request(doc);
-#if 0
-	if (doc_symbols_provided(doc))
+	if (cfg->document_symbols_enable)
 		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
-#endif
 
 	return G_SOURCE_REMOVE;
 }
@@ -397,6 +351,9 @@ static void on_document_visible(GeanyDocument *doc)
 	// documents after successful server handshake inside on_server_initialized()
 	if (srv && !lsp_sync_is_document_open(doc))
 		lsp_sync_text_document_did_open(srv, doc);
+
+	// quick synchronous refresh with the last value without server request
+	lsp_symbol_tree_refresh();
 
 	on_update_idle(doc);
 }
@@ -446,6 +403,7 @@ static void stop_and_init_all_servers(void)
 	lsp_sync_init();
 	lsp_diagnostics_init();
 	lsp_workspace_folders_init();
+	lsp_symbol_tree_init();
 }
 
 
@@ -1664,6 +1622,8 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(context_menu_items.command_item);
 	gtk_widget_destroy(context_menu_items.separator1);
 	gtk_widget_destroy(context_menu_items.separator2);
+
+	lsp_symbol_tree_destroy();
 
 	plugin_extension_unregister(&extension);
 

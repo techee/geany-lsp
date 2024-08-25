@@ -41,12 +41,14 @@ lsp_la_SOURCES = \
 	lsp-server.h \
 	lsp-signature.c \
 	lsp-signature.h \
-	lsp-symbol-kinds.c \
-	lsp-symbol-kinds.h \
 	lsp-symbol.c \
 	lsp-symbol.h \
 	lsp-symbols.c \
 	lsp-symbols.h \
+	lsp-symbol-kinds.c \
+	lsp-symbol-kinds.h \
+	lsp-symbol-tree.c \
+	lsp-symbol-tree.h \
 	lsp-sync.c \
 	lsp-sync.h \
 	lsp-utils.c \
