@@ -169,6 +169,9 @@ void lsp_sync_text_document_did_change(LspServer *server, GeanyDocument *doc,
 
 	if (server->use_incremental_sync)
 	{
+		gint range = lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, pos_end) - 
+			lsp_utils_lsp_pos_to_scintilla(doc->editor->sci, pos_start);
+
 		node = JSONRPC_MESSAGE_NEW (
 			"textDocument", "{",
 				"uri", JSONRPC_MESSAGE_PUT_STRING(doc_uri),
@@ -185,6 +188,8 @@ void lsp_sync_text_document_did_change(LspServer *server, GeanyDocument *doc,
 						"character", JSONRPC_MESSAGE_PUT_INT32(pos_end.character),
 					"}",
 				"}",
+				// not required but the lemminx server crashes without it
+				"rangeLength", JSONRPC_MESSAGE_PUT_INT32(range),
 				"text", JSONRPC_MESSAGE_PUT_STRING(text),
 			"}", "]"
 		);
