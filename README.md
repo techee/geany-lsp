@@ -21,6 +21,7 @@ The plugin provides the following LSP features:
 * Code lenses
 * Semantic token type highlighting
 * Hover popup
+* Symbol tree
 * Go to symbol definition/declaration
 * Go to type definition
 * Swap header/source
@@ -34,10 +35,6 @@ The plugin provides the following LSP features:
 
 Limitations
 -----------
-
-The plugin API of Geany currently does not support modifying document symbols
-in the sidebar so the Symbols tab contents is based on Geany's ctags
-symbols instead of LSP symbols.
 
 The plugin currently only works over stdin/stdout and takes over the
 responsibility for starting and stopping LSP servers. Some LSP servers,

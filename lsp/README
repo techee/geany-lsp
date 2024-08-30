@@ -28,8 +28,8 @@ accessible from::
 
 This file provides extensive information about all the settings options, so be
 sure to refer to it for more details. The default configuration file comes with
-pre-configured values for ``clangd`` (C, C++), ``pylsp`` (Python), and ``gopls``
-(Go). Other servers have to be added manually.
+pre-configured values for several language servers; other servers have to be
+added manually.
 
 By default, the LSP plugin is disabled unless explicitly enabled for a
 project under
@@ -132,6 +132,12 @@ information about the symbol under the mouse cursor. However, as this feature
 can be slightly annoying, it is disabled by default. Alternatively, you can
 access this feature through a keybinding.
 
+Symbol tree
+-----------
+
+The LSP symbol tree tab in the sidebar, separate from Geany's Symbols tab,
+shows document symbols in a similar manner to the Geany's symbol tree feature.
+
 Go to symbol definition/declaration
 -----------------------------------
 
@@ -220,14 +226,6 @@ checks and does not show any preview of the changes so it is best to use this
 feature only after committing all modified files so you can
 easily revert to a working state if needed.
 
-Missing features
-================
-
-The plugin currently does not support displaying document symbols in the
-Symbols tab in the sidebar because there is no API in Geany allowing plugins to
-populate the symbol tree with their own symbols. This means that symbols in the
-Symbol tab are populated by Geany using its own ctags parser.
-
 License
 =======
 
@@ -240,24 +238,24 @@ program.
 Downloads
 =========
 
-Geany LSP Client is part of the combined Geany Plugins release.
-For more information and downloads, please visit
-https://plugins.geany.org/geany-plugins/
+Geany LSP Client can be downloaded from the development repository available
+at https://github.com/techee/geany-lsp/. In addition, it is also distributed
+as part of the combined Geany Plugins release. For more information and
+downloads, please visit https://plugins.geany.org/geany-plugins/
 
 Development Code
 ================
 
 Get the code from::
 
-    git clone https://github.com/geany/geany-plugins.git
+    git clone https://github.com/techee/geany-lsp.git
 
 Ideas, questions, patches and bug reports
 =========================================
 
-Please direct all questions, bug reports and patches to the combined geany-plugins
-project at https://github.com/geany/geany-plugins and open the corresponding
-bug report or pull request there. To notify the author of this plugin about
-your post, mention him using his github user name (@techee).
+Please direct all questions, bug reports and patches to the development
+repository at https://github.com/techee/geany-lsp/ and open the corresponding
+bug report or pull request there.
 
 2023-2024 by Jiří Techet
 techet(at)gmail(dot)com
