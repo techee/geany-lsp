@@ -69,6 +69,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->formatting_options);
 	g_free(cfg->initialization_options_file);
 	g_free(cfg->initialization_options);
+	g_free(cfg->rpc_log);
 	g_strfreev(cfg->lang_id_mappings);
 	g_ptr_array_free(cfg->command_regexes, TRUE);
 	g_strfreev(cfg->project_root_marker_patterns);
@@ -507,7 +508,7 @@ static void perform_initialize(LspServer *server)
 {
 	gchar *project_base = lsp_utils_get_project_base_path();
 	GVariant *workspace_folders = NULL;
-	GVariant *node, *capabilities;
+	GVariant *node, *capabilities, *info;
 	gchar *project_base_uri = NULL;
 	GVariantDict dct;
 
@@ -609,7 +610,7 @@ static void perform_initialize(LspServer *server)
 		"}"
 	);
 
-	node = JSONRPC_MESSAGE_NEW(
+	info = JSONRPC_MESSAGE_NEW(
 		"clientInfo", "{",
 			"name", JSONRPC_MESSAGE_PUT_STRING("Geany LSP Client Plugin"),
 			"version", JSONRPC_MESSAGE_PUT_STRING(VERSION),
@@ -630,7 +631,7 @@ static void perform_initialize(LspServer *server)
 			"}");
 	}
 
-	g_variant_dict_init(&dct, node);
+	g_variant_dict_init(&dct, info);
 
 	if (workspace_folders)
 		g_variant_dict_insert_value(&dct, "workspaceFolders", workspace_folders);
@@ -650,6 +651,9 @@ static void perform_initialize(LspServer *server)
 	g_free(project_base);
 	g_free(project_base_uri);
 	g_variant_unref(node);
+	g_variant_unref(info);
+	g_variant_unref(capabilities);
+	g_variant_unref(workspace_folders);
 }
 
 
