@@ -956,20 +956,22 @@ static gint find_symbol_tab(void)
 
 void lsp_symbol_tree_refresh(void)
 {
-	GtkWidget *child = gtk_bin_get_child(GTK_BIN(s_sym_window));
 	GeanyDocument *doc = document_get_current();
-	GPtrArray *symbols = lsp_symbols_doc_get_cached(doc);
+	GtkWidget *child;
+	GPtrArray *symbols;
 	const gchar *filter;
 	const gchar *entry_text;
 	GtkTreeStore *sym_store;
 	GtkWidget *sym_tree;
 
-	if (!doc)
+	if (!doc || !s_sym_window)
 		return;
 
 	if (gtk_notebook_get_current_page(GTK_NOTEBOOK(geany_data->main_widgets->sidebar_notebook)) != find_symbol_tab())
 		return; /* don't bother updating symbol tree if we don't see it */
 
+	child = gtk_bin_get_child(GTK_BIN(s_sym_window));
+	symbols = lsp_symbols_doc_get_cached(doc);
 	filter = plugin_get_document_data(geany_plugin, doc, SYM_FILTER_KEY);
 	filter = filter ? filter : "";
 	entry_text = gtk_entry_get_text(GTK_ENTRY(s_search_entry));
@@ -993,7 +995,6 @@ void lsp_symbol_tree_refresh(void)
 				gtk_container_add(GTK_CONTAINER(s_sym_window), new_child); \
 			} \
 		} G_STMT_END
-
 
 	/* show default empty symbol tree if there are no symbols */
 	if (symbols == NULL || symbols->len == 0)

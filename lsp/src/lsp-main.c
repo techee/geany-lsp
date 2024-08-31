@@ -319,7 +319,7 @@ static gboolean on_update_idle(gpointer data)
 	lsp_code_lens_send_request(doc);
 	if (symbol_highlight_provided(doc, NULL))
 		lsp_semtokens_send_request(doc);
-	if (cfg->document_symbols_enable)
+	if (cfg && cfg->document_symbols_enable)
 		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 
 	return G_SOURCE_REMOVE;
