@@ -25,8 +25,7 @@
 
 #include <jsonrpc-glib.h>
 
-static GHashTable *diag_table = NULL;
-static ScintillaObject *calltip_sci;
+extern GeanyData *geany_data;
 
 
 typedef struct {
@@ -51,6 +50,10 @@ typedef enum {
 
 static gint style_indices[LSP_DIAG_SEVERITY_MAX];
 
+static GHashTable *diag_table = NULL;
+static ScintillaObject *calltip_sci;
+static GtkWidget *issue_label;
+
 
 static void diag_free(LspDiag *diag)
 {
@@ -70,9 +73,16 @@ static void array_free(GPtrArray *arr)
 
 void lsp_diagnostics_init(void)
 {
+	GtkWidget *geany_statusbar;
+
 	if (!diag_table)
 		diag_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)array_free);
 	g_hash_table_remove_all(diag_table);
+
+	issue_label = gtk_label_new("");
+	geany_statusbar = ui_lookup_widget(geany_data->main_widgets->window, "statusbar");
+	gtk_box_pack_start(GTK_BOX(geany_statusbar), issue_label, FALSE, FALSE, 4);
+	gtk_widget_show_all(issue_label);
 }
 
 
@@ -80,8 +90,11 @@ void lsp_diagnostics_destroy(void)
 {
 	if (diag_table)
 		g_hash_table_destroy(diag_table);
+	if (issue_label)
+		gtk_widget_destroy(issue_label);
 	diag_table = NULL;
 	calltip_sci = NULL;
+	issue_label = NULL;
 }
 
 
@@ -187,6 +200,9 @@ static gboolean is_diagnostics_disabled_for(GeanyDocument *doc, LspServerConfig 
 	gchar **comps;
 	gchar *fname;
 
+	if (!cfg || !cfg->diagnostics_enable)
+		return TRUE;
+
 	if (!cfg->diagnostics_disable_for)
 		return FALSE;
 
@@ -215,7 +231,7 @@ void lsp_diagnostics_show_calltip(gint pos)
 	gchar *first = NULL;
 	gchar *second;
 
-	if (!doc || !diag || !cfg || is_diagnostics_disabled_for(doc, cfg))
+	if (!doc || !diag || is_diagnostics_disabled_for(doc, cfg))
 		return;
 
 	second = diag->message;
@@ -262,27 +278,67 @@ static void clear_indicators(ScintillaObject *sci)
 }
 
 
+static void set_statusbar_issue_num(gint num)
+{
+	gchar *issue_str;
+
+	if (!issue_label)
+		return;
+
+	issue_str = num >= 0 ? g_strdup_printf(_("issues: %d"), num) : g_strdup("");
+	gtk_label_set_text(GTK_LABEL(issue_label), issue_str);
+	g_free(issue_str);
+}
+
+
+static void refresh_issue_statusbar(GeanyDocument *doc)
+{
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+	gint num = 0;
+
+	if (doc && doc->real_path && !is_diagnostics_disabled_for(doc, cfg))
+	{
+		GPtrArray *diags = g_hash_table_lookup(diag_table, doc->real_path);
+		gint i;
+
+		for (i = 0; diags && i < diags->len; i++)
+		{
+			LspDiag *diag = diags->pdata[i];
+
+			if (diag->severity <= cfg->diagnostics_statusbar_severity)
+				num++;
+		}
+	}
+
+	set_statusbar_issue_num(num);
+}
+
+
 void lsp_diagnostics_redraw(GeanyDocument *doc)
 {
+	LspServer *srv = lsp_server_get_if_running(doc);
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 	ScintillaObject *sci;
 	GPtrArray *diags;
 	gint last_start_pos = 0, last_end_pos = 0;
 	gint i;
 
-	if (!doc || !doc->real_path || !cfg)
+	if (!srv || !doc || !doc->real_path || is_diagnostics_disabled_for(doc, cfg))
+	{
+		set_statusbar_issue_num(-1);
 		return;
-
-	if (is_diagnostics_disabled_for(doc, cfg))
-		return;
+	}
 
 	sci = doc->editor->sci;
 
 	clear_indicators(sci);
 
 	diags = g_hash_table_lookup(diag_table, doc->real_path);
-	if (!diags || !cfg->diagnostics_enable)
+	if (!diags)
+	{
+		set_statusbar_issue_num(0);
 		return;
+	}
 
 	for (i = 0; i < diags->len; i++)
 	{
@@ -304,6 +360,8 @@ void lsp_diagnostics_redraw(GeanyDocument *doc)
 			last_end_pos = end_pos;
 		}
 	}
+
+	refresh_issue_statusbar(doc);
 }
 
 
@@ -420,6 +478,8 @@ void lsp_diagnostics_clear(GeanyDocument *doc)
 		g_hash_table_remove(diag_table, doc->real_path);
 		lsp_diagnostics_redraw(doc);
 	}
+
+	refresh_issue_statusbar(doc);
 }
 
 

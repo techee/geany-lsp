@@ -55,6 +55,7 @@ typedef struct LspServerConfig
 	gint autocomplete_window_max_width;
 
 	gboolean diagnostics_enable;
+	gint diagnostics_statusbar_severity;
 	gchar *diagnostics_disable_for;
 	gchar *diagnostics_error_style;
 	gchar *diagnostics_warning_style;
