@@ -661,6 +661,51 @@ gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart)
 }
 
 
+static gchar *utf8_strdown(const gchar *str)
+{
+	gchar *down;
+
+	if (g_utf8_validate(str, -1, NULL))
+		down = g_utf8_strdown(str, -1);
+	else
+	{
+		down = g_locale_to_utf8(str, -1, NULL, NULL, NULL);
+		if (down)
+			SETPTR(down, g_utf8_strdown(down, -1));
+	}
+
+	return down;
+}
+
+
+gboolean lsp_utils_str_case_has_prefix(const gchar *s1, const gchar *s2)
+{
+	gchar *tmp1, *tmp2;
+	gboolean result;
+
+	g_return_val_if_fail(s1 != NULL, 1);
+	g_return_val_if_fail(s2 != NULL, -1);
+
+	/* ensure strings are UTF-8 and lowercase */
+	tmp1 = utf8_strdown(s1);
+	if (!tmp1)
+		return FALSE;
+	tmp2 = utf8_strdown(s2);
+	if (!tmp2)
+	{
+		g_free(tmp1);
+		return FALSE;
+	}
+
+	/* compare */
+	result = g_str_has_prefix(tmp1, tmp2);
+
+	g_free(tmp1);
+	g_free(tmp2);
+	return result;
+}
+
+
 GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json)
 {
 	JsonNode *json_node = NULL;

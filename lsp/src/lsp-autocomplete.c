@@ -54,6 +54,7 @@ typedef struct
 {
 	gint pass;
 	gchar *prefix;
+	gboolean use_label;
 } SortData;
 
 
@@ -258,14 +259,18 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 	gchar *label1 = NULL;
 	gchar *label2 = NULL;
 
-	if (sym1->text_edit && sym1->text_edit->new_text)
+	if (sort_data->use_label && sym1->label)
+		label1 = sym1->label;
+	else if (sym1->text_edit && sym1->text_edit->new_text)
 		label1 = sym1->text_edit->new_text;
 	else if (sym1->insert_text)
 		label1 = sym1->insert_text;
 	else if (sym1->label)
 		label1 = sym1->label;
 
-	if (sym2->text_edit && sym2->text_edit->new_text)
+	if (sort_data->use_label && sym2->label)
+		label2 = sym2->label;
+	else if (sym2->text_edit && sym2->text_edit->new_text)
 		label2 = sym2->text_edit->new_text;
 	else if (sym2->insert_text)
 		label2 = sym2->insert_text;
@@ -291,24 +296,27 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 
 	if (sort_data->pass == 2 && label1 && label2 && sort_data->prefix)
 	{
-		if (g_strcmp0(label1, sort_data->prefix) == 0 && g_strcmp0(label2, sort_data->prefix) != 0)
+		if (utils_str_casecmp(label1, sort_data->prefix) == 0 && utils_str_casecmp(label2, sort_data->prefix) != 0)
 			return -1;
 
-		if (g_strcmp0(label1, sort_data->prefix) != 0 && g_strcmp0(label2, sort_data->prefix) == 0)
+		if (utils_str_casecmp(label1, sort_data->prefix) != 0 && utils_str_casecmp(label2, sort_data->prefix) == 0)
 			return 1;
 
-		if (g_str_has_prefix(label1, sort_data->prefix) && !g_str_has_prefix(label2, sort_data->prefix))
+		if (lsp_utils_str_case_has_prefix(label1, sort_data->prefix) && !lsp_utils_str_case_has_prefix(label2, sort_data->prefix))
 			return -1;
 
-		if (!g_str_has_prefix(label1, sort_data->prefix) && g_str_has_prefix(label2, sort_data->prefix))
+		if (!lsp_utils_str_case_has_prefix(label1, sort_data->prefix) && lsp_utils_str_case_has_prefix(label2, sort_data->prefix))
 			return 1;
 	}
 
+	if (sort_data->use_label && label1 && label2)
+		return utils_str_casecmp(label1, label2);
+
 	if (sym1->sort_text && sym2->sort_text)
-		return g_strcmp0(sym1->sort_text, sym2->sort_text);
+		return utils_str_casecmp(sym1->sort_text, sym2->sort_text);
 
 	if (label1 && label2)
-		return g_strcmp0(label1, label2);
+		return utils_str_casecmp(label1, label2);
 
 	return 0;
 }
@@ -322,7 +330,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	gint prefixlen = get_ident_prefixlen(doc, pos);
-	SortData sort_data = { 1, NULL };
+	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label };
 	GPtrArray *symbols, *symbols_filtered;
 	GHashTable *entry_set;
 	gint i;

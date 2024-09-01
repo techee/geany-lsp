@@ -105,6 +105,7 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 gboolean lsp_utils_apply_workspace_edit(GVariant *workspace_edit);
 
 gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart);
+gboolean lsp_utils_str_case_has_prefix(const gchar *s1, const gchar *s2);
 
 GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json);
 
