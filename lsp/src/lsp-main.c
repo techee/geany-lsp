@@ -1209,6 +1209,9 @@ static void invoke_command_kb(guint key_id, gint pos)
 	GeanyDocument *doc = document_get_current();
 	LspServerConfig *cfg = lsp_server_get_config(doc);
 
+	if (!cfg)
+		return;
+
 	if (key_id >= KB_COUNT + cfg->command_keybinding_num)
 		return;
 
