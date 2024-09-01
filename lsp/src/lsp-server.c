@@ -705,6 +705,8 @@ static void start_lsp_server(LspServer *server)
 		g_strfreev(kv);
 	}
 
+	msgwin_status_add(_("Starting LSP server %s"), server->config.cmd);
+
 	server->process = g_subprocess_launcher_spawnv(launcher, (const gchar * const *)argv, &error);
 
 	g_strfreev(argv);
