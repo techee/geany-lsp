@@ -493,20 +493,9 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
-	gint lexer = sci_get_lexer(sci);
-	gint style = sci_get_style_at(sci, pos);
 	gboolean is_trigger_char = FALSE;
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
 	gchar c_str[2] = {c, '\0'};
-
-	// highlighting_is_code_style(lexer, style) also checks for preprocessor
-	// style which we might not want here as LSP servers might support it
-	if (highlighting_is_comment_style(lexer, style) ||
-		highlighting_is_string_style(lexer, style))
-	{
-		SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
-		return;
-	}
 
 	if (get_ident_prefixlen(doc, pos) == 0)
 	{
