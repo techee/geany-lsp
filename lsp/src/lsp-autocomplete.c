@@ -40,6 +40,7 @@ typedef struct
 	gchar *detail;
 	LspTextEdit *text_edit;
 	GPtrArray * additional_edits;
+	gboolean is_snippet;
 } LspAutocompleteSymbol;
 
 
@@ -178,18 +179,25 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 	{
 		gint pos = sci_get_current_position(sci);
 		guint rootlen = get_ident_prefixlen(doc, pos);
-		gchar *insert_text = sym->insert_text ? sym->insert_text : sym->label;
+		gchar *insert_text = sym->insert_text ? g_strdup(sym->insert_text) : g_strdup(sym->label);
+		gint pos_delta = insert_text ? strlen(insert_text) : 0;
+
+		if (sym->is_snippet && sym->insert_text)
+			SETPTR(insert_text, lsp_utils_process_snippet(insert_text, &pos_delta));
+
 		if (insert_text && strlen(insert_text) >= rootlen)
 		{
 			SSM(sci, SCI_DELETERANGE, pos - rootlen, rootlen);
 			pos = sci_get_current_position(sci);
 			sci_insert_text(sci, pos, insert_text);
-			sci_set_current_position(sci, pos + strlen(insert_text), TRUE);
+			sci_set_current_position(sci, pos + pos_delta, TRUE);
 		}
 		/* See comment above, prevents re-showing the autocompletion popup
 		 * in this case. */
 		if (sent_request_id != received_request_id)
 			lsp_autocomplete_discard_pending_requests();
+
+		g_free(insert_text);
 	}
 
 #if 0
@@ -357,11 +365,12 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		const gchar *sort_text = NULL;
 		const gchar *detail = NULL;
 		gint64 kind = 0;
+		gint64 format = 0;
 
 		JSONRPC_MESSAGE_PARSE(member, "kind", JSONRPC_MESSAGE_GET_INT64(&kind));
 
-		if (kind == LspCompletionKindSnippet)
-			continue;  // not supported right now
+		if (kind == LspCompletionKindSnippet && !server->config.autocomplete_use_snippets)
+			continue;
 
 		JSONRPC_MESSAGE_PARSE(member, "label", JSONRPC_MESSAGE_GET_STRING(&label));
 		JSONRPC_MESSAGE_PARSE(member, "insertText", JSONRPC_MESSAGE_GET_STRING(&insert_text));
@@ -369,6 +378,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 		JSONRPC_MESSAGE_PARSE(member, "textEdit", JSONRPC_MESSAGE_GET_VARIANT(&text_edit));
 		JSONRPC_MESSAGE_PARSE(member, "additionalTextEdits", JSONRPC_MESSAGE_GET_ITER(&additional_edits));
+		JSONRPC_MESSAGE_PARSE(member, "insertTextFormat", JSONRPC_MESSAGE_GET_INT64(&format));
 
 		sym = g_new0(LspAutocompleteSymbol, 1);
 		sym->label = g_strdup(label);
@@ -378,6 +388,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		sym->kind = kind;
 		sym->text_edit = lsp_utils_parse_text_edit(text_edit);
 		sym->additional_edits = lsp_utils_parse_text_edits(additional_edits);
+		sym->is_snippet = (format == 2);
 
 		g_ptr_array_add(symbols, sym);
 

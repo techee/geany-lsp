@@ -25,6 +25,7 @@
 
 #include <geanyplugin.h>
 #include <jsonrpc-glib.h>
+#include <ctype.h>
 
 
 extern GeanyData *geany_data;
@@ -395,10 +396,12 @@ GPtrArray *lsp_utils_parse_text_edits(GVariantIter *iter)
 }
 
 
-void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean update_pos)
+void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean process_snippets)
 {
 	gint start_pos;
 	gint end_pos;
+	gint cursor_pos;
+	gchar *processed;
 
 	if (!e)
 		return;
@@ -407,9 +410,20 @@ void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean up
 	end_pos = lsp_utils_lsp_pos_to_scintilla(sci, e->range.end);
 
 	SSM(sci, SCI_DELETERANGE, start_pos, end_pos - start_pos);
-	sci_insert_text(sci, start_pos, e->new_text);
-	if (update_pos)
-		sci_set_current_position(sci, start_pos + strlen(e->new_text), TRUE);
+
+	if (process_snippets)
+		processed = lsp_utils_process_snippet(e->new_text, &cursor_pos);
+	else
+	{
+		processed = g_strdup(e->new_text);
+		cursor_pos = strlen(e->new_text);
+	}
+
+	sci_insert_text(sci, start_pos, processed);
+	if (process_snippets)
+		sci_set_current_position(sci, start_pos + cursor_pos, TRUE);
+
+	g_free(processed);
 }
 
 
@@ -987,4 +1001,119 @@ gchar *lsp_utils_find_project_root(GeanyDocument *doc, LspServerConfig *cfg)
 		SETPTR(dirname, g_strconcat(dirname, G_DIR_SEPARATOR_S, NULL));
 
 	return dirname;
+}
+
+
+enum {
+	SnippetOuter,
+	SnippetAfterDollar,
+	SnippetAfterDollarDigit,
+	SnippetAfterDollarAlpha,
+	SnippetAfterBrace
+};
+
+
+// https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#snippet_syntax
+// just removes $foo, ${foo} and detects $0, $1, ${0...}, ${1...}
+gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos)
+{
+	gint len = strlen(snippet);
+	GString *res = g_string_new("");
+	gint dollar0_pos = -1;
+	gint dollar1_pos = -1;
+	gint state = SnippetOuter;
+	gint i;
+
+	for (i = 0; i < len; i++)
+	{
+		gchar c = snippet[i];
+
+		switch (state)
+		{
+			case SnippetOuter:
+				if (c == '$')
+					state = SnippetAfterDollar;
+				else
+					g_string_append_c(res, c);
+				break;
+
+			case SnippetAfterDollar:
+				if (isdigit(c))
+				{
+					if (c == '0' && !isdigit(snippet[i+1]))
+						dollar0_pos = res->len;
+					else if (c == '1' && !isdigit(snippet[i+1]))
+						dollar1_pos = res->len;
+					state = SnippetAfterDollarDigit;
+				}
+				else if (isalpha(c) || c == '_')
+					state = SnippetAfterDollarAlpha;
+				else if (c == '{')
+					state = SnippetAfterBrace;
+				else  // something invalid
+				{
+					state = SnippetOuter;
+					g_string_append_c(res, c);
+				}
+				break;
+
+			case SnippetAfterDollarDigit:  // tabstop
+				if (!isdigit(c))
+				{
+					state = SnippetOuter;
+					g_string_append_c(res, c);
+				}
+				break;
+
+			case SnippetAfterDollarAlpha:  // variable
+				if (!(isalpha(c) || isdigit(c) || c == '_'))
+				{
+					state = SnippetOuter;
+					g_string_append_c(res, c);
+				}
+				break;
+
+			case SnippetAfterBrace:  // after ${
+			{
+				gint braces_num = 1;
+
+				if (isdigit(c))
+				{
+					if (c == '0' && !isdigit(snippet[i+1]))
+						dollar0_pos = res->len;
+					else if (c == '1' && !isdigit(snippet[i+1]))
+						dollar1_pos = res->len;
+				}
+
+				// skip everything until }, including nested {}
+				while (i < len)
+				{
+					if (c == '{')
+						braces_num++;
+					else if (c == '}')
+						braces_num--;
+
+					if (braces_num == 0)
+						break;
+
+					c = snippet[++i];
+				}
+
+				state = SnippetOuter;
+				break;
+			}
+		}
+	}
+
+	if (cursor_pos)
+	{
+		if (dollar1_pos != -1)
+			*cursor_pos = dollar1_pos;
+		else if (dollar0_pos != -1)
+			*cursor_pos = dollar0_pos;
+		else
+			*cursor_pos = res->len;
+	}
+
+	return g_string_free(res, FALSE);
 }

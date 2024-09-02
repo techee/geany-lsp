@@ -100,7 +100,7 @@ GPtrArray *lsp_utils_parse_text_edits(GVariantIter *iter);
 LspLocation *lsp_utils_parse_location(GVariant *variant);
 GPtrArray *lsp_utils_parse_locations(GVariantIter *iter);
 
-void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean update_pos);
+void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean process_snippets);
 void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArray *edits);
 gboolean lsp_utils_apply_workspace_edit(GVariant *workspace_edit);
 
@@ -120,5 +120,7 @@ gchar *lsp_utils_get_relative_path(const gchar *utf8_parent, const gchar *utf8_d
 void lsp_utils_save_all_docs(void);
 
 gchar *lsp_utils_find_project_root(GeanyDocument *doc, LspServerConfig *cfg);
+
+gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos);
 
 #endif  /* LSP_UTILS_H */
