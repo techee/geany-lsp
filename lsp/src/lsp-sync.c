@@ -30,9 +30,11 @@
 
 #include <jsonrpc-glib.h>
 
+#define VERSION_NUM_KEY "lsp_sync_version_num"
+
+extern GeanyPlugin *geany_plugin;
 
 static GHashTable *open_docs = NULL;
-static GHashTable *doc_version_nums = NULL;
 
 
 void lsp_sync_init()
@@ -45,17 +47,10 @@ void lsp_sync_init()
 
 static guint get_next_doc_version_num(GeanyDocument *doc)
 {
-	guint num;
+	guint num = GPOINTER_TO_UINT(plugin_get_document_data(geany_plugin, doc, VERSION_NUM_KEY));
 
-	if (!doc->real_path)
-		return 0;
-
-	if (!doc_version_nums)  // TODO: g_hash_table_destroy(doc_version_nums);
-		doc_version_nums = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
-
-	num = GPOINTER_TO_UINT(g_hash_table_lookup(doc_version_nums, doc->real_path));
 	num++;
-	g_hash_table_insert(doc_version_nums, g_strdup(doc->real_path), GUINT_TO_POINTER(num));
+	plugin_set_document_data(geany_plugin, doc, VERSION_NUM_KEY, GUINT_TO_POINTER(num));
 	return num;
 }
 
