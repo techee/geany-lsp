@@ -27,6 +27,7 @@
 
 #include <jsonrpc-glib.h>
 
+#define CACHE_KEY "lsp_semtokens_key"
 
 typedef struct {
 	GeanyDocument *doc;
@@ -46,7 +47,6 @@ extern GeanyPlugin *geany_plugin;
 extern GeanyData *geany_data;
 
 typedef struct {
-	gint ft_id;
 	GArray *tokens;
 	gchar *tokens_str;
 	gchar *result_id;
@@ -55,8 +55,6 @@ typedef struct {
 
 static gint style_index;
 
-//TODO: destroy on plugin unload
-static GHashTable *cached_tokens;
 static guint keyword_hash = 0;
 
 
@@ -69,20 +67,15 @@ static void cached_data_free(CachedData *data)
 }
 
 
-static gboolean should_remove(gpointer key, gpointer value, gpointer user_data)
-{
-	CachedData *data = value;
-	gint ft_id = GPOINTER_TO_INT(user_data);
-	return data->ft_id == ft_id;
-}
-
-
 void lsp_semtokens_init(gint ft_id)
 {
-	if (cached_tokens)
-		g_hash_table_foreach_remove(cached_tokens, should_remove, GINT_TO_POINTER(ft_id));
-	else
-		cached_tokens = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, (GDestroyNotify)cached_data_free);
+	guint i;
+	foreach_document(i)
+	{
+		GeanyDocument *doc = documents[i];
+		if (doc->file_type->id == ft_id)
+			plugin_set_document_data(geany_plugin, doc, CACHE_KEY, NULL);
+	}
 }
 
 
@@ -104,9 +97,11 @@ void lsp_semtokens_style_init(GeanyDocument *doc)
 
 void lsp_semtokens_destroy(void)
 {
-	if (cached_tokens)
-		g_hash_table_destroy(cached_tokens);
-	cached_tokens = NULL;
+	guint i;
+	foreach_document(i)
+	{
+		plugin_set_document_data(geany_plugin, documents[i], CACHE_KEY, NULL);
+	}
 }
 
 
@@ -138,10 +133,10 @@ static const gchar *get_cached(GeanyDocument *doc)
 {
 	CachedData *data;
 
-	if (!cached_tokens || style_index > 0 || !doc->real_path)
+	if (style_index > 0)
 		return "";
 
-	data = g_hash_table_lookup(cached_tokens, doc->real_path);
+	data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
 	if (!data || !data->tokens_str)
 		return "";
 
@@ -267,16 +262,15 @@ static void process_full_result(GeanyDocument *doc, GVariant *result, guint64 to
 	if (iter)
 	{
 		GVariant *val = NULL;
-		CachedData *data = g_hash_table_lookup(cached_tokens, doc->real_path);
+		CachedData *data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
 
 		if (data == NULL)
 		{
 			data = g_new0(CachedData, 1);
 			data->tokens = g_array_sized_new(FALSE, FALSE, sizeof(guint), 1000);
-			g_hash_table_insert(cached_tokens, g_strdup(doc->real_path), data);
+			plugin_set_document_data_full(geany_plugin, doc, CACHE_KEY, data, (GDestroyNotify)cached_data_free);
 		}
 
-		data->ft_id = doc->file_type->id;
 		g_free(data->result_id);
 		data->result_id = g_strdup(result_id);
 		data->tokens->len = 0;
@@ -317,14 +311,13 @@ static gboolean process_delta_result(GeanyDocument *doc, GVariant *result, guint
 		"edits", JSONRPC_MESSAGE_GET_ITER(&iter)
 	);
 
-	if (cached_tokens)
-		data = g_hash_table_lookup(cached_tokens, doc->real_path);
+	data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
 
 	if (data && (!iter || !result_id))
 	{
 		// something got wrong - let's delete our cached result so the next request
 		// is full instead of delta which may be out of sync
-		g_hash_table_remove(cached_tokens, doc->real_path);
+		plugin_set_document_data(geany_plugin, doc, CACHE_KEY, NULL);
 	}
 	else if (data && iter && result_id)
 	{
@@ -427,7 +420,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 	GVariant *node;
 	CachedData *cached_data;
 
-	if (!doc || !doc->real_path || !server)
+	if (!doc || !server)
 		return;
 
 	data = g_new0(LspSemtokensUserData, 1);
@@ -440,10 +433,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 	if (!lsp_sync_is_document_open(doc))
 		lsp_sync_text_document_did_open(server, doc);
 
-	if (!cached_tokens)
-		lsp_semtokens_init(doc->file_type->id);
-
-	cached_data = g_hash_table_lookup(cached_tokens, doc->real_path);
+	cached_data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
 	data->delta = cached_data != NULL && cached_data->result_id &&
 		server->config.semantic_tokens_supports_delta &&
 		!server->config.semantic_tokens_force_full;
@@ -477,10 +467,10 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 
 void lsp_semtokens_clear(GeanyDocument *doc)
 {
-	if (!doc || !doc->real_path)
+	if (!doc)
 		return;
 
-	g_hash_table_remove(cached_tokens, doc->real_path);
+	plugin_set_document_data(geany_plugin, doc, CACHE_KEY, NULL);
 	keyword_hash = 0;
 
 	if (style_index > 0)
