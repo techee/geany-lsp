@@ -304,6 +304,19 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 
 	if (sort_data->pass == 2 && label1 && label2 && sort_data->prefix)
 	{
+		if (g_strcmp0(label1, sort_data->prefix) == 0 && g_strcmp0(label2, sort_data->prefix) != 0)
+			return -1;
+
+		if (g_strcmp0(label1, sort_data->prefix) != 0 && g_strcmp0(label2, sort_data->prefix) == 0)
+			return 1;
+
+		if (g_str_has_prefix(label1, sort_data->prefix) && !g_str_has_prefix(label2, sort_data->prefix))
+			return -1;
+
+		if (!g_str_has_prefix(label1, sort_data->prefix) && g_str_has_prefix(label2, sort_data->prefix))
+			return 1;
+
+		// the same case insensitive
 		if (utils_str_casecmp(label1, sort_data->prefix) == 0 && utils_str_casecmp(label2, sort_data->prefix) != 0)
 			return -1;
 
@@ -317,11 +330,11 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 			return 1;
 	}
 
+	if (sym1->sort_text && sym2->sort_text)
+		return g_strcmp0(sym1->sort_text, sym2->sort_text);
+
 	if (sort_data->use_label && label1 && label2)
 		return utils_str_casecmp(label1, label2);
-
-	if (sym1->sort_text && sym2->sort_text)
-		return utils_str_casecmp(sym1->sort_text, sym2->sort_text);
 
 	if (label1 && label2)
 		return utils_str_casecmp(label1, label2);
