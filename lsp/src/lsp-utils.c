@@ -692,10 +692,10 @@ static gchar *utf8_strdown(const gchar *str)
 }
 
 
-gboolean lsp_utils_str_case_has_prefix(const gchar *s1, const gchar *s2)
+gint lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2)
 {
 	gchar *tmp1, *tmp2;
-	gboolean result;
+	gint result;
 
 	g_return_val_if_fail(s1 != NULL, 1);
 	g_return_val_if_fail(s2 != NULL, -1);
@@ -712,7 +712,7 @@ gboolean lsp_utils_str_case_has_prefix(const gchar *s1, const gchar *s2)
 	}
 
 	/* compare */
-	result = g_str_has_prefix(tmp1, tmp2);
+	result = cmp(tmp1, tmp2);
 
 	g_free(tmp1);
 	g_free(tmp2);

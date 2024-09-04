@@ -56,6 +56,7 @@ typedef struct
 	gint pass;
 	gchar *prefix;
 	gboolean use_label;
+	gboolean use_sort_text;
 } SortData;
 
 
@@ -285,56 +286,51 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 	else if (sym2->label)
 		label2 = sym2->label;
 
-	/*
-	if (sort_data->pass == 2)
-	{
-		if (sym1->kind == LspCompletionKindKeyword && sym2->kind != LspCompletionKindKeyword)
-			return -1;
-
-		if (sym1->kind != LspCompletionKindKeyword && sym2->kind == LspCompletionKindKeyword)
-			return 1;
-
-		if (sym1->kind == LspCompletionKindSnippet && sym2->kind != LspCompletionKindSnippet)
-			return -1;
-
-		if (sym1->kind != LspCompletionKindSnippet && sym2->kind == LspCompletionKindSnippet)
-			return 1;
-	}
-	*/
-
-	if (sort_data->pass == 2 && label1 && label2 && sort_data->prefix)
+	if ((!sort_data->use_sort_text || !sym1->sort_text || !sym2->sort_text) &&
+		(sort_data->pass == 2 && label1 && label2 && sort_data->prefix))
 	{
 		if (g_strcmp0(label1, sort_data->prefix) == 0 && g_strcmp0(label2, sort_data->prefix) != 0)
 			return -1;
-
 		if (g_strcmp0(label1, sort_data->prefix) != 0 && g_strcmp0(label2, sort_data->prefix) == 0)
+			return 1;
+
+		if (g_str_has_prefix(label1, sort_data->prefix) && g_str_has_prefix(label2, sort_data->prefix) &&
+			strlen(label1) < strlen(label2))
+			return -1;
+		if (g_str_has_prefix(label1, sort_data->prefix) && g_str_has_prefix(label2, sort_data->prefix) &&
+			strlen(label1) > strlen(label2))
 			return 1;
 
 		if (g_str_has_prefix(label1, sort_data->prefix) && !g_str_has_prefix(label2, sort_data->prefix))
 			return -1;
-
 		if (!g_str_has_prefix(label1, sort_data->prefix) && g_str_has_prefix(label2, sort_data->prefix))
 			return 1;
 
-		// the same case insensitive
+		// case insensitive variants
+
 		if (utils_str_casecmp(label1, sort_data->prefix) == 0 && utils_str_casecmp(label2, sort_data->prefix) != 0)
 			return -1;
-
 		if (utils_str_casecmp(label1, sort_data->prefix) != 0 && utils_str_casecmp(label2, sort_data->prefix) == 0)
 			return 1;
 
-		if (lsp_utils_str_case_has_prefix(label1, sort_data->prefix) && !lsp_utils_str_case_has_prefix(label2, sort_data->prefix))
+		if (lsp_utils_lowercase_cmp(g_str_has_prefix, label1, sort_data->prefix) &&
+			!lsp_utils_lowercase_cmp(g_str_has_prefix, label2, sort_data->prefix))
 			return -1;
+		if (!lsp_utils_lowercase_cmp(g_str_has_prefix, label1, sort_data->prefix) &&
+			lsp_utils_lowercase_cmp(g_str_has_prefix, label2, sort_data->prefix))
+			return 1;
 
-		if (!lsp_utils_str_case_has_prefix(label1, sort_data->prefix) && lsp_utils_str_case_has_prefix(label2, sort_data->prefix))
+		// anywhere within string, case insensitive
+		if (lsp_utils_lowercase_cmp((LspUtilsCmpFn)strstr, label1, sort_data->prefix) &&
+			!lsp_utils_lowercase_cmp((LspUtilsCmpFn)strstr, label2, sort_data->prefix))
+			return -1;
+		if (!lsp_utils_lowercase_cmp((LspUtilsCmpFn)strstr, label1, sort_data->prefix) &&
+			lsp_utils_lowercase_cmp((LspUtilsCmpFn)strstr, label2, sort_data->prefix))
 			return 1;
 	}
 
-	if (sym1->sort_text && sym2->sort_text)
+	if (sort_data->use_sort_text && sym1->sort_text && sym2->sort_text)
 		return g_strcmp0(sym1->sort_text, sym2->sort_text);
-
-	if (sort_data->use_label && label1 && label2)
-		return utils_str_casecmp(label1, label2);
 
 	if (label1 && label2)
 		return utils_str_casecmp(label1, label2);
@@ -351,7 +347,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	gint prefixlen = get_ident_prefixlen(doc, pos);
-	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label };
+	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label, server->config.autocomplete_use_sort_text };
 	GPtrArray *symbols, *symbols_filtered;
 	GHashTable *entry_set;
 	gint i;
