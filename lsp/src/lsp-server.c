@@ -333,6 +333,18 @@ static gchar *get_signature_trigger_chars(GVariant *node)
 		g_variant_iter_free(iter);
 	}
 
+	// add also closing braces so the signature request is also triggered
+	// when the brace is closed - when the server doesn't return anything, we
+	// know we should hide the calltip
+	if (strchr(str->str, '(') && !strchr(str->str, ')'))
+		g_string_append_c(str, ')');
+	if (strchr(str->str, '[') && !strchr(str->str, ']'))
+		g_string_append_c(str, ']');
+	if (strchr(str->str, '<') && !strchr(str->str, '>'))
+		g_string_append_c(str, '>');
+	if (strchr(str->str, '{') && !strchr(str->str, '}'))
+		g_string_append_c(str, '}');
+
 	return g_string_free(str, FALSE);
 }
 
