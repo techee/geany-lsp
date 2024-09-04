@@ -360,7 +360,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		//"isIncomplete", JSONRPC_MESSAGE_GET_BOOLEAN(&is_incomplete),
 		"items", JSONRPC_MESSAGE_GET_ITER(&iter));
 
-	if (!iter)
+	if (!iter && g_variant_is_of_type(response, G_VARIANT_TYPE("av")))
 		iter = g_variant_iter_new(response);
 
 	if (!iter)
