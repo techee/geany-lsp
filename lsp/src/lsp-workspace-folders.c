@@ -61,6 +61,8 @@ static void noitfy_root_change(LspServer *srv, const gchar *root, gboolean added
 					"uri", JSONRPC_MESSAGE_PUT_STRING(root_uri),
 					"name", JSONRPC_MESSAGE_PUT_STRING(root),
 				"}", "]",
+				"removed", "[",
+				"]",
 			"}"
 		);
 	}
@@ -68,6 +70,8 @@ static void noitfy_root_change(LspServer *srv, const gchar *root, gboolean added
 	{
 		node = JSONRPC_MESSAGE_NEW (
 			"event", "{",
+				"added", "[",
+				"]",
 				"removed", "[", "{",
 					"uri", JSONRPC_MESSAGE_PUT_STRING(root_uri),
 					"name", JSONRPC_MESSAGE_PUT_STRING(root),
@@ -81,6 +85,20 @@ static void noitfy_root_change(LspServer *srv, const gchar *root, gboolean added
 	lsp_rpc_notify(srv, "workspace/didChangeWorkspaceFolders", node, NULL, NULL);
 
 	g_free(root_uri);
+}
+
+
+void lsp_workspace_folders_add_project_root(LspServer *srv)
+{
+	gchar *base_path;
+
+	if (!srv || !srv->use_workspace_folders)
+		return;
+
+	base_path = lsp_utils_get_project_base_path();
+	if (base_path)
+		noitfy_root_change(srv, base_path, TRUE);
+	g_free(base_path);
 }
 
 

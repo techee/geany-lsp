@@ -31,6 +31,7 @@
 #include "lsp-symbols.h"
 #include "lsp-symbol-kinds.h"
 #include "lsp-highlight.h"
+#include "lsp-workspace-folders.h"
 
 #include <jsonrpc-glib.h>
 
@@ -489,6 +490,11 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		s->startup_shutdown = FALSE;
 
 		lsp_semtokens_init(s->filetype);
+
+		// Duplicate request to add project root to workspace folders - this
+		// was already done in the initialize request but the pyright server
+		// requires adding them dynamically
+		lsp_workspace_folders_add_project_root(s);
 
 		if (lsp_server_initialized_cb)
 			lsp_server_initialized_cb(s);
