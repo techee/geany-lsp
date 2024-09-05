@@ -328,6 +328,19 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 			lsp_utils_lowercase_cmp((LspUtilsCmpFn)strstr, label2, sort_data->prefix))
 			return 1;
 	}
+	else if (sort_data->pass == 2 && label1 && label2 && sort_data->prefix)
+	{
+		if (g_strcmp0(label1, sort_data->prefix) == 0 && g_strcmp0(label2, sort_data->prefix) != 0)
+			return -1;
+		if (g_strcmp0(label1, sort_data->prefix) != 0 && g_strcmp0(label2, sort_data->prefix) == 0)
+			return 1;
+
+		if (g_str_has_prefix(label1, sort_data->prefix) && !g_str_has_prefix(label2, sort_data->prefix))
+			return -1;
+		if (!g_str_has_prefix(label1, sort_data->prefix) && g_str_has_prefix(label2, sort_data->prefix))
+			return 1;
+	}
+
 
 	if (sort_data->use_sort_text && sym1->sort_text && sym2->sort_text)
 		return g_strcmp0(sym1->sort_text, sym2->sort_text);
