@@ -80,7 +80,7 @@ static void signature_cb(GVariant *return_value, GError *error, gpointer user_da
 			(data->force || (!data->force && !SSM(current_doc->editor->sci, SCI_AUTOCACTIVE, 0, 0))))
 		{
 			GVariantIter *iter = NULL;
-			gint64 active = 0;
+			gint64 active = 1;
 
 			JSONRPC_MESSAGE_PARSE(return_value, "signatures", JSONRPC_MESSAGE_GET_ITER(&iter));
 			JSONRPC_MESSAGE_PARSE(return_value, "activeSignature", JSONRPC_MESSAGE_GET_INT64(&active));
@@ -104,7 +104,7 @@ static void signature_cb(GVariant *return_value, GError *error, gpointer user_da
 				}
 			}
 
-			displayed_signature = CLAMP(active, 0, signatures->len);
+			displayed_signature = CLAMP(active, 1, signatures->len) - 1;
 
 			if (signatures->len == 0)
 				SSM(current_doc->editor->sci, SCI_CALLTIPCANCEL, 0, 0);
@@ -157,8 +157,21 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
 	gint lexer = sci_get_lexer(sci);
 	gint style = sci_get_style_at(sci, pos);
+	const gchar *trigger_chars = server->signature_trigger_chars;
 
-	if (!server->signature_trigger_chars || (!strchr(server->signature_trigger_chars, c) && !force))
+	if (!trigger_chars)
+		return;
+
+	if ((c == ')' && strchr(trigger_chars, '(') && !strchr(trigger_chars, ')')) ||
+		(c == ']' && strchr(trigger_chars, '[') && !strchr(trigger_chars, ']')) ||
+		(c == '>' && strchr(trigger_chars, '<') && !strchr(trigger_chars, '>')) ||
+		(c == '}' && strchr(trigger_chars, '{') && !strchr(trigger_chars, '}')))
+	{
+		lsp_signature_hide_calltip(doc);
+		return;
+	}
+
+	if (!strchr(trigger_chars, c) && !force)
 		return;
 
 	// highlighting_is_code_style(lexer, style) also checks for preprocessor
