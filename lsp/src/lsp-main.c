@@ -632,8 +632,8 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	if (nt->nmhdr.code == SCN_PAINTED)  // e.g. caret blinking
 		return FALSE;
 
-	if (/*plugin_extension_autocomplete_provided(doc, &extension) &&*/
-		nt->nmhdr.code == SCN_AUTOCSELECTION)
+	if (nt->nmhdr.code == SCN_AUTOCSELECTION &&
+		plugin_extension_autocomplete_provided(doc, &extension))
 	{
 		LspServer *srv = lsp_server_get_if_running(doc);
 
@@ -658,8 +658,8 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		lsp_autocomplete_discard_pending_requests();
 		return FALSE;
 	}
-	else if (/*plugin_extension_calltips_provided(doc, &extension) &&*/
-		nt->nmhdr.code == SCN_CALLTIPCLICK)
+	else if (nt->nmhdr.code == SCN_CALLTIPCLICK &&
+		plugin_extension_calltips_provided(doc, &extension))
 	{
 		LspServer *srv = lsp_server_get_if_running(doc);
 
