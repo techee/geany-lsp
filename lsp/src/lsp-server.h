@@ -40,6 +40,7 @@ typedef struct LspServerConfig
 	gchar *rpc_log;
 	gboolean rpc_log_full;
 	gchar *initialization_options_file;
+	gchar *word_chars;
 	gchar *initialization_options;
 	gchar **project_root_marker_patterns;
 	gboolean enable_by_default;

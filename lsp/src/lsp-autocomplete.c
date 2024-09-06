@@ -110,18 +110,10 @@ static const gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *s
 }
 
 
-static guint get_ident_prefixlen(GeanyDocument *doc, gint pos)
+static guint get_ident_prefixlen(LspServer *server, GeanyDocument *doc, gint pos)
 {
-	//TODO: use configured wordchars (also change in Geany)
-	const gchar *wordchars = GEANY_WORDCHARS;
-	GeanyFiletypeID ft = doc->file_type->id;
 	ScintillaObject *sci = doc->editor->sci;
 	gint num = 0;
-
-	if (ft == GEANY_FILETYPES_LATEX)
-		wordchars = GEANY_WORDCHARS"\\"; /* add \ to word chars if we are in a LaTeX file */
-	else if (ft == GEANY_FILETYPES_CSS)
-		wordchars = GEANY_WORDCHARS"-"; /* add - because they are part of property names */
 
 	while (pos > 0)
 	{
@@ -129,7 +121,7 @@ static guint get_ident_prefixlen(GeanyDocument *doc, gint pos)
 		if (pos - new_pos == 1)
 		{
 			gchar c = sci_get_char_at(sci, new_pos);
-			if (!strchr(wordchars, c))
+			if (!strchr(server->config.word_chars, c))
 				break;
 		}
 		num++;
@@ -179,7 +171,7 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 	else
 	{
 		gint pos = sci_get_current_position(sci);
-		guint rootlen = get_ident_prefixlen(doc, pos);
+		guint rootlen = get_ident_prefixlen(server, doc, pos);
 		gchar *insert_text = sym->insert_text ? g_strdup(sym->insert_text) : g_strdup(sym->label);
 		gint pos_delta = insert_text ? strlen(insert_text) : 0;
 
@@ -250,7 +242,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
 	SSM(sci, SCI_AUTOCSETMAXHEIGHT, server->config.autocomplete_window_max_displayed, 0);
 	SSM(sci, SCI_AUTOCSETMAXWIDTH, server->config.autocomplete_window_max_width, 0);
-	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(doc, pos), (sptr_t) words->str);
+	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(server, doc, pos), (sptr_t) words->str);
 
 	//make sure Scintilla selects the first item - see https://sourceforge.net/p/scintilla/bugs/2403/
 	label = get_symbol_label(server, symbols->pdata[0]);
@@ -359,7 +351,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	GVariant *member = NULL;
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
-	gint prefixlen = get_ident_prefixlen(doc, pos);
+	gint prefixlen = get_ident_prefixlen(server, doc, pos);
 	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label, server->config.autocomplete_use_sort_text };
 	GPtrArray *symbols, *symbols_filtered;
 	GHashTable *entry_set;
@@ -530,7 +522,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
 	gchar c_str[2] = {c, '\0'};
 
-	if (get_ident_prefixlen(doc, pos) == 0)
+	if (get_ident_prefixlen(server, doc, pos) == 0)
 	{
 		if (server->config.autocomplete_trigger_sequences &&
 			!ends_with_sequence(sci, server->config.autocomplete_trigger_sequences))
@@ -551,7 +543,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 	{
 		gint next_pos = SSM(sci, SCI_POSITIONAFTER, pos, 0);
 		/* if we are inside an identifier also after the next char */
-		if (get_ident_prefixlen(doc, pos) + (next_pos - pos) == get_ident_prefixlen(doc, next_pos))
+		if (get_ident_prefixlen(server, doc, pos) + (next_pos - pos) == get_ident_prefixlen(server, doc, next_pos))
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 			return;  /* avoid autocompletion in the middle of a word */

@@ -115,7 +115,7 @@ GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 
 ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname);
 
-gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos);
+gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos, const gchar *wordchars);
 
 gint lsp_utils_set_indicator_style(ScintillaObject *sci, const gchar *style_str);
 

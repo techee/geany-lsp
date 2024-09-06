@@ -247,12 +247,13 @@ static void perform_lookup(const gchar *query)
 static void goto_panel_query(const gchar *query_type, gboolean prefill)
 {
 	GeanyDocument *doc = document_get_current();
+	LspServerConfig *cfg = lsp_server_get_config(doc);
 	gchar *query = NULL;
 
-	if (prefill && doc)
+	if (prefill && doc && cfg)
 	{
 		gint pos = sci_get_current_position(doc->editor->sci);
-		query = lsp_utils_get_current_iden(doc, pos);
+		query = lsp_utils_get_current_iden(doc, pos, cfg->word_chars);
 	}
 	if (!query)
 		query = g_strdup("");

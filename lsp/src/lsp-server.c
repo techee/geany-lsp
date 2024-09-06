@@ -70,6 +70,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->formatting_options);
 	g_free(cfg->initialization_options_file);
 	g_free(cfg->initialization_options);
+	g_free(cfg->word_chars);
 	g_free(cfg->document_symbols_tab_label);
 	g_free(cfg->rpc_log);
 	g_strfreev(cfg->lang_id_mappings);
@@ -422,7 +423,7 @@ static void update_config(GVariant *variant, gboolean *option, const gchar *key)
 	}
 	else  // dict (possibly just empty) which also indicates TRUE
 	{
-		GVariant *var;
+		GVariant *var = NULL;
 
 		JSONRPC_MESSAGE_PARSE(variant,
 			"capabilities", "{",
@@ -797,6 +798,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_bool(&s->config.use_outside_project_dir, kf, section, "use_outside_project_dir");
 	get_bool(&s->config.use_without_project, kf, section, "use_without_project");
 	get_bool(&s->config.rpc_log_full, kf, section, "rpc_log_full");
+	get_str(&s->config.word_chars, kf, section, "extra_identifier_characters");
 
 	get_bool(&s->config.autocomplete_enable, kf, section, "autocomplete_enable");
 
@@ -1186,6 +1188,8 @@ void lsp_server_stop_all(gboolean wait)
 static LspServer *lsp_server_new(GKeyFile *kf_global, GKeyFile *kf, GeanyFiletype *ft)
 {
 	LspServer *s = g_new0(LspServer, 1);
+	GString *wc = g_string_new(GEANY_WORDCHARS);
+	guint i, word_chars_len;
 
 	s->filetype = ft->id;
 
@@ -1200,6 +1204,16 @@ static LspServer *lsp_server_new(GKeyFile *kf_global, GKeyFile *kf, GeanyFiletyp
 
 	load_filetype_only_config(kf_global, ft->name, s);
 	load_filetype_only_config(kf, ft->name, s);
+
+	word_chars_len = s->config.word_chars ? strlen(s->config.word_chars) : 0;
+	for (i = 0; i < word_chars_len; i++)
+	{
+		gchar c = s->config.word_chars[i];
+		if (!strchr(wc->str, c))
+			g_string_append_c(wc, c);
+	}
+	g_free(s->config.word_chars);
+	s->config.word_chars = g_string_free(wc, FALSE);
 
 	return s;
 }

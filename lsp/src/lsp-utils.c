@@ -799,18 +799,10 @@ ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname)
 }
 
 
-gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos)
+gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos, const gchar *wordchars)
 {
-	//TODO: use configured wordchars (also change in Geany)
-	const gchar *wordchars = GEANY_WORDCHARS;
-	GeanyFiletypeID ft = doc->file_type->id;
 	ScintillaObject *sci = doc->editor->sci;
 	gint start_pos, end_pos, pos;
-
-	if (ft == GEANY_FILETYPES_LATEX)
-		wordchars = GEANY_WORDCHARS"\\"; /* add \ to word chars if we are in a LaTeX file */
-	else if (ft == GEANY_FILETYPES_CSS)
-		wordchars = GEANY_WORDCHARS"-"; /* add - because they are part of property names */
 
 	pos = current_pos;
 	while (TRUE)

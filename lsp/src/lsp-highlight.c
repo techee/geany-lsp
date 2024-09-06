@@ -160,7 +160,7 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 	ScintillaObject *sci = doc->editor->sci;
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
-	gchar *iden = lsp_utils_get_current_iden(doc, pos);
+	gchar *iden = lsp_utils_get_current_iden(doc, pos, server->config.word_chars);
 	gchar *selection = sci_get_selection_contents(sci);
 	gboolean valid_rename;
 

@@ -164,7 +164,7 @@ void lsp_rename_send_request(gint pos, GCallback on_rename_done)
 	sci = doc->editor->sci;
 	lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 
-	iden = lsp_utils_get_current_iden(doc, pos);
+	iden = lsp_utils_get_current_iden(doc, pos, srv->config.word_chars);
 	selection = sci_get_selection_contents(sci);
 	if ((!sci_has_selection(sci) && iden) || (sci_has_selection(sci) && g_strcmp0(iden, selection) == 0))
 	{
