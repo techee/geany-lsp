@@ -69,9 +69,10 @@ void lsp_format_perform(GeanyDocument *doc, gboolean force_whole_doc, LspCallbac
 	LspServer *srv = lsp_server_get(doc);
 	ScintillaObject *sci;
 	const gchar *method;
-	GVariant *node;
+	GVariant *node = NULL;
 	gchar *doc_uri;
 	FormatData *data;
+	GVariant *options;
 
 	if (!srv)
 		return;
@@ -79,13 +80,25 @@ void lsp_format_perform(GeanyDocument *doc, gboolean force_whole_doc, LspCallbac
 	sci = doc->editor->sci;
 	doc_uri = lsp_utils_get_doc_uri(doc);
 
-	GVariant *options = lsp_utils_parse_json_file(srv->config.formatting_options_file, srv->config.formatting_options);
+	options = lsp_utils_parse_json_file(srv->config.formatting_options_file, srv->config.formatting_options);
 
-	if (sci_has_selection(sci) && srv->config.range_formatting_enable && !force_whole_doc)
+	if ((sci_has_selection(sci) || !srv->config.document_formatting_enable) &&
+		srv->config.range_formatting_enable)
 	{
 		LspRange range;
-		gint sel_start = sci_get_selection_start(sci);
-		gint sel_end = sci_get_selection_start(sci);
+		gint sel_start;
+		gint sel_end;
+
+		if (!sci_has_selection(sci) || force_whole_doc)
+		{
+			sel_start = 0;
+			sel_end = sci_get_length(sci);
+		}
+		else
+		{
+			sel_start = sci_get_selection_start(sci);
+			sel_end = sci_get_selection_end(sci);
+		}
 
 		range.start = lsp_utils_scintilla_pos_to_lsp(sci, sel_start);
 		range.end = lsp_utils_scintilla_pos_to_lsp(sci, sel_end);
@@ -110,7 +123,7 @@ void lsp_format_perform(GeanyDocument *doc, gboolean force_whole_doc, LspCallbac
 		);
 		method = "textDocument/rangeFormatting";
 	}
-	else
+	else if (srv->config.document_formatting_enable)
 	{
 		node = JSONRPC_MESSAGE_NEW (
 			"textDocument", "{",
@@ -123,15 +136,19 @@ void lsp_format_perform(GeanyDocument *doc, gboolean force_whole_doc, LspCallbac
 		method = "textDocument/formatting";
 	}
 
-	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
+	if (node)
+	{
+		//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	data = g_new0(FormatData, 1);
-	data->doc = doc;
-	data->callback = callback;
-	data->user_data = user_data;
+		data = g_new0(FormatData, 1);
+		data->doc = doc;
+		data->callback = callback;
+		data->user_data = user_data;
 
-	lsp_rpc_call(srv, method, node, format_cb, data);
+		lsp_rpc_call(srv, method, node, format_cb, data);
+
+		g_variant_unref(node);
+	}
 
 	g_free(doc_uri);
-	g_variant_unref(node);
 }
