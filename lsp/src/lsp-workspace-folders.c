@@ -85,6 +85,7 @@ static void noitfy_root_change(LspServer *srv, const gchar *root, gboolean added
 	lsp_rpc_notify(srv, "workspace/didChangeWorkspaceFolders", node, NULL, NULL);
 
 	g_free(root_uri);
+	g_variant_unref(node);
 }
 
 

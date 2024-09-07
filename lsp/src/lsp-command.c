@@ -270,4 +270,5 @@ void lsp_command_send_code_action_request(GeanyDocument *doc, gint pos, CodeActi
 	g_variant_unref(node);
 	g_variant_unref(diags_dict);
 	g_free(doc_uri);
+	g_ptr_array_free(arr, TRUE);
 }
