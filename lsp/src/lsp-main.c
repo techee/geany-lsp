@@ -557,7 +557,7 @@ static void on_document_before_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *d
 	code_actions_performed = g_ptr_array_new_full(1, g_free);
 	plugin_set_document_data_full(geany_plugin, doc, CODE_ACTIONS_PERFORMED, code_actions_performed, free_ptrarray);
 
-	if (srv->config.code_action_enable && srv->config.command_on_save_regex)
+	if (srv->config.code_action_enable && !EMPTY(srv->config.command_on_save_regex))
 		lsp_command_send_code_action_request(doc, sci_get_current_position(doc->editor->sci),
 			on_code_actions_received, doc);
 	else if (srv->config.document_formatting_enable && srv->config.format_on_save)
