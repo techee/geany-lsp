@@ -342,6 +342,7 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_highlight_style_init(doc);
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
+	lsp_autocomplete_style_init(doc);
 
 	// just in case we didn't get some callback from the server
 	on_save_finish(doc);

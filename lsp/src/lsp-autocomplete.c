@@ -206,6 +206,26 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 }
 
 
+void lsp_autocomplete_style_init(GeanyDocument *doc)
+{
+	ScintillaObject *sci = doc->editor->sci;
+	LspServerConfig *cfg = lsp_server_get_config(doc);
+
+	if (!cfg)
+		return;
+
+	SSM(sci, SCI_AUTOCSETORDER, SC_ORDER_CUSTOM, 0);
+	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH, 0);
+	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
+	SSM(sci, SCI_AUTOCSETMAXHEIGHT, cfg->autocomplete_window_max_displayed, 0);
+	SSM(sci, SCI_AUTOCSETMAXWIDTH, cfg->autocomplete_window_max_width, 0);
+// TODO: remove eventually
+#ifdef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
+	SSM(sci, SCI_AUTOCSETOPTIONS, SC_AUTOCOMPLETE_SELECT_FIRST_ITEM, 0);
+#endif
+}
+
+
 static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *symbols)
 {
 	guint i;
@@ -234,19 +254,17 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	}
 
 	lsp_autocomplete_set_displayed_symbols(symbols);
-	SSM(sci, SCI_AUTOCSETORDER, SC_ORDER_CUSTOM, 0);
-#ifdef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
-	SSM(sci, SCI_AUTOCSETOPTIONS, SC_AUTOCOMPLETE_SELECT_FIRST_ITEM, 0);
-#endif
-	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH, 0);
-	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
-	SSM(sci, SCI_AUTOCSETMAXHEIGHT, server->config.autocomplete_window_max_displayed, 0);
-	SSM(sci, SCI_AUTOCSETMAXWIDTH, server->config.autocomplete_window_max_width, 0);
 	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(server, doc, pos), (sptr_t) words->str);
 
-	//make sure Scintilla selects the first item - see https://sourceforge.net/p/scintilla/bugs/2403/
-	label = get_symbol_label(server, symbols->pdata[0]);
-	SSM(sci, SCI_AUTOCSELECT, 0, (sptr_t)label);
+// TODO: remove eventually
+#ifndef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
+	if (SSM(sci, SCI_AUTOCGETCURRENT, 0, 0) != 0)
+	{
+		//make sure Scintilla selects the first item - see https://sourceforge.net/p/scintilla/bugs/2403/
+		label = get_symbol_label(server, symbols->pdata[0]);
+		SSM(sci, SCI_AUTOCSELECT, 0, (sptr_t)label);
+	}
+#endif
 
 	g_string_free(words, TRUE);
 }
