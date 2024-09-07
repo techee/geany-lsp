@@ -159,7 +159,7 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 	gint style = sci_get_style_at(sci, pos);
 	const gchar *trigger_chars = server->signature_trigger_chars;
 
-	if (!trigger_chars)
+	if (EMPTY(trigger_chars))
 		return;
 
 	if ((c == ')' && strchr(trigger_chars, '(') && !strchr(trigger_chars, ')')) ||

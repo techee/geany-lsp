@@ -549,7 +549,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 			return;
 		}
 
-		if (!server->autocomplete_trigger_chars || !strchr(server->autocomplete_trigger_chars, c))
+		if (EMPTY(server->autocomplete_trigger_chars) || !strchr(server->autocomplete_trigger_chars, c))
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 			return;
