@@ -446,12 +446,10 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 	{
 		g_free(s->autocomplete_trigger_chars);
 		s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
-		if (!*s->autocomplete_trigger_chars)
-			s->config.autocomplete_enable = FALSE;
 
 		g_free(s->signature_trigger_chars);
 		s->signature_trigger_chars = get_signature_trigger_chars(return_value);
-		if (!*s->signature_trigger_chars)
+		if (EMPTY(s->signature_trigger_chars))
 			s->config.signature_enable = FALSE;
 
 		update_config(return_value, &s->config.hover_enable, "hoverProvider");
