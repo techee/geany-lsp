@@ -561,7 +561,8 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 	{
 		gint next_pos = SSM(sci, SCI_POSITIONAFTER, pos, 0);
 		/* if we are inside an identifier also after the next char */
-		if (get_ident_prefixlen(server, doc, pos) + (next_pos - pos) == get_ident_prefixlen(server, doc, next_pos))
+		if (pos != next_pos &&  // not at EOF
+			(get_ident_prefixlen(server, doc, pos) + (next_pos - pos) == get_ident_prefixlen(server, doc, next_pos)))
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 			return;  /* avoid autocompletion in the middle of a word */
