@@ -542,7 +542,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 
 	if (get_ident_prefixlen(server, doc, pos) == 0)
 	{
-		if (server->config.autocomplete_trigger_sequences &&
+		if (!EMPTY(server->config.autocomplete_trigger_sequences) &&
 			!ends_with_sequence(sci, server->config.autocomplete_trigger_sequences))
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);

@@ -203,7 +203,7 @@ static gboolean is_diagnostics_disabled_for(GeanyDocument *doc, LspServerConfig 
 	if (!cfg || !cfg->diagnostics_enable)
 		return TRUE;
 
-	if (!cfg->diagnostics_disable_for)
+	if (EMPTY(cfg->diagnostics_disable_for))
 		return FALSE;
 
 	comps = g_strsplit(cfg->diagnostics_disable_for, ";", -1);
