@@ -80,7 +80,7 @@ void lsp_format_perform(GeanyDocument *doc, gboolean force_whole_doc, LspCallbac
 	sci = doc->editor->sci;
 	doc_uri = lsp_utils_get_doc_uri(doc);
 
-	options = lsp_utils_parse_json_file(srv->config.formatting_options_file, srv->config.formatting_options);
+	options = lsp_utils_parse_json_file_as_variant(srv->config.formatting_options_file, srv->config.formatting_options);
 
 	if ((sci_has_selection(sci) || !srv->config.document_formatting_enable) &&
 		srv->config.range_formatting_enable)

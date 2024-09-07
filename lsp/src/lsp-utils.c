@@ -720,10 +720,9 @@ gint lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2
 }
 
 
-GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json)
+JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json)
 {
 	JsonNode *json_node = NULL;
-	GVariant *variant;
 	gchar *file_contents;
 	gchar *fname;
 	gboolean success;
@@ -734,33 +733,34 @@ GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 	if (!json_node)
 		json_node = json_from_string("{}", NULL);
 
-	variant = json_gvariant_deserialize(json_node, NULL, NULL);
-
-	json_node_free(json_node);
-
 	if (!utf8_fname)
-		return variant;
+		return json_node;
 
 	fname = utils_get_locale_from_utf8(utf8_fname);
 	if (!fname)
-		return variant;
+		return json_node;
 
 	success = g_file_get_contents(fname, &file_contents, NULL, NULL);
 	g_free(fname);
 
 	if (!success)
-		return variant;
+		return json_node;
+
+	json_node_free(json_node);
 
 	json_node = json_from_string(file_contents, NULL);
 
-	if (json_node)
-	{
-		g_variant_unref(variant);
-		variant = json_gvariant_deserialize(json_node, NULL, NULL);
-	}
-
 	g_free(file_contents);
+	return json_node;
+}
 
+
+GVariant *lsp_utils_parse_json_file_as_variant(const gchar *utf8_fname, const gchar *fallback_json)
+{
+	JsonNode *json_node = lsp_utils_parse_json_file(utf8_fname, fallback_json);
+	GVariant *variant = json_gvariant_deserialize(json_node, NULL, NULL);
+
+	json_node_free(json_node);
 	return variant;
 }
 

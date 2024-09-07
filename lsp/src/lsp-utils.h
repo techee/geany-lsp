@@ -20,6 +20,7 @@
 #define LSP_UTILS_H 1
 
 #include <geanyplugin.h>
+#include <jsonrpc-glib.h>
 
 #define SSM(s, m, w, l) scintilla_send_message(s, m, w, l)
 
@@ -111,7 +112,8 @@ gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart);
 
 gint lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2);
 
-GVariant *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json);
+GVariant *lsp_utils_parse_json_file_as_variant(const gchar *utf8_fname, const gchar *fallback_json);
+JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json);
 
 ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname);
 

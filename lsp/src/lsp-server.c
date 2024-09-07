@@ -644,7 +644,7 @@ static void perform_initialize(LspServer *server)
 	if (workspace_folders)
 		g_variant_dict_insert_value(&dct, "workspaceFolders", workspace_folders);
 	g_variant_dict_insert_value(&dct, "initializationOptions",
-		lsp_utils_parse_json_file(server->config.initialization_options_file, server->config.initialization_options));
+		lsp_utils_parse_json_file_as_variant(server->config.initialization_options_file, server->config.initialization_options));
 	g_variant_dict_insert_value(&dct, "capabilities", capabilities);
 
 	node = g_variant_take_ref(g_variant_dict_end(&dct));
