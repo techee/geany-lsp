@@ -192,6 +192,74 @@ static gboolean handle_call(JsonrpcClient *client, gchar* method, GVariant *id, 
 			g_variant_unref(edit);
 		return TRUE;
 	}
+	// we officially don't support this (not advertised in initialize's
+	// workspace/configuration) but some servers ask for it anyway so do our
+	// best in this case
+	else if (g_strcmp0(method, "workspace/configuration") == 0)
+	{
+		GVariantIter *iter = NULL;
+		GVariant *res = NULL;
+
+		JSONRPC_MESSAGE_PARSE(params,
+			"items", JSONRPC_MESSAGE_GET_ITER(&iter)
+		);
+
+		if (iter)
+		{
+			JsonNode *settings = lsp_utils_parse_json_file(srv->config.initialization_options_file,
+				srv->config.initialization_options);
+			JsonNode *empty_elem = json_from_string("{}", NULL);
+			JsonBuilder *builder = json_builder_new();
+			GVariant *member = NULL;
+			JsonNode *res_json = NULL;
+
+			json_builder_begin_array(builder);
+
+			while (g_variant_iter_loop(iter, "v", &member))
+			{
+				const gchar *section = NULL;
+				gboolean added = FALSE;
+
+				if (JSONRPC_MESSAGE_PARSE(member, "section", JSONRPC_MESSAGE_GET_STRING(&section)))
+				{
+					gchar *path = g_strconcat("$.", section, NULL);
+					JsonNode *matched = json_path_query(path, settings, NULL);
+
+					if (matched)
+					{
+						JsonArray *arr = json_node_get_array(matched);
+						if (arr && json_array_get_length(arr) > 0)
+						{
+							json_builder_add_value(builder, json_array_dup_element(arr, 0));
+							added = TRUE;
+						}
+						json_node_unref(matched);
+					}
+
+					g_free(path);
+				}
+
+				if (!added)
+					json_builder_add_value(builder, json_node_ref(empty_elem));
+			}
+
+			json_builder_end_array(builder);
+			res_json = json_builder_get_root(builder);
+			res = g_variant_take_ref(json_gvariant_deserialize(res_json, NULL, NULL));
+
+			g_variant_iter_free(iter);
+			json_node_free(settings);
+			json_node_free(res_json);
+			g_object_unref(builder);
+			json_node_unref(empty_elem);
+		}
+
+		reply_async(srv, method, client, id, res);
+
+		if (res)
+			g_variant_unref(res);
+		return TRUE;
+	}
 	else if (g_strcmp0(method, "workspace/workspaceFolders") == 0)
 	{
 		GPtrArray *folders = lsp_workspace_folders_get();
