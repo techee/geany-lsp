@@ -524,6 +524,7 @@ static void perform_initialize(LspServer *server)
 	capabilities = JSONRPC_MESSAGE_NEW(
 		"window", "{",
 			"workDoneProgress", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+			"showDocument", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 		"}",
 		"textDocument", "{",
 			"synchronization", "{",

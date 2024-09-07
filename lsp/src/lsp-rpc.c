@@ -260,6 +260,46 @@ static gboolean handle_call(JsonrpcClient *client, gchar* method, GVariant *id, 
 			g_variant_unref(res);
 		return TRUE;
 	}
+	else if (g_strcmp0(method, "window/showDocument") == 0)
+	{
+		const gchar *uri = NULL;
+		gboolean external = FALSE;
+		gboolean success = FALSE;
+		GVariant *msg;
+
+		JSONRPC_MESSAGE_PARSE(params,
+			"uri", JSONRPC_MESSAGE_GET_STRING(&uri)
+		);
+
+		JSONRPC_MESSAGE_PARSE(params,
+			"external", JSONRPC_MESSAGE_GET_BOOLEAN(&external)
+		);
+
+		if (uri)
+		{
+			if (external || !g_str_has_prefix(uri, "file://"))
+			{
+				utils_open_browser(uri);
+				success = TRUE;
+			}
+			else if (g_str_has_prefix(uri, "file://"))
+			{
+				gchar *fname = lsp_utils_get_real_path_from_uri_locale(uri);
+				document_open_file(fname, FALSE, NULL, NULL);
+				g_free(fname);
+				success = TRUE;
+			}
+		}
+
+		msg = JSONRPC_MESSAGE_NEW(
+			"success", JSONRPC_MESSAGE_PUT_BOOLEAN(success)
+		);
+
+		reply_async(srv, method, client, id, msg);
+
+		g_variant_unref(msg);
+		return TRUE;
+	}
 	else if (g_strcmp0(method, "workspace/workspaceFolders") == 0)
 	{
 		GPtrArray *folders = lsp_workspace_folders_get();
