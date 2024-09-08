@@ -132,25 +132,10 @@ static guint get_ident_prefixlen(LspServer *server, GeanyDocument *doc, gint pos
 }
 
 
-#if 0
-static gboolean add_newline_idle(gpointer user_data)
-{
-	GeanyDocument *doc = user_data;
-
-	if (doc != document_get_current())
-		return FALSE;
-
-	SSM(doc->editor->sci, SCI_NEWLINE, 0, 0);
-	return FALSE;
-}
-#endif
-
-
 void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint index)
 {
 	ScintillaObject *sci = doc->editor->sci;
 	LspAutocompleteSymbol *sym;
-	//gint full_len = sci_get_length(sci);
 
 	if (!displayed_autocomplete_symbols || index >= displayed_autocomplete_symbols->len)
 		return;
@@ -192,17 +177,6 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 
 		g_free(insert_text);
 	}
-
-#if 0
-	if (full_len == sci_get_length(sci))
-	{
-		// autocompletion didn't change length of the document, possibly the whole
-		// word was already typed - insert newline but do this on idle otherwise
-		// this causes some infinite recursion in Scintilla because this is invoked
-		// from its event notification function
-		g_idle_add(add_newline_idle, doc);
-	}
-#endif
 }
 
 
@@ -404,13 +378,21 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		if (kind == LspCompletionKindSnippet && !server->config.autocomplete_use_snippets)
 			continue;
 
-		JSONRPC_MESSAGE_PARSE(member, "label", JSONRPC_MESSAGE_GET_STRING(&label));
 		JSONRPC_MESSAGE_PARSE(member, "insertText", JSONRPC_MESSAGE_GET_STRING(&insert_text));
+		JSONRPC_MESSAGE_PARSE(member, "insertTextFormat", JSONRPC_MESSAGE_GET_INT64(&format));
+
+		if (!server->config.autocomplete_use_snippets && format == 2 &&
+			// Lua server flags as snippet without actually being a snippet
+			insert_text && strchr(insert_text, '$'))
+		{
+			continue;
+		}
+
+		JSONRPC_MESSAGE_PARSE(member, "label", JSONRPC_MESSAGE_GET_STRING(&label));
 		JSONRPC_MESSAGE_PARSE(member, "sortText", JSONRPC_MESSAGE_GET_STRING(&sort_text));
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 		JSONRPC_MESSAGE_PARSE(member, "textEdit", JSONRPC_MESSAGE_GET_VARIANT(&text_edit));
 		JSONRPC_MESSAGE_PARSE(member, "additionalTextEdits", JSONRPC_MESSAGE_GET_ITER(&additional_edits));
-		JSONRPC_MESSAGE_PARSE(member, "insertTextFormat", JSONRPC_MESSAGE_GET_INT64(&format));
 
 		sym = g_new0(LspAutocompleteSymbol, 1);
 		sym->label = g_strdup(label);
@@ -529,7 +511,6 @@ static gboolean ends_with_sequence(ScintillaObject *sci, gchar** seqs)
 
 void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean force)
 {
-	//gboolean static first_time = TRUE;
 	GVariant *node;
 	gchar *doc_uri;
 	LspAutocompleteAsyncData *data;
@@ -539,8 +520,9 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 	gboolean is_trigger_char = FALSE;
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
 	gchar c_str[2] = {c, '\0'};
+	gint prefixlen = get_ident_prefixlen(server, doc, pos);
 
-	if (get_ident_prefixlen(server, doc, pos) == 0)
+	if (prefixlen == 0)
 	{
 		if (!EMPTY(server->config.autocomplete_trigger_sequences) &&
 			!ends_with_sequence(sci, server->config.autocomplete_trigger_sequences))
@@ -549,7 +531,9 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 			return;
 		}
 
-		if (EMPTY(server->autocomplete_trigger_chars) || !strchr(server->autocomplete_trigger_chars, c))
+		if (EMPTY(server->autocomplete_trigger_chars) ||
+			!strchr(server->autocomplete_trigger_chars, c) ||
+			c == ' ')  // Lua LSP has the stupid idea of putting ' ' into trigger chars
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 			return;
@@ -562,10 +546,35 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 		gint next_pos = SSM(sci, SCI_POSITIONAFTER, pos, 0);
 		/* if we are inside an identifier also after the next char */
 		if (pos != next_pos &&  // not at EOF
-			(get_ident_prefixlen(server, doc, pos) + (next_pos - pos) == get_ident_prefixlen(server, doc, next_pos)))
+			(prefixlen + (next_pos - pos) == get_ident_prefixlen(server, doc, next_pos)))
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 			return;  /* avoid autocompletion in the middle of a word */
+		}
+
+		if (!EMPTY(server->config.autocomplete_hide_after_words))
+		{
+			gchar **comps = g_strsplit(server->config.autocomplete_hide_after_words, ";", -1);
+			gchar *prefix = sci_get_contents_range(sci, pos - prefixlen, pos);
+			gboolean found = FALSE;
+			gchar **comp;
+
+			foreach_strv(comp, comps)
+			{
+				if (utils_str_casecmp(*comp, prefix) == 0)
+				{
+					found = TRUE;
+					break;
+				}
+			}
+			g_free(prefix);
+			g_strfreev(comps);
+
+			if (found)
+			{
+				SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
+				return;
+			}
 		}
 	}
 

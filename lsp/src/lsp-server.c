@@ -59,6 +59,7 @@ static void free_config(LspServerConfig *cfg)
 	g_strfreev(cfg->semantic_tokens_types);
 	g_free(cfg->command_on_save_regex);
 	g_free(cfg->semantic_tokens_type_style);
+	g_free(cfg->autocomplete_hide_after_words);
 	g_free(cfg->diagnostics_disable_for);
 	g_free(cfg->diagnostics_error_style);
 	g_free(cfg->diagnostics_warning_style);
@@ -835,6 +836,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_int(&s->config.autocomplete_window_max_entries, kf, section, "autocomplete_window_max_entries");
 	get_int(&s->config.autocomplete_window_max_displayed, kf, section, "autocomplete_window_max_displayed");
 	get_int(&s->config.autocomplete_window_max_width, kf, section, "autocomplete_window_max_width");
+	get_str(&s->config.autocomplete_hide_after_words, kf, section, "autocomplete_hide_after_words");
 
 	get_bool(&s->config.autocomplete_use_label, kf, section, "autocomplete_use_label");
 	get_bool(&s->config.autocomplete_apply_additional_edits, kf, section, "autocomplete_apply_additional_edits");
