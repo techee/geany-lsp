@@ -639,6 +639,8 @@ static void perform_initialize(LspServer *server)
 				"}",
 			"}",
 			"workspaceFolders", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+			// possibly enable in the future - we have support for this
+			//"configuration", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 		"}"
 	);
 
