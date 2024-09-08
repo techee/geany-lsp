@@ -726,9 +726,18 @@ JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 	gchar *file_contents;
 	gchar *fname;
 	gboolean success;
+	GError *error = NULL;
 
 	if (fallback_json)
-		json_node = json_from_string(fallback_json, NULL);
+	{
+		json_node = json_from_string(fallback_json, &error);
+		if (error)
+		{
+			msgwin_status_add(_("JSON parsing error: initialization_options: %s"), error->message);
+			g_error_free(error);
+			error = NULL;
+		}
+	}
 
 	if (!json_node)
 		json_node = json_from_string("{}", NULL);
@@ -748,7 +757,12 @@ JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 
 	json_node_free(json_node);
 
-	json_node = json_from_string(file_contents, NULL);
+	json_node = json_from_string(file_contents, &error);
+	if (error)
+	{
+		msgwin_status_add(_("JSON parsing error: initialization_options_file: %s"), error->message);
+		g_error_free(error);
+	}
 
 	g_free(file_contents);
 	return json_node;
