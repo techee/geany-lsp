@@ -154,10 +154,10 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
-	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
+	gchar c = (pos > 0 && !force) ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
 	const gchar *trigger_chars = server->signature_trigger_chars;
 
-	if (EMPTY(trigger_chars))
+	if (!force && EMPTY(trigger_chars))
 		return;
 
 	if ((c == ')' && strchr(trigger_chars, '(') && !strchr(trigger_chars, ')')) ||
@@ -169,7 +169,7 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 		return;
 	}
 
-	if (!strchr(trigger_chars, c) && !force)
+	if (!force && !strchr(trigger_chars, c))
 		return;
 
 	doc_uri = lsp_utils_get_doc_uri(doc);
