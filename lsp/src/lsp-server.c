@@ -438,6 +438,23 @@ static void update_config(GVariant *variant, gboolean *option, const gchar *key)
 }
 
 
+static void send_did_change_configuration(LspServer *srv)
+{
+	JsonNode *settings = lsp_utils_parse_json_file(srv->config.initialization_options_file,
+		srv->config.initialization_options);
+	GVariant *res = g_variant_take_ref(json_gvariant_deserialize(settings, NULL, NULL));
+	GVariant *msg = JSONRPC_MESSAGE_NEW( "settings", "{",
+		JSONRPC_MESSAGE_PUT_VARIANT(res),
+	"}");
+
+	lsp_rpc_notify(srv, "workspace/didChangeConfiguration", msg, NULL, NULL);
+
+	json_node_free(settings);
+	g_variant_unref(res);
+	g_variant_unref(msg);
+}
+
+
 static void initialize_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
 	LspServer *s = user_data;
@@ -492,8 +509,14 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 
 		// Duplicate request to add project root to workspace folders - this
 		// was already done in the initialize request but the pyright server
-		// requires adding them dynamically
+		// requires adding them dynamically - hopefully alright for other servers
+		// too
 		lsp_workspace_folders_add_project_root(s);
+
+		// e.g. vscode-json-languageserver requires this instead of static
+		// configuration during initialize
+		if (s->config.send_did_change_configuration)
+			send_did_change_configuration(s);
 
 		if (lsp_server_initialized_cb)
 			lsp_server_initialized_cb(s);
@@ -800,6 +823,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_bool(&s->config.use_without_project, kf, section, "use_without_project");
 	get_bool(&s->config.rpc_log_full, kf, section, "rpc_log_full");
 	get_str(&s->config.word_chars, kf, section, "extra_identifier_characters");
+	get_bool(&s->config.send_did_change_configuration, kf, section, "send_did_change_configuration");
 
 	get_bool(&s->config.autocomplete_enable, kf, section, "autocomplete_enable");
 

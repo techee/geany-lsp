@@ -39,6 +39,7 @@ typedef struct LspServerConfig
 	gboolean show_server_stderr;
 	gchar *rpc_log;
 	gboolean rpc_log_full;
+	gboolean send_did_change_configuration;
 	gchar *initialization_options_file;
 	gchar *word_chars;
 	gchar *initialization_options;
