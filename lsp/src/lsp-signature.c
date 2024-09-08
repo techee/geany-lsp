@@ -155,8 +155,6 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 	gint pos = sci_get_current_position(sci);
 	LspPosition lsp_pos = lsp_utils_scintilla_pos_to_lsp(sci, pos);
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
-	gint lexer = sci_get_lexer(sci);
-	gint style = sci_get_style_at(sci, pos);
 	const gchar *trigger_chars = server->signature_trigger_chars;
 
 	if (EMPTY(trigger_chars))
@@ -173,14 +171,6 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 
 	if (!strchr(trigger_chars, c) && !force)
 		return;
-
-	// highlighting_is_code_style(lexer, style) also checks for preprocessor
-	// style which we might not want here as LSP servers might support it
-	if (highlighting_is_comment_style(lexer, style) ||
-		highlighting_is_string_style(lexer, style))
-	{
-		return;
-	}
 
 	doc_uri = lsp_utils_get_doc_uri(doc);
 
