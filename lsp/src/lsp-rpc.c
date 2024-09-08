@@ -284,15 +284,10 @@ static GVariant *show_document(LspServer *srv, GVariant *params)
 
 static GVariant *workspace_folders(LspServer *srv, GVariant *params)
 {
+	GtkNotebook *notebook = GTK_NOTEBOOK(geany_data->main_widgets->sidebar_notebook);
+	gint num = gtk_notebook_get_n_pages(notebook);
 	GPtrArray *folders = lsp_workspace_folders_get();
 	GVariant *msg = NULL;
-	guint num = 0;
-
-	foreach_document(num)
-	{
-		if (num > 1)
-			break;
-	}
 
 	if (num > 1)  // non-single-open document variant
 	{
