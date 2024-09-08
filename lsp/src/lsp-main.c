@@ -1160,10 +1160,18 @@ static void show_hover_popup(void)
 
 static void on_rename_done(void)
 {
-	// TODO: workaround strange behavior of clangd: it doesn't seem to reflect changes
-	// in non-open files unless all files are saved and the server is restarted
-	lsp_utils_save_all_docs();
-	restart_all_servers();
+	GeanyDocument *doc = document_get_current();
+
+	if (!doc)
+		return;
+
+	if (doc->file_type->id == GEANY_FILETYPES_C || doc->file_type->id == GEANY_FILETYPES_CPP)
+	{
+		// workaround strange behavior of clangd: it doesn't seem to reflect changes
+		// in non-open files unless all files are saved and the server is restarted
+		lsp_utils_save_all_docs();
+		restart_all_servers();
+	}
 }
 
 
