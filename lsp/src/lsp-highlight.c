@@ -91,6 +91,9 @@ static void highlight_cb(GVariant *return_value, GError *error, gpointer user_da
 	{
 		GeanyDocument *doc = document_get_current();
 
+		if (doc == data->doc)
+			lsp_highlight_clear(doc);
+
 		if (doc == data->doc && g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
 		{
 			GVariant *member = NULL;
@@ -100,8 +103,6 @@ static void highlight_cb(GVariant *return_value, GError *error, gpointer user_da
 			gboolean first_sel = TRUE;
 
 			//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
-
-			lsp_highlight_clear(doc);
 
 			g_variant_iter_init(&iter, return_value);
 
