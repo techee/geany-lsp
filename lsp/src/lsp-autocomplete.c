@@ -56,6 +56,7 @@ typedef struct
 	gint pass;
 	gchar *prefix;
 	gboolean use_label;
+	const gchar *word_chars;
 } SortData;
 
 
@@ -252,6 +253,19 @@ static gint strstr_delta(const gchar *s1, const gchar *s2)
 }
 
 
+static gboolean has_identifier_chars(const gchar *s, const gchar *word_chars)
+{
+	gint i;
+
+	for (i = 0; s[i]; i++)
+	{
+		if (!strchr(word_chars, s[i]))
+			return FALSE;
+	}
+	return TRUE;
+}
+
+
 static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer user_data)
 {
 	LspAutocompleteSymbol *sym1 = *((LspAutocompleteSymbol **)a);
@@ -280,6 +294,9 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 
 	if (sort_data->pass == 2 && label1 && label2 && sort_data->prefix)
 	{
+		const gchar *wc = sort_data->word_chars;
+		gint diff1, diff2;
+
 		if (g_strcmp0(label1, sort_data->prefix) == 0 && g_strcmp0(label2, sort_data->prefix) != 0)
 			return -1;
 		if (g_strcmp0(label1, sort_data->prefix) != 0 && g_strcmp0(label2, sort_data->prefix) == 0)
@@ -304,9 +321,9 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 			return 1;
 
 		// anywhere within string, any case, earlier occurrence wins
-		gint diff1 = GPOINTER_TO_INT(lsp_utils_lowercase_cmp(
+		diff1 = GPOINTER_TO_INT(lsp_utils_lowercase_cmp(
 			(LspUtilsCmpFn)strstr_delta, label1, sort_data->prefix));
-		gint diff2 = GPOINTER_TO_INT(lsp_utils_lowercase_cmp(
+		diff2 = GPOINTER_TO_INT(lsp_utils_lowercase_cmp(
 			(LspUtilsCmpFn)strstr_delta, label2, sort_data->prefix));
 		if (diff1 != -1 && diff2 == -1)
 			return -1;
@@ -314,6 +331,11 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 			return 1;
 		if (diff1 != -1 && diff2 != -1 && diff1 != diff2)
 			return diff1 - diff2;
+
+		if (has_identifier_chars(label1, wc) && !has_identifier_chars(label2, wc))
+			return -1;
+		if (!has_identifier_chars(label1, wc) && has_identifier_chars(label2, wc))
+			return 1;
 	}
 
 	if (sym1->sort_text && sym2->sort_text)
@@ -334,7 +356,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	gint prefixlen = get_ident_prefixlen(server, doc, pos);
-	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label };
+	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label, server->config.word_chars };
 	GPtrArray *symbols, *symbols_filtered;
 	GHashTable *entry_set;
 	gint i;
