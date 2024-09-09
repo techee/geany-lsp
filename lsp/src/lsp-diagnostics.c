@@ -345,11 +345,21 @@ void lsp_diagnostics_redraw(GeanyDocument *doc)
 		LspDiag *diag = diags->pdata[i];
 		gint start_pos = lsp_utils_lsp_pos_to_scintilla(sci, diag->range.start);
 		gint end_pos = lsp_utils_lsp_pos_to_scintilla(sci, diag->range.end);
+		gint next_pos = SSM(sci, SCI_POSITIONAFTER, start_pos, 0);
 
 		if (start_pos == end_pos)
 		{
 			start_pos = SSM(sci, SCI_POSITIONBEFORE, start_pos, 0);
 			end_pos = SSM(sci, SCI_POSITIONAFTER, end_pos, 0);
+		}
+
+		// if the error range spans from the last character on line to the
+		// first character on the next line (e.g. missing ':' in Python after else),
+		// it won't get drawn by Scintilla
+		if (end_pos == next_pos &&
+			sci_get_line_from_position(sci, start_pos) + 1 == sci_get_line_from_position(sci, end_pos))
+		{
+			start_pos = SSM(sci, SCI_POSITIONBEFORE, start_pos, 0);
 		}
 
 		if (start_pos != last_start_pos || end_pos != last_end_pos)
