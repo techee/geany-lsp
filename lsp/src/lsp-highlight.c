@@ -45,7 +45,8 @@ void lsp_highlight_clear(GeanyDocument *doc)
 	{
 		ScintillaObject *sci = doc->editor->sci;
 
-		sci_indicator_set(sci, indicator);
+		if (indicator > 0)
+			sci_indicator_set(sci, indicator);
 		sci_indicator_clear(sci, 0, sci_get_length(sci));
 		dirty = FALSE;
 	}
@@ -68,7 +69,8 @@ void lsp_highlight_style_init(GeanyDocument *doc)
 		lsp_highlight_clear(doc);
 	}
 	indicator = lsp_utils_set_indicator_style(sci, cfg->highlighting_style);
-	SSM(sci, SCI_INDICSETUNDER, indicator, TRUE);
+	if (indicator > 0)
+		SSM(sci, SCI_INDICSETUNDER, indicator, TRUE);
 }
 
 
@@ -78,7 +80,8 @@ static void highlight_range(GeanyDocument *doc, LspRange range)
 	gint start_pos = lsp_utils_lsp_pos_to_scintilla(sci, range.start);
 	gint end_pos = lsp_utils_lsp_pos_to_scintilla(sci, range.end);
 
-	editor_indicator_set_on_range(doc->editor, indicator, start_pos, end_pos);
+	if (indicator > 0)
+		editor_indicator_set_on_range(doc->editor, indicator, start_pos, end_pos);
 	dirty = TRUE;
 }
 

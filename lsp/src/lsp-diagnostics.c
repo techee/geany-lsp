@@ -118,6 +118,10 @@ static LspDiag *get_diag(gint pos, gint where)
 		LspDiag *diag = diags->pdata[i];
 		gint start_pos = lsp_utils_lsp_pos_to_scintilla(sci, diag->range.start);
 		gint end_pos = lsp_utils_lsp_pos_to_scintilla(sci, diag->range.end);
+		gint index = style_indices[diag->severity];
+
+		if (index == 0)
+			continue;
 
 		if (start_pos == end_pos)
 		{
@@ -272,7 +276,9 @@ static void clear_indicators(ScintillaObject *sci)
 
 	for (severity = LSP_DIAG_SEVERITY_MIN; severity < LSP_DIAG_SEVERITY_MAX; severity++)
 	{
-		sci_indicator_set(sci, style_indices[severity]);
+		gint index = style_indices[severity];
+		if (index > 0)
+			sci_indicator_set(sci, index);
 		sci_indicator_clear(sci, 0, sci_get_length(sci));
 	}
 }
@@ -364,8 +370,9 @@ void lsp_diagnostics_redraw(GeanyDocument *doc)
 
 		if (start_pos != last_start_pos || end_pos != last_end_pos)
 		{
-			editor_indicator_set_on_range(doc->editor, style_indices[diag->severity],
-				start_pos, end_pos);
+			gint index = style_indices[diag->severity];
+			if (index > 0)
+				editor_indicator_set_on_range(doc->editor, index, start_pos, end_pos);
 			last_start_pos = start_pos;
 			last_end_pos = end_pos;
 		}
