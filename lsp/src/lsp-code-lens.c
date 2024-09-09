@@ -112,7 +112,7 @@ void lsp_code_lens_style_init(GeanyDocument *doc)
 static void add_annotation(ScintillaObject *sci, gint line, const gchar *text)
 {
 	SSM(sci, SCI_EOLANNOTATIONSETSTYLE, line, 0);
-	SSM(sci, SCI_EOLANNOTATIONSETVISIBLE, EOLANNOTATION_ANGLE_FLAT, 0);
+	SSM(sci, SCI_EOLANNOTATIONSETVISIBLE, EOLANNOTATION_ANGLE_CIRCLE, 0);
 	SSM(sci, SCI_EOLANNOTATIONSETTEXT, line, (sptr_t)text);
 }
 
