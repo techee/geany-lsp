@@ -688,7 +688,8 @@ static void perform_initialize(LspServer *server)
 	g_variant_unref(node);
 	g_variant_unref(info);
 	g_variant_unref(capabilities);
-	g_variant_unref(workspace_folders);
+	if (workspace_folders)
+		g_variant_unref(workspace_folders);
 }
 
 

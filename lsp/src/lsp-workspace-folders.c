@@ -113,13 +113,16 @@ void lsp_workspace_folders_doc_open(GeanyDocument *doc)
 		return;
 
 	project_base = lsp_utils_get_project_base_path();
-	SETPTR(project_base, g_strconcat(project_base, G_DIR_SEPARATOR_S, NULL));
-	if (g_str_has_prefix(doc->real_path, project_base))  // already added during initialize
+	if (project_base)
 	{
+		SETPTR(project_base, g_strconcat(project_base, G_DIR_SEPARATOR_S, NULL));
+		if (g_str_has_prefix(doc->real_path, project_base))  // already added during initialize
+		{
+			g_free(project_base);
+			return;
+		}
 		g_free(project_base);
-		return;
 	}
-	g_free(project_base);
 
 	project_root = lsp_utils_find_project_root(doc, &srv->config);
 	if (!project_root)
