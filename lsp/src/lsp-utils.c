@@ -736,7 +736,7 @@ JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 	gboolean success;
 	GError *error = NULL;
 
-	if (fallback_json)
+	if (!EMPTY(fallback_json))
 	{
 		json_node = json_from_string(fallback_json, &error);
 		if (error)
@@ -750,7 +750,7 @@ JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 	if (!json_node)
 		json_node = json_from_string("{}", NULL);
 
-	if (!utf8_fname)
+	if (EMPTY(utf8_fname))
 		return json_node;
 
 	fname = utils_get_locale_from_utf8(utf8_fname);

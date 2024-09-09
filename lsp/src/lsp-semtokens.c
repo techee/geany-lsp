@@ -90,7 +90,7 @@ void lsp_semtokens_style_init(GeanyDocument *doc)
 	sci = doc->editor->sci;
 
 	style_index = 0;
-	if (cfg->semantic_tokens_type_style)
+	if (!EMPTY(cfg->semantic_tokens_type_style))
 		style_index = lsp_utils_set_indicator_style(sci, cfg->semantic_tokens_type_style);
 }
 
