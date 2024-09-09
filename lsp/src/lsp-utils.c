@@ -692,23 +692,23 @@ static gchar *utf8_strdown(const gchar *str)
 }
 
 
-gint lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2)
+gpointer lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2)
 {
 	gchar *tmp1, *tmp2;
-	gint result;
+	gpointer result;
 
-	g_return_val_if_fail(s1 != NULL, 1);
-	g_return_val_if_fail(s2 != NULL, -1);
+	g_return_val_if_fail(s1 != NULL, GINT_TO_POINTER(1));
+	g_return_val_if_fail(s2 != NULL, GINT_TO_POINTER(-1));
 
 	/* ensure strings are UTF-8 and lowercase */
 	tmp1 = utf8_strdown(s1);
 	if (!tmp1)
-		return FALSE;
+		return GINT_TO_POINTER(1);
 	tmp2 = utf8_strdown(s2);
 	if (!tmp2)
 	{
 		g_free(tmp1);
-		return FALSE;
+		return GINT_TO_POINTER(-1);
 	}
 
 	/* compare */

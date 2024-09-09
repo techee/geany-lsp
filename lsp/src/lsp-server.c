@@ -842,7 +842,6 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_bool(&s->config.autocomplete_apply_additional_edits, kf, section, "autocomplete_apply_additional_edits");
 	get_bool(&s->config.diagnostics_enable, kf, section, "diagnostics_enable");
 	get_bool(&s->config.autocomplete_use_snippets, kf, section, "autocomplete_use_snippets");
-	get_bool(&s->config.autocomplete_use_sort_text, kf, section, "autocomplete_use_sort_text");
 	get_int(&s->config.diagnostics_statusbar_severity, kf, section, "diagnostics_statusbar_severity");
 	get_str(&s->config.diagnostics_disable_for, kf, section, "diagnostics_disable_for");
 
