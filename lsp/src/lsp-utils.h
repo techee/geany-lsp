@@ -127,6 +127,6 @@ void lsp_utils_save_all_docs(void);
 
 gchar *lsp_utils_find_project_root(GeanyDocument *doc, LspServerConfig *cfg);
 
-gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos);
+gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions);
 
 #endif  /* LSP_UTILS_H */

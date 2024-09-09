@@ -110,7 +110,7 @@ static const gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *s
 }
 
 
-static guint get_ident_prefixlen(LspServer *server, GeanyDocument *doc, gint pos)
+static guint get_ident_prefixlen(const gchar *word_chars, GeanyDocument *doc, gint pos)
 {
 	ScintillaObject *sci = doc->editor->sci;
 	gint num = 0;
@@ -121,7 +121,7 @@ static guint get_ident_prefixlen(LspServer *server, GeanyDocument *doc, gint pos
 		if (pos - new_pos == 1)
 		{
 			gchar c = sci_get_char_at(sci, new_pos);
-			if (!strchr(server->config.word_chars, c))
+			if (!strchr(word_chars, c))
 				break;
 		}
 		num++;
@@ -135,6 +135,7 @@ static guint get_ident_prefixlen(LspServer *server, GeanyDocument *doc, gint pos
 void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint index)
 {
 	ScintillaObject *sci = doc->editor->sci;
+	gint sel_num = SSM(sci, SCI_GETSELECTIONS, 0, 0);
 	LspAutocompleteSymbol *sym;
 
 	if (!displayed_autocomplete_symbols || index >= displayed_autocomplete_symbols->len)
@@ -146,7 +147,7 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 	 * case the autocompletion list doesn't contain up-to-date text edits.
 	 * In this case we have to fall back to insert text based autocompletion
 	 * below. */
-	if (sym->text_edit && sent_request_id == received_request_id)
+	if (sel_num == 1 && sym->text_edit && sent_request_id == received_request_id)
 	{
 		if (server->config.autocomplete_apply_additional_edits && sym->additional_edits)
 			lsp_utils_apply_text_edits(sci, sym->text_edit, sym->additional_edits);
@@ -155,27 +156,30 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 	}
 	else
 	{
-		gint pos = sci_get_current_position(sci);
-		guint rootlen = get_ident_prefixlen(server, doc, pos);
-		gchar *insert_text = sym->insert_text ? g_strdup(sym->insert_text) : g_strdup(sym->label);
-		gint pos_delta = insert_text ? strlen(insert_text) : 0;
+		gchar *insert_text = sym->insert_text ? sym->insert_text : sym->label;
 
-		if (sym->is_snippet && sym->insert_text)
-			SETPTR(insert_text, lsp_utils_process_snippet(insert_text, &pos_delta));
-
-		if (insert_text && strlen(insert_text) >= rootlen)
+		if (insert_text)
 		{
-			SSM(sci, SCI_DELETERANGE, pos - rootlen, rootlen);
-			pos = sci_get_current_position(sci);
-			sci_insert_text(sci, pos, insert_text);
-			sci_set_current_position(sci, pos + pos_delta, TRUE);
+			gint i;
+
+			for (i = 0; i < sel_num; i++)
+			{
+				gint pos = SSM(sci, SCI_GETSELECTIONNCARET, i, 0);
+				guint rootlen = get_ident_prefixlen(server->config.word_chars, doc, pos);
+				LspTextEdit text_edit;
+
+				text_edit.new_text = insert_text;
+				text_edit.range.start = lsp_utils_scintilla_pos_to_lsp(sci, pos - rootlen);
+				text_edit.range.end = lsp_utils_scintilla_pos_to_lsp(sci, pos);
+
+				lsp_utils_apply_text_edit(sci, &text_edit, sym->insert_text != NULL);
+			}
 		}
+
 		/* See comment above, prevents re-showing the autocompletion popup
 		 * in this case. */
 		if (sent_request_id != received_request_id)
 			lsp_autocomplete_discard_pending_requests();
-
-		g_free(insert_text);
 	}
 }
 
@@ -193,6 +197,7 @@ void lsp_autocomplete_style_init(GeanyDocument *doc)
 	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
 	SSM(sci, SCI_AUTOCSETMAXHEIGHT, cfg->autocomplete_window_max_displayed, 0);
 	SSM(sci, SCI_AUTOCSETMAXWIDTH, cfg->autocomplete_window_max_width, 0);
+	SSM(sci, SCI_SETMULTIPASTE, TRUE, 0);
 // TODO: remove eventually
 #ifdef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
 	SSM(sci, SCI_AUTOCSETOPTIONS, SC_AUTOCOMPLETE_SELECT_FIRST_ITEM, 0);
@@ -228,7 +233,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	}
 
 	lsp_autocomplete_set_displayed_symbols(symbols);
-	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(server, doc, pos), (sptr_t) words->str);
+	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(server->config.word_chars, doc, pos), (sptr_t) words->str);
 
 // TODO: remove eventually
 #ifndef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
@@ -355,7 +360,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	GVariant *member = NULL;
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
-	gint prefixlen = get_ident_prefixlen(server, doc, pos);
+	gint prefixlen = get_ident_prefixlen(server->config.word_chars, doc, pos);
 	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label, server->config.word_chars };
 	GPtrArray *symbols, *symbols_filtered;
 	GHashTable *entry_set;
@@ -532,7 +537,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 	gboolean is_trigger_char = FALSE;
 	gchar c = pos > 0 ? sci_get_char_at(sci, SSM(sci, SCI_POSITIONBEFORE, pos, 0)) : '\0';
 	gchar c_str[2] = {c, '\0'};
-	gint prefixlen = get_ident_prefixlen(server, doc, pos);
+	gint prefixlen = get_ident_prefixlen(server->config.word_chars, doc, pos);
 
 	if (prefixlen == 0)
 	{
@@ -558,7 +563,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 		gint next_pos = SSM(sci, SCI_POSITIONAFTER, pos, 0);
 		/* if we are inside an identifier also after the next char */
 		if (pos != next_pos &&  // not at EOF
-			(prefixlen + (next_pos - pos) == get_ident_prefixlen(server, doc, next_pos)))
+			(prefixlen + (next_pos - pos) == get_ident_prefixlen(server->config.word_chars, doc, next_pos)))
 		{
 			SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 			return;  /* avoid autocompletion in the middle of a word */

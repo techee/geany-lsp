@@ -398,10 +398,12 @@ GPtrArray *lsp_utils_parse_text_edits(GVariantIter *iter)
 
 void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean process_snippets)
 {
+	GSList *cursor_positions = NULL;
+	gboolean first_sel = TRUE;
 	gint start_pos;
 	gint end_pos;
-	gint cursor_pos;
 	gchar *processed;
+	GSList *node;
 
 	if (!e)
 		return;
@@ -412,18 +414,24 @@ void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean pr
 	SSM(sci, SCI_DELETERANGE, start_pos, end_pos - start_pos);
 
 	if (process_snippets)
-		processed = lsp_utils_process_snippet(e->new_text, &cursor_pos);
+		processed = lsp_utils_process_snippet(e->new_text, &cursor_positions);
 	else
 	{
 		processed = g_strdup(e->new_text);
-		cursor_pos = strlen(e->new_text);
+		cursor_positions = g_slist_prepend(cursor_positions, GINT_TO_POINTER(strlen(e->new_text)));
 	}
 
 	sci_insert_text(sci, start_pos, processed);
-	if (process_snippets)
-		sci_set_current_position(sci, start_pos + cursor_pos, TRUE);
+
+	foreach_slist(node, cursor_positions)  // sorted in reverse order
+	{
+		gint pos = start_pos + GPOINTER_TO_INT(node->data);
+		SSM(sci, first_sel ? SCI_SETSELECTION : SCI_ADDSELECTION,  pos, pos);
+		first_sel = FALSE;
+	}
 
 	g_free(processed);
+	g_slist_free(cursor_positions);
 }
 
 
@@ -1021,12 +1029,14 @@ enum {
 
 // https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#snippet_syntax
 // just removes $foo, ${foo} and detects $0, $1, ${0...}, ${1...}
-gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos)
+// saves multiple $1 locations if found to support simultaneous edits like e.g.
+// in latex \begin{$1}\end{$1}
+gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 {
 	gint len = strlen(snippet);
 	GString *res = g_string_new("");
-	gint dollar0_pos = -1;
-	gint dollar1_pos = -1;
+	GSList *dollar0_positions = NULL;
+	GSList *dollar1_positions = NULL;
 	gint state = SnippetOuter;
 	gint i;
 
@@ -1047,9 +1057,9 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos)
 				if (isdigit(c))
 				{
 					if (c == '0' && !isdigit(snippet[i+1]))
-						dollar0_pos = res->len;
+						dollar0_positions = g_slist_prepend(dollar0_positions, GINT_TO_POINTER(res->len));
 					else if (c == '1' && !isdigit(snippet[i+1]))
-						dollar1_pos = res->len;
+						dollar1_positions = g_slist_prepend(dollar1_positions, GINT_TO_POINTER(res->len));
 					state = SnippetAfterDollarDigit;
 				}
 				else if (isalpha(c) || c == '_')
@@ -1086,9 +1096,9 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos)
 				if (isdigit(c))
 				{
 					if (c == '0' && !isdigit(snippet[i+1]))
-						dollar0_pos = res->len;
+						dollar0_positions = g_slist_prepend(dollar0_positions, GINT_TO_POINTER(res->len));
 					else if (c == '1' && !isdigit(snippet[i+1]))
-						dollar1_pos = res->len;
+						dollar1_positions = g_slist_prepend(dollar1_positions, GINT_TO_POINTER(res->len));
 				}
 
 				// skip everything until }, including nested {}
@@ -1111,14 +1121,20 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, gint *cursor_pos)
 		}
 	}
 
-	if (cursor_pos)
+	if (positions)
 	{
-		if (dollar1_pos != -1)
-			*cursor_pos = dollar1_pos;
-		else if (dollar0_pos != -1)
-			*cursor_pos = dollar0_pos;
+		if (dollar1_positions)
+			*positions = dollar1_positions;
+		else if (dollar0_positions)
+			*positions = dollar0_positions;
 		else
-			*cursor_pos = res->len;
+		{
+			dollar1_positions = g_slist_prepend(dollar1_positions, GINT_TO_POINTER(res->len));
+			*positions = dollar1_positions;
+		}
+
+		if (dollar0_positions && dollar0_positions != *positions)
+			g_slist_free(dollar0_positions);
 	}
 
 	return g_string_free(res, FALSE);
