@@ -30,12 +30,6 @@
 #define CACHE_KEY "lsp_semtokens_key"
 
 typedef struct {
-	GeanyDocument *doc;
-	gboolean delta;
-} LspSemtokensUserData;
-
-
-typedef struct {
 	guint start;
 	guint delete_count;
 	GArray *data;
@@ -283,10 +277,9 @@ static void process_full_result(GeanyDocument *doc, GVariant *result, guint64 to
 
 		g_free(data->tokens_str);
 		data->tokens_str = process_tokens(data->tokens, doc, token_mask);
-	}
 
-	if (iter)
 		g_variant_iter_free(iter);
+	}
 }
 
 
@@ -383,11 +376,9 @@ static gboolean process_delta_result(GeanyDocument *doc, GVariant *result, guint
 
 static void semtokens_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	LspSemtokensUserData *data = user_data;
-
 	if (!error)
 	{
-		GeanyDocument *doc = data->doc;
+		GeanyDocument *doc = user_data;
 		LspServer *srv;
 
 		srv = DOC_VALID(doc) ? lsp_server_get(doc) : NULL;
@@ -395,36 +386,39 @@ static void semtokens_cb(GVariant *return_value, GError *error, gpointer user_da
 		if (srv)
 		{
 			gboolean success = TRUE;
+			GVariantIter *iter = NULL;
 
 			//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 
-			if (data->delta)
-				success = process_delta_result(doc, return_value, srv->semantic_token_mask);
-			else
+			JSONRPC_MESSAGE_PARSE(return_value,
+				"data", JSONRPC_MESSAGE_GET_ITER(&iter)
+			);
+
+			if (iter)
+			{
 				process_full_result(doc, return_value, srv->semantic_token_mask);
+				g_variant_iter_free(iter);
+			}
+			else
+				success = process_delta_result(doc, return_value, srv->semantic_token_mask);
 
 			if (success)
 				highlight_keywords(srv, doc);
 		}
 	}
-
-	g_free(user_data);
 }
 
 
 void lsp_semtokens_send_request(GeanyDocument *doc)
 {
 	LspServer *server = lsp_server_get(doc);
-	LspSemtokensUserData *data;
 	gchar *doc_uri;
 	GVariant *node;
 	CachedData *cached_data;
+	gboolean delta;
 
 	if (!doc || !server)
 		return;
-
-	data = g_new0(LspSemtokensUserData, 1);
-	data->doc = doc;
 
 	doc_uri = lsp_utils_get_doc_uri(doc);
 
@@ -434,11 +428,11 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 		lsp_sync_text_document_did_open(server, doc);
 
 	cached_data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
-	data->delta = cached_data != NULL && cached_data->result_id &&
+	delta = cached_data != NULL && cached_data->result_id &&
 		server->config.semantic_tokens_supports_delta &&
 		!server->config.semantic_tokens_force_full;
 
-	if (data->delta)
+	if (delta)
 	{
 		node = JSONRPC_MESSAGE_NEW(
 			"previousResultId", JSONRPC_MESSAGE_PUT_STRING(cached_data->result_id),
@@ -447,7 +441,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 			"}"
 		);
 		lsp_rpc_call(server, "textDocument/semanticTokens/full/delta", node,
-			semtokens_cb, data);
+			semtokens_cb, doc);
 	}
 	else
 	{
@@ -457,7 +451,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 			"}"
 		);
 		lsp_rpc_call(server, "textDocument/semanticTokens/full", node,
-			semtokens_cb, data);
+			semtokens_cb, doc);
 	}
 
 	g_free(doc_uri);
