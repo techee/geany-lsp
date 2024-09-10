@@ -135,7 +135,7 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 			}
 
 			// array of locations
-			if (g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
+			if (g_variant_is_of_type(return_value, G_VARIANT_TYPE_ARRAY))
 			{
 				GPtrArray *locations = NULL;
 				GVariantIter iter;
@@ -196,7 +196,7 @@ static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 				g_ptr_array_free(locations, TRUE);
 			}
 			//single location
-			else if (g_variant_is_of_type(return_value, G_VARIANT_TYPE("a{sv}")))
+			else if (g_variant_is_of_type(return_value, G_VARIANT_TYPE_DICTIONARY))
 			{
 				LspLocation *loc = lsp_utils_parse_location(return_value);
 

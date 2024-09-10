@@ -40,7 +40,7 @@ static void format_cb(GVariant *return_value, GError *error, gpointer user_data)
 	FormatData *data = user_data;
 	GeanyDocument *doc = data->doc;
 
-	if (!error && DOC_VALID(doc) && g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
+	if (!error && DOC_VALID(doc) && g_variant_is_of_type(return_value, G_VARIANT_TYPE_ARRAY))
 	{
 		GPtrArray *edits;
 		GVariantIter iter;

@@ -538,7 +538,7 @@ gboolean lsp_utils_apply_workspace_edit(GVariant *workspace_edit)
 		"changes", JSONRPC_MESSAGE_GET_VARIANT(&changes)
 		);
 
-	if (changes && g_variant_is_of_type(changes, G_VARIANT_TYPE("a{sv}")))
+	if (changes && g_variant_is_of_type(changes, G_VARIANT_TYPE_DICTIONARY))
 	{
 		GVariantIter iter;
 		GVariant *text_edits;

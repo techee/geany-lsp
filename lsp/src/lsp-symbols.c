@@ -192,7 +192,7 @@ static void symbols_cb(GVariant *return_value, GError *error, gpointer user_data
 {
 	LspSymbolUserData *data = user_data;
 
-	if (!error)
+	if (!error && g_variant_is_of_type(return_value, G_VARIANT_TYPE_ARRAY))
 	{
 		//printf("%s\n\n\n", lsp_utils_json_pretty_print(return_value));
 

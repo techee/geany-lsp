@@ -97,7 +97,7 @@ static void highlight_cb(GVariant *return_value, GError *error, gpointer user_da
 		if (doc == data->doc)
 			lsp_highlight_clear(doc);
 
-		if (doc == data->doc && g_variant_is_of_type(return_value, G_VARIANT_TYPE("av")))
+		if (doc == data->doc && g_variant_is_of_type(return_value, G_VARIANT_TYPE_ARRAY))
 		{
 			GVariant *member = NULL;
 			GVariantIter iter;
