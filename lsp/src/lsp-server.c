@@ -785,10 +785,8 @@ static void get_str(gchar **dest, GKeyFile *kf, const gchar *section, const gcha
 	gchar *str_val = g_key_file_get_string(kf, section, key, NULL);
 
 	if (str_val)
-		g_strstrip(str_val);
-
-	if (str_val)
 	{
+		g_strstrip(str_val);
 		g_free(*dest);
 		*dest = str_val;
 	}
