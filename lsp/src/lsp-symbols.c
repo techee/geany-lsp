@@ -281,10 +281,10 @@ static void workspace_symbols_cb(GVariant *return_value, GError *error, gpointer
 }
 
 
-void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query,
+void lsp_symbols_workspace_request(GeanyDocument *doc, const gchar *query,
 	LspWorkspaceSymbolRequestCallback callback, gpointer user_data)
 {
-	LspServer *server = lsp_server_get_for_ft(ft);
+	LspServer *server = lsp_server_get(doc);
 	LspWorkspaceSymbolUserData *data;
 	GVariant *node;
 
@@ -294,7 +294,7 @@ void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query,
 	data = g_new0(LspWorkspaceSymbolUserData, 1);
 	data->user_data = user_data;
 	data->callback = callback;
-	data->ft_id = ft->id;
+	data->ft_id = doc->file_type->id;
 
 	node = JSONRPC_MESSAGE_NEW (
 		"query", JSONRPC_MESSAGE_PUT_STRING(query)

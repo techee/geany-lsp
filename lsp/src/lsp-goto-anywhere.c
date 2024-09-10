@@ -212,7 +212,7 @@ static void perform_lookup(const gchar *query)
 	if (g_str_has_prefix(query_str, "#"))
 	{
 		if (srv && srv->supports_workspace_symbols)
-			lsp_symbols_workspace_request(doc->file_type, query_str+1, workspace_symbol_cb, NULL);
+			lsp_symbols_workspace_request(doc, query_str+1, workspace_symbol_cb, NULL);
 		else if (doc)
 			// TODO: possibly improve performance by binary searching the start and the end point
 			goto_tm_symbol(query_str+1, geany_data->app->tm_workspace->tags_array, doc->file_type->lang);

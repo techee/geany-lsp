@@ -31,7 +31,7 @@ GPtrArray *lsp_symbols_doc_get_cached(GeanyDocument *doc);
 
 typedef void (*LspWorkspaceSymbolRequestCallback) (GPtrArray *arr, gpointer user_data);
 
-void lsp_symbols_workspace_request(GeanyFiletype *ft, const gchar *query, LspWorkspaceSymbolRequestCallback callback,
+void lsp_symbols_workspace_request(GeanyDocument *doc, const gchar *query, LspWorkspaceSymbolRequestCallback callback,
 	gpointer user_data);
 
 void lsp_symbols_destroy(void);
