@@ -230,12 +230,12 @@ static gboolean is_diagnostics_disabled_for(GeanyDocument *doc, LspServerConfig 
 void lsp_diagnostics_show_calltip(gint pos)
 {
 	GeanyDocument *doc = document_get_current();
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 	LspDiag *diag = get_diag(pos, 0);
 	gchar *first = NULL;
 	gchar *second;
 
-	if (!doc || !diag || is_diagnostics_disabled_for(doc, cfg))
+	if (!srv || !diag || is_diagnostics_disabled_for(doc, &srv->config))
 		return;
 
 	second = diag->message;
@@ -299,10 +299,10 @@ static void set_statusbar_issue_num(gint num)
 
 static void refresh_issue_statusbar(GeanyDocument *doc)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 	gint num = 0;
 
-	if (doc && doc->real_path && !is_diagnostics_disabled_for(doc, cfg))
+	if (srv && doc->real_path && !is_diagnostics_disabled_for(doc, &srv->config))
 	{
 		GPtrArray *diags = g_hash_table_lookup(diag_table, doc->real_path);
 		gint i;
@@ -311,7 +311,7 @@ static void refresh_issue_statusbar(GeanyDocument *doc)
 		{
 			LspDiag *diag = diags->pdata[i];
 
-			if (diag->severity <= cfg->diagnostics_statusbar_severity)
+			if (diag->severity <= srv->config.diagnostics_statusbar_severity)
 				num++;
 		}
 	}
@@ -323,13 +323,12 @@ static void refresh_issue_statusbar(GeanyDocument *doc)
 void lsp_diagnostics_redraw(GeanyDocument *doc)
 {
 	LspServer *srv = lsp_server_get_if_running(doc);
-	LspServerConfig *cfg = lsp_server_get_config(doc);
 	ScintillaObject *sci;
 	GPtrArray *diags;
 	gint last_start_pos = 0, last_end_pos = 0;
 	gint i;
 
-	if (!srv || !doc || !doc->real_path || is_diagnostics_disabled_for(doc, cfg))
+	if (!srv || !doc || !doc->real_path || is_diagnostics_disabled_for(doc, &srv->config))
 	{
 		set_statusbar_issue_num(-1);
 		return;
@@ -384,18 +383,18 @@ void lsp_diagnostics_redraw(GeanyDocument *doc)
 
 void lsp_diagnostics_style_init(GeanyDocument *doc)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 	ScintillaObject *sci;
 
-	if (!doc || !cfg)
+	if (!srv)
 		return;
 
 	sci = doc->editor->sci;
 
-	style_indices[LspError] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_error_style);
-	style_indices[LspWarning] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_warning_style);
-	style_indices[LspInfo] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_info_style);
-	style_indices[LspHint] = lsp_utils_set_indicator_style(sci, cfg->diagnostics_hint_style);
+	style_indices[LspError] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_error_style);
+	style_indices[LspWarning] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_warning_style);
+	style_indices[LspInfo] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_info_style);
+	style_indices[LspHint] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_hint_style);
 
 	SSM(sci, SCI_SETMOUSEDWELLTIME, 500, 0);
 }

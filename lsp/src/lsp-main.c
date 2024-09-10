@@ -162,12 +162,12 @@ static gboolean on_code_actions_received(GPtrArray *actions, gpointer user_data)
 
 static gboolean autocomplete_provided(GeanyDocument *doc, gpointer user_data)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get(doc);
 
-	if (!cfg)
+	if (!srv)
 		return FALSE;
 
-	return lsp_server_is_usable(doc) && cfg->autocomplete_enable;
+	return lsp_server_is_usable(doc) && srv->config.autocomplete_enable;
 }
 
 
@@ -184,12 +184,12 @@ static void autocomplete_perform(GeanyDocument *doc, gboolean force, gpointer us
 
 static gboolean calltips_provided(GeanyDocument *doc, gpointer user_data)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get(doc);
 
-	if (!cfg)
+	if (!srv)
 		return FALSE;
 
-	return lsp_server_is_usable(doc) && cfg->signature_enable;
+	return lsp_server_is_usable(doc) && srv->config.signature_enable;
 }
 
 
@@ -206,12 +206,12 @@ static void calltips_show(GeanyDocument *doc, gboolean force, gpointer user_data
 
 static gboolean goto_provided(GeanyDocument *doc, gpointer user_data)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get(doc);
 
-	if (!cfg)
+	if (!srv)
 		return FALSE;
 
-	return lsp_server_is_usable(doc) && cfg->goto_enable;
+	return lsp_server_is_usable(doc) && srv->config.goto_enable;
 }
 
 
@@ -228,12 +228,12 @@ static gboolean goto_perform(GeanyDocument *doc, gint pos, gboolean definition, 
 
 static gboolean symbol_highlight_provided(GeanyDocument *doc, gpointer user_data)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get(doc);
 
-	if (!cfg)
+	if (!srv)
 		return FALSE;
 
-	return lsp_server_is_usable(doc) && cfg->semantic_tokens_enable;
+	return lsp_server_is_usable(doc) && srv->config.semantic_tokens_enable;
 }
 
 
@@ -307,19 +307,21 @@ static void update_menu(GeanyDocument *doc)
 static gboolean on_update_idle(gpointer data)
 {
 	GeanyDocument *doc = data;
-	LspServerConfig *cfg;
+	LspServer *srv;
 
 	if (!DOC_VALID(doc))
 		return G_SOURCE_REMOVE;
 
-	cfg = lsp_server_get_config(doc);
-
 	plugin_set_document_data(geany_plugin, doc, UPDATE_SOURCE_DOC_DATA, GUINT_TO_POINTER(0));
+
+	srv = lsp_server_get_if_running(doc);
+	if (!srv)
+		return G_SOURCE_REMOVE;
 
 	lsp_code_lens_send_request(doc);
 	if (symbol_highlight_provided(doc, NULL))
 		lsp_semtokens_send_request(doc);
-	if (cfg && cfg->document_symbols_enable)
+	if (srv->config.document_symbols_enable)
 		lsp_symbols_doc_request(doc, lsp_symbol_request_cb, doc);
 
 	return G_SOURCE_REMOVE;
@@ -328,14 +330,15 @@ static gboolean on_update_idle(gpointer data)
 
 static void on_document_visible(GeanyDocument *doc)
 {
-	LspServer *srv;
+	LspServer *srv = lsp_server_get(doc);
 
 	update_menu(doc);
 
-	if (!doc)
-		return;
+	// quick synchronous refresh with the last value without server request
+	lsp_symbol_tree_refresh();
 
-	srv = lsp_server_get(doc);
+	if (!srv)
+		return;
 
 	lsp_diagnostics_style_init(doc);
 	lsp_diagnostics_redraw(doc);
@@ -350,11 +353,8 @@ static void on_document_visible(GeanyDocument *doc)
 	// this might not get called for the first time when server gets started because
 	// lsp_server_get() returns NULL. However, we also "open" current and modified
 	// documents after successful server handshake inside on_server_initialized()
-	if (srv && !lsp_sync_is_document_open(doc))
+	if (!lsp_sync_is_document_open(doc))
 		lsp_sync_text_document_did_open(srv, doc);
-
-	// quick synchronous refresh with the last value without server request
-	lsp_symbol_tree_refresh();
 
 	on_update_idle(doc);
 }
@@ -1218,12 +1218,12 @@ static gboolean on_code_actions_received_kb(GPtrArray *code_action_commands, gpo
 static void invoke_command_kb(guint key_id, gint pos)
 {
 	GeanyDocument *doc = document_get_current();
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get(doc);
 
-	if (!cfg)
+	if (!srv)
 		return;
 
-	if (key_id >= KB_COUNT + cfg->command_keybinding_num)
+	if (key_id >= KB_COUNT + srv->config.command_keybinding_num)
 		return;
 
 	lsp_command_send_code_action_request(doc, pos, on_code_actions_received_kb, GINT_TO_POINTER(key_id - KB_COUNT));

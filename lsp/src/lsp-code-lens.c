@@ -36,17 +36,13 @@ extern GeanyData *geany_data;
 static GPtrArray *commands;
 
 
-static void set_color(GeanyDocument *doc)
+static void set_color(LspServer *srv, GeanyDocument *doc)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
 	GdkRGBA bg_color, fg_color, color;
 	ScintillaObject *sci;
 	gint style_offset;
 	gint i = 0;
 	gchar **comps;
-
-	if (!doc || !cfg)
-		return;
 
 	sci = doc->editor->sci;
 
@@ -55,7 +51,7 @@ static void set_color(GeanyDocument *doc)
 	gdk_rgba_parse(&bg_color, "yellow");
 	gdk_rgba_parse(&fg_color, "black");
 
-	comps = g_strsplit(cfg->code_lens_style, ";", -1);
+	comps = g_strsplit(srv->config.code_lens_style, ";", -1);
 
 	for (i = 0; comps && comps[i]; i++)
 	{
@@ -88,10 +84,10 @@ static void set_color(GeanyDocument *doc)
 
 void lsp_code_lens_style_init(GeanyDocument *doc)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 	ScintillaObject *sci;
 
-	if (!doc || !cfg)
+	if (!srv)
 		return;
 
 	sci = doc->editor->sci;
@@ -101,7 +97,7 @@ void lsp_code_lens_style_init(GeanyDocument *doc)
 		gint style_offset = SSM(sci, SCI_ALLOCATEEXTENDEDSTYLES, 1, 0);
 
 		SSM(sci, SCI_EOLANNOTATIONSETSTYLEOFFSET, style_offset, 0);
-		set_color(doc);
+		set_color(srv, doc);
 	}
 
 	if (!commands)

@@ -717,10 +717,8 @@ static void on_symbol_tree_menu_show(GtkWidget *widget,
 		gpointer user_data)
 {
 	GeanyDocument *doc = document_get_current();
-	LspServerConfig *cfg = NULL;
-
-	if (doc)
-		cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
+	LspServerConfig *cfg = srv ? &srv->config : NULL;
 
 	gtk_widget_set_sensitive(s_symbol_menu.expand_all, cfg != NULL);
 	gtk_widget_set_sensitive(s_symbol_menu.collapse_all, cfg != NULL);

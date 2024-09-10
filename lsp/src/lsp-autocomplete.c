@@ -187,16 +187,16 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 void lsp_autocomplete_style_init(GeanyDocument *doc)
 {
 	ScintillaObject *sci = doc->editor->sci;
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 
-	if (!cfg)
+	if (!srv)
 		return;
 
 	SSM(sci, SCI_AUTOCSETORDER, SC_ORDER_CUSTOM, 0);
 	SSM(sci, SCI_AUTOCSETMULTI, SC_MULTIAUTOC_EACH, 0);
 	SSM(sci, SCI_AUTOCSETAUTOHIDE, FALSE, 0);
-	SSM(sci, SCI_AUTOCSETMAXHEIGHT, cfg->autocomplete_window_max_displayed, 0);
-	SSM(sci, SCI_AUTOCSETMAXWIDTH, cfg->autocomplete_window_max_width, 0);
+	SSM(sci, SCI_AUTOCSETMAXHEIGHT, srv->config.autocomplete_window_max_displayed, 0);
+	SSM(sci, SCI_AUTOCSETMAXWIDTH, srv->config.autocomplete_window_max_width, 0);
 	SSM(sci, SCI_SETMULTIPASTE, TRUE, 0);
 // TODO: remove eventually
 #ifdef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM

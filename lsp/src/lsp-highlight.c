@@ -55,10 +55,10 @@ void lsp_highlight_clear(GeanyDocument *doc)
 
 void lsp_highlight_style_init(GeanyDocument *doc)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 	ScintillaObject *sci;
 
-	if (!doc || !cfg)
+	if (!srv)
 		return;
 
 	sci = doc->editor->sci;
@@ -68,7 +68,7 @@ void lsp_highlight_style_init(GeanyDocument *doc)
 		dirty = TRUE;
 		lsp_highlight_clear(doc);
 	}
-	indicator = lsp_utils_set_indicator_style(sci, cfg->highlighting_style);
+	indicator = lsp_utils_set_indicator_style(sci, srv->config.highlighting_style);
 	if (indicator > 0)
 		SSM(sci, SCI_INDICSETUNDER, indicator, TRUE);
 }

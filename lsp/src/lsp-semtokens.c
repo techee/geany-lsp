@@ -81,17 +81,17 @@ void lsp_semtokens_init(gint ft_id)
 
 void lsp_semtokens_style_init(GeanyDocument *doc)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
+	LspServer *srv = lsp_server_get_if_running(doc);
 	ScintillaObject *sci;
 
-	if (!doc || !cfg)
+	if (!srv)
 		return;
 
 	sci = doc->editor->sci;
 
 	style_index = 0;
-	if (!EMPTY(cfg->semantic_tokens_type_style))
-		style_index = lsp_utils_set_indicator_style(sci, cfg->semantic_tokens_type_style);
+	if (!EMPTY(srv->config.semantic_tokens_type_style))
+		style_index = lsp_utils_set_indicator_style(sci, srv->config.semantic_tokens_type_style);
 }
 
 

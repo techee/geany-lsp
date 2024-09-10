@@ -38,16 +38,21 @@ static ScintillaObject *calltip_sci;
 
 static void show_calltip(GeanyDocument *doc, gint pos, const gchar *calltip)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
-	gchar *s = g_strdup(calltip);
-	gchar *p = s;
+	LspServer *srv = lsp_server_get_if_running(doc);
+	gchar *s, *p;
 	gboolean quit = FALSE;
 	gboolean start = TRUE;
 	gint paragraph_no = 0;
 	guint i;
 
+	if (!srv)
+		return;
+
+	s = g_strdup(calltip);
+	p = s;
+
 	lsp_utils_wrap_string(s, -1);
-	for (i = 0; p && !quit && i < cfg->hover_popup_max_lines; i++)
+	for (i = 0; p && !quit && i < srv->config.hover_popup_max_lines; i++)
 	{
 		gchar *q;
 
@@ -66,7 +71,7 @@ static void show_calltip(GeanyDocument *doc, gint pos, const gchar *calltip)
 			g_strstrip(line);
 			if (line[0] == '\0')
 				paragraph_no++;
-			if (paragraph_no == cfg->hover_popup_max_paragraphs)
+			if (paragraph_no == srv->config.hover_popup_max_paragraphs)
 				quit = TRUE;
 			*q = '\n';
 
