@@ -47,9 +47,6 @@ void lsp_progress_create(LspServer *server, LspProgressToken token)
 {
 	LspProgress *p;
 
-	if (!server->config.progress_enable)
-		return;
-
 	p = g_new0(LspProgress, 1);
 
 	p->token.token_str = g_strdup(token.token_str);
@@ -79,7 +76,10 @@ static void progress_begin(LspServer *server, LspProgressToken token, const gcha
 			p->title = g_strdup(title);
 			ui_set_statusbar(FALSE, "%s: %s", p->title, message ? message : "");
 			if (progress_num == 0)
-				ui_progress_bar_start("");
+			{
+				if (server->config.progress_bar_enable)
+					ui_progress_bar_start("");
+			}
 			progress_num++;
 			break;
 		}
@@ -151,9 +151,6 @@ void lsp_progress_process_notification(LspServer *srv, GVariant *params)
 	const gchar *title = NULL;
 	const gchar *message = NULL;
 	gchar buf[50];
-
-	if (!srv->config.progress_enable)
-		return;
 
 	have_token = JSONRPC_MESSAGE_PARSE(params,
 		"token", JSONRPC_MESSAGE_GET_STRING(&token_str)

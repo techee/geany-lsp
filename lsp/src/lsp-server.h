@@ -105,7 +105,7 @@ typedef struct LspServerConfig
 	gboolean range_formatting_enable;
 	gboolean format_on_save;
 
-	gboolean progress_enable;
+	gboolean progress_bar_enable;
 
 	gboolean execute_command_enable;
 	gboolean code_action_enable;
