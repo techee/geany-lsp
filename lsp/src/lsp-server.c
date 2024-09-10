@@ -1011,6 +1011,9 @@ static gboolean is_lsp_valid_for_doc(LspServerConfig *cfg, GeanyDocument *doc)
 	if (!doc || !doc->real_path)
 		return FALSE;
 
+	if (EMPTY(cfg->cmd))
+		return FALSE;
+
 	if (cfg->project_root_marker_patterns)
 	{
 		gchar *project_root = lsp_utils_find_project_root(doc, cfg);
