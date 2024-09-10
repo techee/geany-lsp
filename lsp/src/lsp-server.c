@@ -1065,7 +1065,7 @@ GeanyFiletype *lsp_server_get_ft(GeanyDocument *doc, gchar **lsp_lang_id)
 		gchar **val;
 		gchar *lang_id = NULL;
 
-		if (!srv->config.lang_id_mappings || !srv->config.cmd)
+		if (!srv->config.lang_id_mappings || EMPTY(srv->config.cmd))
 			continue;
 
 		foreach_strv(val, srv->config.lang_id_mappings)
@@ -1103,12 +1103,13 @@ GeanyFiletype *lsp_server_get_ft(GeanyDocument *doc, gchar **lsp_lang_id)
 }
 
 
+static LspServer *server_get_configured_for_doc(GeanyDocument *doc);
+
 static LspServer *server_get_for_doc(GeanyDocument *doc, gboolean launch_server)
 {
-	LspServerConfig *cfg = lsp_server_get_config(doc);
 	GeanyFiletype *ft;
 
-	if (!doc || !cfg)
+	if (server_get_configured_for_doc(doc) == NULL)
 		return NULL;
 
 	ft = lsp_server_get_ft(doc, NULL);
@@ -1156,17 +1157,6 @@ static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
 		return NULL;
 
 	return s;
-}
-
-
-LspServerConfig *lsp_server_get_config(GeanyDocument *doc)
-{
-	LspServer *s = server_get_configured_for_doc(doc);
-
-	if (!s)
-		return NULL;
-
-	return &s->config;
 }
 
 
