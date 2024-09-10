@@ -1103,32 +1103,6 @@ GeanyFiletype *lsp_server_get_ft(GeanyDocument *doc, gchar **lsp_lang_id)
 }
 
 
-static LspServer *server_get_configured_for_doc(GeanyDocument *doc);
-
-static LspServer *server_get_for_doc(GeanyDocument *doc, gboolean launch_server)
-{
-	GeanyFiletype *ft;
-
-	if (server_get_configured_for_doc(doc) == NULL)
-		return NULL;
-
-	ft = lsp_server_get_ft(doc, NULL);
-	return server_get_or_start_for_ft(ft, launch_server);
-}
-
-
-LspServer *lsp_server_get(GeanyDocument *doc)
-{
-	return server_get_for_doc(doc, TRUE);
-}
-
-
-LspServer *lsp_server_get_if_running(GeanyDocument *doc)
-{
-	return server_get_for_doc(doc, FALSE);
-}
-
-
 static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
 {
 	GeanyFiletype *ft;
@@ -1157,6 +1131,30 @@ static LspServer *server_get_configured_for_doc(GeanyDocument *doc)
 		return NULL;
 
 	return s;
+}
+
+
+static LspServer *server_get_for_doc(GeanyDocument *doc, gboolean launch_server)
+{
+	GeanyFiletype *ft;
+
+	if (server_get_configured_for_doc(doc) == NULL)
+		return NULL;
+
+	ft = lsp_server_get_ft(doc, NULL);
+	return server_get_or_start_for_ft(ft, launch_server);
+}
+
+
+LspServer *lsp_server_get(GeanyDocument *doc)
+{
+	return server_get_for_doc(doc, TRUE);
+}
+
+
+LspServer *lsp_server_get_if_running(GeanyDocument *doc)
+{
+	return server_get_for_doc(doc, FALSE);
 }
 
 
