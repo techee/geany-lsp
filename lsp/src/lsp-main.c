@@ -1094,6 +1094,37 @@ static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 }
 
 
+static gboolean on_key_press(GtkWidget *widget, GdkEventKey *event, gpointer user_data)
+{
+	GeanyDocument *doc = document_get_current();
+	ScintillaObject *sci = doc ? doc->editor->sci : NULL;
+
+	if (!sci || gtk_window_get_focus(GTK_WINDOW(geany->main_widgets->window)) != GTK_WIDGET(sci))
+		return FALSE;
+
+	switch (event->keyval)
+	{
+		case GDK_KEY_Up:
+		case GDK_KEY_KP_Up:
+		case GDK_KEY_uparrow:
+		case GDK_KEY_Down:
+		case GDK_KEY_KP_Down:
+		case GDK_KEY_downarrow:
+		case GDK_KEY_Page_Up:
+		case GDK_KEY_KP_Page_Up:
+		case GDK_KEY_Page_Down:
+		case GDK_KEY_KP_Page_Down:
+			if (SSM(sci, SCI_GETSELECTIONS, 0, 0) > 1 && !SSM(sci, SCI_AUTOCACTIVE, 0, 0))
+				SSM(sci, SCI_CANCEL, 0, 0);  // drop multiple carets
+			break;
+		default:
+			break;
+	}
+
+	return FALSE;
+}
+
+
 PluginCallback plugin_callbacks[] = {
 	{"document-new", (GCallback) &on_document_new, FALSE, NULL},
 	{"document-close", (GCallback) &on_document_close, FALSE, NULL},
@@ -1111,6 +1142,7 @@ PluginCallback plugin_callbacks[] = {
 	{"project-dialog-open", (GCallback) &on_project_dialog_open, FALSE, NULL},
 	{"project-dialog-confirmed", (GCallback) &on_project_dialog_confirmed, FALSE, NULL},
 	{"project-dialog-close", (GCallback) &on_project_dialog_close, FALSE, NULL},
+	{"key-press", (GCallback) &on_key_press, FALSE, NULL},
 	{NULL, NULL, FALSE, NULL}
 };
 
