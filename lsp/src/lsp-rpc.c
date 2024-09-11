@@ -268,9 +268,12 @@ static GVariant *show_document(LspServer *srv, GVariant *params)
 		else if (g_str_has_prefix(uri, "file://"))
 		{
 			gchar *fname = lsp_utils_get_real_path_from_uri_locale(uri);
-			document_open_file(fname, FALSE, NULL, NULL);
-			g_free(fname);
-			success = TRUE;
+			if (fname)
+			{
+				document_open_file(fname, FALSE, NULL, NULL);
+				g_free(fname);
+				success = TRUE;
+			}
 		}
 	}
 

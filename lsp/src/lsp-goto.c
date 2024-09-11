@@ -45,7 +45,10 @@ GPtrArray *last_result;
 static void goto_location(GeanyDocument *old_doc, LspLocation *loc)
 {
 	gchar *fname = lsp_utils_get_real_path_from_uri_locale(loc->uri);
-	GeanyDocument *doc = document_open_file(fname, FALSE, NULL, NULL);
+	GeanyDocument *doc = NULL;
+
+	if (fname)
+		doc = document_open_file(fname, FALSE, NULL, NULL);
 
 	if (doc)
 		navqueue_goto_line(old_doc, doc, loc->range.start.line + 1);
