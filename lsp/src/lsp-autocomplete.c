@@ -94,7 +94,7 @@ static void free_autocomplete_symbol(gpointer data)
 }
 
 
-static const gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *sym)
+static const gchar *get_label(LspServer *server, LspAutocompleteSymbol *sym)
 {
 	if (server->config.autocomplete_use_label && sym->label)
 		return sym->label;
@@ -107,6 +107,32 @@ static const gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *s
 		return sym->label;
 
 	return "";
+}
+
+
+static gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *sym)
+{
+	gchar *label = g_strdup(get_label(server, sym));
+	gchar *pos;
+
+	// remove stuff after newlines (we don't want them in the popup plus \n
+	// is used as the autocompletion list separator)
+	pos = strchr(label, '\n');
+	if (pos)
+		*pos = '\0';
+	pos = strchr(label, '\r');
+	if (pos)
+		*pos = '\0';
+
+	// ? used by Scintilla for icon specification
+	pos = strchr(label, '?');
+	if (pos)
+		*pos = ' ';
+	pos = strchr(label, '\t');
+	if (pos)
+		*pos = ' ';
+
+	return label;
 }
 
 
@@ -211,7 +237,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	ScintillaObject *sci = doc->editor->sci;
 	gint pos = sci_get_current_position(sci);
 	GString *words = g_string_sized_new(2000);
-	const gchar *label;
+	gchar *label;
 
 	for (i = 0; i < symbols->len; i++)
 	{
@@ -230,6 +256,8 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 
 		sprintf(buf, "?%u", icon_id + 1);
 		g_string_append(words, buf);
+
+		g_free(label);
 	}
 
 	lsp_autocomplete_set_displayed_symbols(symbols);
@@ -242,6 +270,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 		//make sure Scintilla selects the first item - see https://sourceforge.net/p/scintilla/bugs/2403/
 		label = get_symbol_label(server, symbols->pdata[0]);
 		SSM(sci, SCI_AUTOCSELECT, 0, (sptr_t)label);
+		g_free(label);
 	}
 #endif
 
@@ -440,14 +469,17 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	for (i = 0; i < symbols->len; i++)
 	{
 		LspAutocompleteSymbol *sym = symbols->pdata[i];
-		const gchar *display_label = get_symbol_label(server, sym);
+		gchar *display_label = get_symbol_label(server, sym);
 
 		if (g_hash_table_contains(entry_set, display_label))
+		{
 			free_autocomplete_symbol(sym);
+			g_free(display_label);
+		}
 		else
 		{
 			g_ptr_array_add(symbols_filtered, sym);
-			g_hash_table_insert(entry_set, g_strdup(display_label), NULL);
+			g_hash_table_insert(entry_set, display_label, NULL);
 		}
 	}
 
