@@ -133,9 +133,14 @@ void lsp_sync_text_document_did_close(LspServer *server, GeanyDocument *doc)
 
 void lsp_sync_text_document_did_save(LspServer *server, GeanyDocument *doc)
 {
+	gchar *doc_uri, *doc_text;
 	GVariant *node;
-	gchar *doc_uri = lsp_utils_get_doc_uri(doc);
-	gchar *doc_text = sci_get_contents(doc->editor->sci, -1);
+
+	if (!server->send_did_save)
+		return;
+
+	doc_uri = lsp_utils_get_doc_uri(doc);
+	doc_text = sci_get_contents(doc->editor->sci, -1);
 
 	node = JSONRPC_MESSAGE_NEW (
 		"textDocument", "{",

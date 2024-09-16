@@ -365,6 +365,36 @@ static gboolean use_incremental_sync(GVariant *node)
 }
 
 
+static gboolean send_did_save(GVariant *node)
+{
+	gboolean val;
+	gboolean success = JSONRPC_MESSAGE_PARSE(node,
+		"capabilities", "{",
+			"textDocumentSync", "{",
+				"save", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
+			"}",
+		"}");
+
+	if (!success)
+	{
+		GVariant *var = NULL;
+
+		JSONRPC_MESSAGE_PARSE(node,
+			"capabilities", "{",
+				"textDocumentSync", "{",
+					"save", JSONRPC_MESSAGE_GET_VARIANT(&var),
+				"}",
+			"}");
+
+		success = var != NULL;
+		if (var)
+			g_variant_unref(var);
+	}
+
+	return success;
+}
+
+
 static gboolean use_workspace_folders(GVariant *node)
 {
 	gboolean change_notifications = FALSE;
@@ -492,6 +522,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
 
 		s->use_incremental_sync = use_incremental_sync(return_value);
+		s->send_did_save = send_did_save(return_value);
 		s->use_workspace_folders = use_workspace_folders(return_value);
 
 		s->initialize_response = lsp_utils_json_pretty_print(return_value);
