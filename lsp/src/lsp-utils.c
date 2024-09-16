@@ -447,7 +447,8 @@ static gint sort_edits(gconstpointer a, gconstpointer b)
 }
 
 
-void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArray *edits)
+void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArray *edits,
+	gboolean process_snippets)
 {
 	GPtrArray *arr;
 	gint i;
@@ -472,7 +473,7 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 	for (i = 0; i < arr->len; i++)
 	{
 		LspTextEdit *e = arr->pdata[i];
-		lsp_utils_apply_text_edit(sci, e, e == edit);
+		lsp_utils_apply_text_edit(sci, e, process_snippets);
 	}
 
 	g_ptr_array_free(arr, TRUE);
@@ -495,7 +496,7 @@ static void apply_edits_in_file(const gchar *uri, GPtrArray *edits)
 			sci = lsp_utils_new_sci_from_file(fname);
 
 		sci_start_undo_action(sci);
-		lsp_utils_apply_text_edits(sci, NULL, edits);
+		lsp_utils_apply_text_edits(sci, NULL, edits, FALSE);
 		sci_end_undo_action(sci);
 
 		if (!doc)
