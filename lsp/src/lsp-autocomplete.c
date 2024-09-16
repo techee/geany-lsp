@@ -94,9 +94,9 @@ static void free_autocomplete_symbol(gpointer data)
 }
 
 
-static const gchar *get_label(LspServer *server, LspAutocompleteSymbol *sym)
+static const gchar *get_label(LspAutocompleteSymbol *sym, gboolean use_label)
 {
-	if (server->config.autocomplete_use_label && sym->label)
+	if (use_label && sym->label)
 		return sym->label;
 
 	if (sym->text_edit && sym->text_edit->new_text)
@@ -112,7 +112,7 @@ static const gchar *get_label(LspServer *server, LspAutocompleteSymbol *sym)
 
 static gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *sym)
 {
-	gchar *label = g_strdup(get_label(server, sym));
+	gchar *label = g_strdup(get_label(sym, server->config.autocomplete_use_label));
 	gchar *pos;
 
 	// remove stuff after newlines (we don't want them in the popup plus \n
@@ -382,6 +382,27 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 }
 
 
+static gboolean should_add(GPtrArray *symbols, const gchar *prefix)
+{
+	LspAutocompleteSymbol *sym;
+	const gchar *label;
+
+	if (symbols->len == 0)
+		return FALSE;
+
+	if (symbols->len > 1)
+		return TRUE;
+
+	// don't single value with what's already typed unless it's a snippet
+	sym = symbols->pdata[0];
+	label = get_label(sym, FALSE);
+	if (g_strcmp0(label, prefix) != 0)
+		return TRUE;
+
+	return sym->is_snippet || sym->kind == LspCompletionKindSnippet;
+}
+
+
 static void process_response(LspServer *server, GVariant *response, GeanyDocument *doc)
 {
 	//gboolean is_incomplete = FALSE;
@@ -492,7 +513,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	/* sort with symbols matching the typed prefix first */
 	g_ptr_array_sort_with_data(symbols, sort_autocomplete_symbols, &sort_data);
 
-	if (symbols->len > 0)
+	if (should_add(symbols, sort_data.prefix))
 		show_tags_list(server, doc, symbols);
 	else
 	{
