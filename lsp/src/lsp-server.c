@@ -386,12 +386,28 @@ static gboolean send_did_save(GVariant *node)
 				"}",
 			"}");
 
-		success = var != NULL;
+		success = val = var != NULL;
 		if (var)
 			g_variant_unref(var);
 	}
 
-	return success;
+	return success && val;
+}
+
+
+static gboolean include_text_on_save(GVariant *node)
+{
+	gboolean val;
+	gboolean success = JSONRPC_MESSAGE_PARSE(node,
+		"capabilities", "{",
+			"textDocumentSync", "{",
+				"save", "{",
+					"includeText", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
+				"}",
+			"}",
+		"}");
+
+	return success && val;
 }
 
 
@@ -523,6 +539,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 
 		s->use_incremental_sync = use_incremental_sync(return_value);
 		s->send_did_save = send_did_save(return_value);
+		s->include_text_on_save = include_text_on_save(return_value);
 		s->use_workspace_folders = use_workspace_folders(return_value);
 
 		s->initialize_response = lsp_utils_json_pretty_print(return_value);

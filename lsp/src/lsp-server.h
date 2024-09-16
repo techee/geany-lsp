@@ -147,6 +147,7 @@ typedef struct LspServer
 	gchar *initialize_response;
 	gboolean use_incremental_sync;
 	gboolean send_did_save;
+	gboolean include_text_on_save;
 	gboolean use_workspace_folders;
 	gboolean supports_workspace_symbols;
 
