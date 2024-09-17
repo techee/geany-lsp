@@ -393,13 +393,13 @@ static gboolean should_add(GPtrArray *symbols, const gchar *prefix)
 	if (symbols->len > 1)
 		return TRUE;
 
-	// don't single value with what's already typed unless it's a snippet
+	// don't add single value with what's already typed unless it's a snippet
 	sym = symbols->pdata[0];
 	label = get_label(sym, FALSE);
 	if (g_strcmp0(label, prefix) != 0)
 		return TRUE;
 
-	return sym->is_snippet || sym->kind == LspCompletionKindSnippet;
+	return sym->is_snippet;
 }
 
 
