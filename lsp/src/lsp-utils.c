@@ -1073,6 +1073,7 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 				else  // something invalid
 				{
 					state = SnippetOuter;
+					g_string_append_c(res, '$');
 					g_string_append_c(res, c);
 				}
 				break;
