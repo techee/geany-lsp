@@ -626,7 +626,7 @@ static void on_document_activate(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor, SCNotification *nt,
 	G_GNUC_UNUSED gpointer user_data)
 {
-	static gboolean ignore_selection_change = FALSE;  // static!
+	static gboolean perform_highlight = TRUE;  // static!
 	GeanyDocument *doc = editor->document;
 	ScintillaObject *sci = editor->sci;
 
@@ -642,7 +642,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			return FALSE;
 
 		// ignore cursor position change as a result of autocomplete (for highlighting)
-		ignore_selection_change = TRUE;
+		perform_highlight = FALSE;
 
 		sci_start_undo_action(editor->sci);
 		lsp_autocomplete_item_selected(srv, doc, SSM(sci, SCI_AUTOCGETCURRENT, 0, 0));
@@ -727,6 +727,9 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		if (!srv || !doc->real_path)
 			return FALSE;
 
+		if (nt->modificationType & (SC_MOD_BEFOREINSERT | SC_MOD_BEFOREDELETE))
+			perform_highlight = FALSE;
+
 		// BEFORE insert, BEFORE delete - send the original document
 		if (!lsp_sync_is_document_open(doc) &&
 			nt->modificationType & (SC_MOD_BEFOREINSERT | SC_MOD_BEFOREDELETE))
@@ -804,12 +807,12 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			SSM(sci, SCI_AUTOCCANCEL, 0, 0);
 		}
 
-		if (srv->config.highlighting_enable && !ignore_selection_change &&
+		if (srv->config.highlighting_enable && perform_highlight &&
 			(nt->updated & SC_UPDATE_SELECTION))
 		{
 			lsp_highlight_send_request(srv, doc);
 		}
-		ignore_selection_change = FALSE;
+		perform_highlight = TRUE;
 	}
 	else if (nt->nmhdr.code == SCN_CHARADDED)
 	{
