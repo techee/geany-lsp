@@ -309,10 +309,10 @@ static gboolean on_update_idle(gpointer data)
 	GeanyDocument *doc = data;
 	LspServer *srv;
 
+	plugin_set_document_data(geany_plugin, doc, UPDATE_SOURCE_DOC_DATA, GUINT_TO_POINTER(0));
+
 	if (!DOC_VALID(doc))
 		return G_SOURCE_REMOVE;
-
-	plugin_set_document_data(geany_plugin, doc, UPDATE_SOURCE_DOC_DATA, GUINT_TO_POINTER(0));
 
 	srv = lsp_server_get_if_running(doc);
 	if (!srv)
