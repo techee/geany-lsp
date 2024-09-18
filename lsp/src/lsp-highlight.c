@@ -26,6 +26,8 @@
 
 #include <jsonrpc-glib.h>
 
+#define HIGHLIGHT_DIRTY "lsp_highlight_dirty"
+
 
 typedef struct {
 	GeanyDocument *doc;
@@ -35,12 +37,15 @@ typedef struct {
 } LspHighlightData;
 
 
+extern GeanyPlugin *geany_plugin;
+extern GeanyData *geany_data;
+
 static gint indicator;
-static gboolean dirty;
 
 
 void lsp_highlight_clear(GeanyDocument *doc)
 {
+	gboolean dirty = GPOINTER_TO_UINT(plugin_get_document_data(geany_plugin, doc, HIGHLIGHT_DIRTY));
 	if (dirty)
 	{
 		ScintillaObject *sci = doc->editor->sci;
@@ -48,7 +53,7 @@ void lsp_highlight_clear(GeanyDocument *doc)
 		if (indicator > 0)
 			sci_indicator_set(sci, indicator);
 		sci_indicator_clear(sci, 0, sci_get_length(sci));
-		dirty = FALSE;
+		plugin_set_document_data(geany_plugin, doc, HIGHLIGHT_DIRTY, GUINT_TO_POINTER(FALSE));
 	}
 }
 
@@ -65,7 +70,7 @@ void lsp_highlight_style_init(GeanyDocument *doc)
 
 	if (indicator > 0)
 	{
-		dirty = TRUE;
+		plugin_set_document_data(geany_plugin, doc, HIGHLIGHT_DIRTY, GUINT_TO_POINTER(TRUE));
 		lsp_highlight_clear(doc);
 	}
 	indicator = lsp_utils_set_indicator_style(sci, srv->config.highlighting_style);
@@ -82,7 +87,7 @@ static void highlight_range(GeanyDocument *doc, LspRange range)
 
 	if (indicator > 0)
 		editor_indicator_set_on_range(doc->editor, indicator, start_pos, end_pos);
-	dirty = TRUE;
+	plugin_set_document_data(geany_plugin, doc, HIGHLIGHT_DIRTY, GUINT_TO_POINTER(TRUE));
 }
 
 
