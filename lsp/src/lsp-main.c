@@ -810,7 +810,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		if (srv->config.highlighting_enable && perform_highlight &&
 			(nt->updated & SC_UPDATE_SELECTION))
 		{
-			lsp_highlight_send_request(srv, doc);
+			lsp_highlight_schedule_request(doc);
 		}
 		perform_highlight = TRUE;
 	}
