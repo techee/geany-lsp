@@ -37,12 +37,6 @@ typedef struct {
 } LspHighlightData;
 
 
-typedef struct {
-	GeanyDocument *doc;
-	gint pos;
-} UpdateData;
-
-
 extern GeanyPlugin *geany_plugin;
 extern GeanyData *geany_data;
 
@@ -219,20 +213,17 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 
 static gboolean request_idle(gpointer data)
 {
-	UpdateData *update_data = data;
-	GeanyDocument *doc = update_data->doc;
-	gint pos = update_data->pos;
+	GeanyDocument *doc = document_get_current();
 	LspServer *srv;
+	gint pos;
 
-	g_free(data);
 	request_source = 0;
-
-	if (doc != document_get_current())
-		return G_SOURCE_REMOVE;
 
 	srv = lsp_server_get_if_running(doc);
 	if (!srv)
 		return G_SOURCE_REMOVE;
+
+	pos = sci_get_current_position(doc->editor->sci);
 
 	send_request(srv, doc, pos, TRUE);
 	last_request_time = g_get_monotonic_time();
@@ -245,7 +236,6 @@ void lsp_highlight_schedule_request(GeanyDocument *doc)
 {
 	gint pos = sci_get_current_position(doc->editor->sci);
 	LspServer *srv = lsp_server_get_if_running(doc);
-	UpdateData *update_data;
 	gchar *iden;
 
 	if (!srv)
@@ -258,17 +248,13 @@ void lsp_highlight_schedule_request(GeanyDocument *doc)
 		return;
 	}
 
-	update_data = g_new0(UpdateData, 1);
-	update_data->doc = doc;
-	update_data->pos = pos;
-
 	if (request_source != 0)
 		g_source_remove(request_source);
 
 	if (last_request_time == 0 || g_get_monotonic_time() > last_request_time + 300000)
-		request_idle(update_data);
+		request_idle(NULL);
 	else
-		request_source = plugin_timeout_add(geany_plugin, 300, request_idle, update_data);
+		request_source = plugin_timeout_add(geany_plugin, 300, request_idle, NULL);
 }
 
 
