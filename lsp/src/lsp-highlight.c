@@ -245,11 +245,18 @@ void lsp_highlight_schedule_request(GeanyDocument *doc)
 	if (!iden)
 	{
 		lsp_highlight_clear(doc);
+		// cancel request because we have an up-to-date information there's nothing
+		// to highlight
+		if (request_source != 0)
+			g_source_remove(request_source);
+		request_source = 0;
 		return;
 	}
+	g_free(iden);
 
 	if (request_source != 0)
 		g_source_remove(request_source);
+	request_source = 0;
 
 	if (last_request_time == 0 || g_get_monotonic_time() > last_request_time + 300000)
 		request_idle(NULL);
