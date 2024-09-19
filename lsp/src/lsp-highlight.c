@@ -246,9 +246,17 @@ void lsp_highlight_schedule_request(GeanyDocument *doc)
 	gint pos = sci_get_current_position(doc->editor->sci);
 	LspServer *srv = lsp_server_get_if_running(doc);
 	UpdateData *update_data;
+	gchar *iden;
 
 	if (!srv)
 		return;
+
+	iden = lsp_utils_get_current_iden(doc, pos, srv->config.word_chars);
+	if (!iden)
+	{
+		lsp_highlight_clear(doc);
+		return;
+	}
 
 	update_data = g_new0(UpdateData, 1);
 	update_data->doc = doc;
