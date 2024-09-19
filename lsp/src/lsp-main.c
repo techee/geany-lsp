@@ -728,7 +728,10 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			return FALSE;
 
 		if (nt->modificationType & (SC_MOD_BEFOREINSERT | SC_MOD_BEFOREDELETE))
+		{
 			perform_highlight = FALSE;
+			lsp_highlight_clear(doc);
+		}
 
 		// BEFORE insert, BEFORE delete - send the original document
 		if (!lsp_sync_is_document_open(doc) &&
