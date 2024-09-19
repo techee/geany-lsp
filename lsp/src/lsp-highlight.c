@@ -200,6 +200,7 @@ static void send_request(LspServer *server, GeanyDocument *doc, gint pos, gboole
 		data->highlight = highlight;
 		lsp_rpc_call(server, "textDocument/documentHighlight", node,
 			highlight_cb, data);
+		last_request_time = g_get_monotonic_time();
 	}
 	else
 		lsp_highlight_clear(doc);
@@ -226,7 +227,6 @@ static gboolean request_idle(gpointer data)
 	pos = sci_get_current_position(doc->editor->sci);
 
 	send_request(srv, doc, pos, TRUE);
-	last_request_time = g_get_monotonic_time();
 
 	return G_SOURCE_REMOVE;
 }
