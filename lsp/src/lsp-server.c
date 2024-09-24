@@ -516,6 +516,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		if (EMPTY(s->signature_trigger_chars))
 			s->config.signature_enable = FALSE;
 
+		update_config(return_value, &s->config.autocomplete_enable, "completionProvider");
 		update_config(return_value, &s->config.hover_enable, "hoverProvider");
 		update_config(return_value, &s->config.hover_available, "hoverProvider");
 		update_config(return_value, &s->config.goto_enable, "definitionProvider");
