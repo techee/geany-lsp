@@ -57,6 +57,7 @@ typedef struct LspServerConfig
 	gint autocomplete_window_max_width;
 	gboolean autocomplete_use_snippets;
 	gchar *autocomplete_hide_after_words;
+	gboolean autocomplete_in_strings;
 
 	gboolean diagnostics_enable;
 	gint diagnostics_statusbar_severity;
