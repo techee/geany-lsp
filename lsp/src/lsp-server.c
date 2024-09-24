@@ -968,9 +968,20 @@ static void load_all_section_only_config(GKeyFile *kf, const gchar *section, Lsp
 
 static void load_filetype_only_config(GKeyFile *kf, const gchar *section, LspServer *s)
 {
-	get_str(&s->config.cmd, kf, section, "cmd");
+	gchar *cmd = NULL;
+	gchar *use = NULL;
+
+	get_str(&cmd, kf, section, "cmd");
+	get_str(&use, kf, section, "use");
+	if (!EMPTY(cmd) || !EMPTY(use))
+	{
+		// make sure 'use' from global config file gets overridden by 'cmd' from user config file
+		// and that not both of them are set
+		SETPTR(s->config.cmd, cmd);
+		SETPTR(s->config.ref_lang, use);
+	}
+
 	get_strv(&s->config.env, kf, section, "env");
-	get_str(&s->config.ref_lang, kf, section, "use");
 	get_str(&s->config.rpc_log, kf, section, "rpc_log");
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
 	get_str(&s->config.initialization_options, kf, section, "initialization_options");
