@@ -40,6 +40,7 @@
 #include "lsp-extension.h"
 #include "lsp-workspace-folders.h"
 #include "lsp-symbol-tree.h"
+#include "lsp-selection-range.h"
 
 #include <sys/time.h>
 #include <string.h>
@@ -76,32 +77,35 @@ PLUGIN_SET_TRANSLATABLE_INFO(
 #define CODE_ACTIONS_PERFORMED "lsp_code_actions_performed"
 
 enum {
-  KB_GOTO_DEFINITION,
-  KB_GOTO_DECLARATION,
-  KB_GOTO_TYPE_DEFINITION,
+	KB_GOTO_DEFINITION,
+	KB_GOTO_DECLARATION,
+	KB_GOTO_TYPE_DEFINITION,
 
-  KB_GOTO_ANYWHERE,
-  KB_GOTO_DOC_SYMBOL,
-  KB_GOTO_WORKSPACE_SYMBOL,
-  KB_GOTO_LINE,
+	KB_GOTO_ANYWHERE,
+	KB_GOTO_DOC_SYMBOL,
+	KB_GOTO_WORKSPACE_SYMBOL,
+	KB_GOTO_LINE,
 
-  KB_GOTO_NEXT_DIAG,
-  KB_GOTO_PREV_DIAG,
-  KB_SHOW_DIAG,
+	KB_GOTO_NEXT_DIAG,
+	KB_GOTO_PREV_DIAG,
+	KB_SHOW_DIAG,
 
-  KB_FIND_IMPLEMENTATIONS,
-  KB_FIND_REFERENCES,
+	KB_FIND_IMPLEMENTATIONS,
+	KB_FIND_REFERENCES,
 
-  KB_SHOW_HOVER_POPUP,
-  KB_SWAP_HEADER_SOURCE,
+	KB_EXPAND_SELECTION,
+	KB_SHRINK_SELECTION,
 
-  KB_RENAME_IN_FILE,
-  KB_RENAME_IN_PROJECT,
-  KB_FORMAT_CODE,
+	KB_SHOW_HOVER_POPUP,
+	KB_SWAP_HEADER_SOURCE,
 
-  KB_RESTART_SERVERS,
+	KB_RENAME_IN_FILE,
+	KB_RENAME_IN_PROJECT,
+	KB_FORMAT_CODE,
 
-  KB_COUNT
+	KB_RESTART_SERVERS,
+
+	KB_COUNT
 };
 
 
@@ -126,6 +130,9 @@ struct
 	GtkWidget *rename_in_file;
 	GtkWidget *rename_in_project;
 	GtkWidget *format_code;
+
+	GtkWidget *expand_selection;
+	GtkWidget *shrink_selection;
 
 	GtkWidget *hover_popup;
 	GtkWidget *header_source;
@@ -271,6 +278,7 @@ static void update_menu(GeanyDocument *doc)
 {
 	LspServer *srv = lsp_server_get_if_running(doc);
 	gboolean goto_definition_enable = srv && srv->config.goto_definition_enable;
+	gboolean selection_range_enable = srv && srv->config.selection_range_enable;
 	gboolean goto_references_enable = srv && srv->config.goto_references_enable;
 	gboolean goto_type_definition_enable = srv && srv->config.goto_type_definition_enable;
 	gboolean document_formatting_enable = srv && srv->config.document_formatting_enable;
@@ -299,6 +307,9 @@ static void update_menu(GeanyDocument *doc)
 	gtk_widget_set_sensitive(menu_items.rename_in_file, highlighting_enable);
 	gtk_widget_set_sensitive(menu_items.rename_in_project, rename_enable);
 	gtk_widget_set_sensitive(menu_items.format_code, document_formatting_enable || range_formatting_enable);
+
+	gtk_widget_set_sensitive(menu_items.expand_selection, selection_range_enable);
+	gtk_widget_set_sensitive(menu_items.shrink_selection, selection_range_enable);
 
 	gtk_widget_set_sensitive(menu_items.hover_popup, hover_popup_enable);
 }
@@ -348,6 +359,8 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_highlight_style_init(doc);
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
+
+	lsp_selection_clear_selections();
 
 	// just in case we didn't get some callback from the server
 	on_save_finish(doc);
@@ -810,6 +823,9 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 			lsp_diagnostics_hide_calltip(doc);
 
 			SSM(sci, SCI_AUTOCCANCEL, 0, 0);
+
+			if ((nt->updated & SC_UPDATE_SELECTION) && !sci_has_selection(sci))
+				lsp_selection_clear_selections();
 		}
 
 		if (srv->config.highlighting_enable && perform_highlight &&
@@ -1324,6 +1340,13 @@ static void invoke_kb(guint key_id, gint pos)
 			lsp_goto_implementations(pos);
 			break;
 
+		case KB_EXPAND_SELECTION:
+			lsp_selection_range_expand();
+			break;
+		case KB_SHRINK_SELECTION:
+			lsp_selection_range_shrink();
+			break;
+
 		case KB_SHOW_HOVER_POPUP:
 			show_hover_popup();
 			break;
@@ -1511,6 +1534,22 @@ static void create_menu_items()
 		GUINT_TO_POINTER(KB_SHOW_HOVER_POPUP));
 	keybindings_set_item(group, KB_SHOW_HOVER_POPUP, NULL, 0, 0, "show_hover_popup",
 		_("Show hover popup"), menu_items.hover_popup);
+
+	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
+
+	menu_items.expand_selection = gtk_menu_item_new_with_mnemonic(_("Expand Selection"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.expand_selection);
+	g_signal_connect(menu_items.expand_selection, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_EXPAND_SELECTION));
+	keybindings_set_item(group, KB_EXPAND_SELECTION, NULL, 0, 0, "expand_selection",
+		_("Expand Selection"), menu_items.expand_selection);
+
+	menu_items.shrink_selection = gtk_menu_item_new_with_mnemonic(_("Shrink Selection"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.shrink_selection);
+	g_signal_connect(menu_items.shrink_selection, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_SHRINK_SELECTION));
+	keybindings_set_item(group, KB_SHRINK_SELECTION, NULL, 0, 0, "shrink_selection",
+		_("Shrink Selection"), menu_items.shrink_selection);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 

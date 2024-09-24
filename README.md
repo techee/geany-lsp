@@ -30,6 +30,7 @@ The plugin provides the following LSP features:
 * Navigation to document/project symbols, files, and line numbers
 * Code formatting
 * Identical symbol highlighting
+* Smart selection expanding/shrinking
 * Document symbol renaming
 * Project-wide renaming
 

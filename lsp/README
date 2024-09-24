@@ -205,6 +205,13 @@ When you click on a symbol in the document, this feature highlights all its
 occurrences in the document. You can customize the highlighting style to your
 preference by configuring it in the configuration file.
 
+Smart selection expanding/shrinking
+-----------------------------------
+
+This feature allows to expand the current text selection to contain the next
+upper syntactic element such as a parent block in programming languages or a
+parent tag in XML. Selection shrinking works in the opposite direction.
+
 Document symbol renaming
 ------------------------
 

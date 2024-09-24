@@ -558,6 +558,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		update_config(return_value, &s->config.execute_command_enable, "executeCommandProvider");
 		update_config(return_value, &s->config.code_action_enable, "codeActionProvider");
 		update_config(return_value, &s->config.rename_enable, "renameProvider");
+		update_config(return_value, &s->config.selection_range_enable, "selectionRangeProvider");
 
 		s->supports_workspace_symbols = TRUE;
 		update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
@@ -996,6 +997,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	s->config.execute_command_enable = TRUE;
 	s->config.code_action_enable = TRUE;
 	s->config.rename_enable = TRUE;
+	s->config.selection_range_enable = TRUE;
 
 	s->config.hover_available = TRUE;
 	s->config.document_symbols_available = TRUE;

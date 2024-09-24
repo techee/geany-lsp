@@ -110,6 +110,7 @@ typedef struct LspServerConfig
 
 	gboolean execute_command_enable;
 	gboolean code_action_enable;
+	gboolean selection_range_enable;
 	gchar *command_on_save_regex;
 	gint command_keybinding_num;
 	GPtrArray *command_regexes;
