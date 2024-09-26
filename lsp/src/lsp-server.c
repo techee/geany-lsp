@@ -159,8 +159,12 @@ static gboolean kill_cb(gpointer user_data)
 
 	if (g_ptr_array_find(servers_in_shutdown, srv, NULL))
 	{
-		msgwin_status_add(_("Killing LSP server %s"), srv->config.cmd);
+		msgwin_status_add(_("Force terminating LSP server %s"), srv->config.cmd);
+#ifdef G_OS_WIN32
 		g_subprocess_force_exit(srv->process);
+#else
+		g_subprocess_send_signal(srv->process, SIGTERM);
+#endif
 	}
 
 	return G_SOURCE_REMOVE;
@@ -206,7 +210,7 @@ static void stop_process(LspServer *s)
 	lsp_rpc_call_startup_shutdown(s, "shutdown", NULL, shutdown_cb, s);
 
 	// should not be performed if server behaves correctly
-	plugin_timeout_add(geany_plugin, 5000, kill_cb, s);
+	plugin_timeout_add(geany_plugin, 4000, kill_cb, s);
 }
 
 
@@ -573,12 +577,16 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 	}
 	else
 	{
-		msgwin_status_add(_("LSP initialize request failed for LSP server, killing %s"), s->config.cmd);
+		msgwin_status_add(_("LSP initialize request failed for LSP server, terminating %s"), s->config.cmd);
 
 		// force exit the server - since the handshake didn't perform, the
 		// server may be in some strange state and normal "exit" may not work
 		// (happens with haskell server)
+#ifdef G_OS_WIN32
 		g_subprocess_force_exit(s->process);
+#else
+		g_subprocess_send_signal(s->process, SIGTERM);
+#endif
 	}
 }
 
