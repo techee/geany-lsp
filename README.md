@@ -36,11 +36,12 @@ The plugin provides the following LSP features:
 Limitations
 -----------
 
-The plugin currently only works over stdin/stdout and takes over the
-responsibility for starting and stopping LSP servers. Some LSP servers,
-such as Godot, have to run all the time because they provide other functionality
-and have to be connected using sockets - this is not supported by the server at
-the moment.
+By design, the plugin communicates over stdin/stdout only, is responsible
+for launching and terminating the language server process, and supports only
+a single language server per programming language.
+
+All these limitations are addressed by the [LSP proxy](https://github.com/techee/lsp-proxy)
+project and related issues should be directed there.
 
 Building
 --------
