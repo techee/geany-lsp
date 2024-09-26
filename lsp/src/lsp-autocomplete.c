@@ -424,7 +424,10 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		iter = g_variant_iter_new(response);
 
 	if (!iter)
+	{
+		SSM(doc->editor->sci, SCI_AUTOCCANCEL, 0, 0);
 		return;
+	}
 
 	symbols = g_ptr_array_new_full(0, NULL);  // not freeing symbols here
 
