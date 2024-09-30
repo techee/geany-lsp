@@ -40,7 +40,7 @@ By design, the plugin communicates over stdin/stdout only, is responsible
 for launching and terminating the language server process, and supports only
 a single language server per programming language.
 
-All these limitations are addressed by the [LSP proxy](https://github.com/techee/lsp-proxy)
+All of these limitations are addressed by the [LSP proxy](https://github.com/techee/lsp-proxy)
 project and related issues should be directed there.
 
 Building

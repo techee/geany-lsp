@@ -226,6 +226,16 @@ checks and does not show any preview of the changes so it is best to use this
 feature only after committing all modified files so you can
 easily revert to a working state if needed.
 
+Limitations
+===========
+
+By design, the plugin communicates over stdin/stdout only, is responsible
+for launching and terminating the language server process, and supports only
+a single language server per file type.
+
+All of these limitations are addressed by the LSP proxy project available at
+https://github.com/techee/lsp-proxy and related issues should be directed there.
+
 License
 =======
 
