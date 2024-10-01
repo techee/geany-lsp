@@ -215,7 +215,11 @@ void lsp_autocomplete_style_init(GeanyDocument *doc)
 	ScintillaObject *sci = doc->editor->sci;
 	LspServer *srv = lsp_server_get_if_running(doc);
 
-	if (!srv)
+	// make sure to revert to default Geany behavior when autocompletion not
+	// available
+	SSM(sci, SCI_AUTOCSETAUTOHIDE, TRUE, 0);
+
+	if (!srv || !srv->config.autocomplete_enable)
 		return;
 
 	SSM(sci, SCI_AUTOCSETORDER, SC_ORDER_CUSTOM, 0);

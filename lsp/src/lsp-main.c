@@ -337,6 +337,9 @@ static void on_document_visible(GeanyDocument *doc)
 	// quick synchronous refresh with the last value without server request
 	lsp_symbol_tree_refresh();
 
+	// perform also without server - to revert to default Geany behavior
+	lsp_autocomplete_style_init(doc);
+
 	if (!srv)
 		return;
 
@@ -345,7 +348,6 @@ static void on_document_visible(GeanyDocument *doc)
 	lsp_highlight_style_init(doc);
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
-	lsp_autocomplete_style_init(doc);
 
 	// just in case we didn't get some callback from the server
 	on_save_finish(doc);
