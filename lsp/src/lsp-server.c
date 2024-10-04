@@ -640,6 +640,8 @@ static void perform_initialize(LspServer *server)
 				"}",
 				"hierarchicalDocumentSymbolSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 			"}",
+			"publishDiagnostics", "{",  // zls requires this to publish diagnostics
+			"}",
 			"semanticTokens", "{",
 				"requests", "{",
 					"full", "{",
