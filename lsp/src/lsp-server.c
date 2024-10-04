@@ -323,6 +323,7 @@ static guint64 get_semantic_token_mask(LspServer *srv, GVariant *node)
 static gchar *get_signature_trigger_chars(GVariant *node)
 {
 	GVariantIter *iter = NULL;
+	GVariantIter *iter2 = NULL;
 	GString *str = g_string_new("");
 
 	JSONRPC_MESSAGE_PARSE(node,
@@ -332,12 +333,31 @@ static gchar *get_signature_trigger_chars(GVariant *node)
 			"}",
 		"}");
 
+	JSONRPC_MESSAGE_PARSE(node,
+		"capabilities", "{",
+			"signatureHelpProvider", "{",
+				"retriggerCharacters", JSONRPC_MESSAGE_GET_ITER(&iter2),
+			"}",
+		"}");
+
 	if (iter)
 	{
 		GVariant *val = NULL;
 		while (g_variant_iter_loop(iter, "v", &val))
 			g_string_append(str, g_variant_get_string(val, NULL));
 		g_variant_iter_free(iter);
+	}
+
+	if (iter2)
+	{
+		GVariant *val = NULL;
+		while (g_variant_iter_loop(iter2, "v", &val))
+		{
+			const gchar *chr = g_variant_get_string(val, NULL);
+			if (!strstr(str->str, chr))
+				g_string_append(str, chr);
+		}
+		g_variant_iter_free(iter2);
 	}
 
 	return g_string_free(str, FALSE);
