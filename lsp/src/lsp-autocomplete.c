@@ -36,6 +36,7 @@ typedef struct
 	gchar *label;
 	LspCompletionKind kind;
 	gchar *sort_text;
+	gchar *filter_text;
 	gchar *insert_text;
 	gchar *detail;
 	LspTextEdit *text_edit;
@@ -85,6 +86,7 @@ static void free_autocomplete_symbol(gpointer data)
 	LspAutocompleteSymbol *sym = data;
 	g_free(sym->label);
 	g_free(sym->sort_text);
+	g_free(sym->filter_text);
 	g_free(sym->insert_text);
 	g_free(sym->detail);
 	lsp_utils_free_lsp_text_edit(sym->text_edit);
@@ -282,6 +284,12 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 }
 
 
+static gboolean within_string(const gchar *s1, const gchar *s2)
+{
+	return strstr(s1, s2) != NULL;
+}
+
+
 static gint strstr_delta(const gchar *s1, const gchar *s2)
 {
 	const gchar *pos = strstr(s1, s2);
@@ -304,31 +312,27 @@ static gboolean has_identifier_chars(const gchar *s, const gchar *word_chars)
 }
 
 
+static gboolean filter_autocomplete_symbols(LspAutocompleteSymbol *sym, const gchar *text,
+	gboolean use_label)
+{
+	const gchar *filter_text;
+
+	if (EMPTY(text))
+		return FALSE;
+
+	filter_text = sym->filter_text ? sym->filter_text : get_label(sym, use_label);
+
+	return !GPOINTER_TO_INT(lsp_utils_lowercase_cmp((LspUtilsCmpFn)within_string, filter_text, text));
+}
+
+
 static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer user_data)
 {
 	LspAutocompleteSymbol *sym1 = *((LspAutocompleteSymbol **)a);
 	LspAutocompleteSymbol *sym2 = *((LspAutocompleteSymbol **)b);
 	SortData *sort_data = user_data;
-	gchar *label1 = NULL;
-	gchar *label2 = NULL;
-
-	if (sort_data->use_label && sym1->label)
-		label1 = sym1->label;
-	else if (sym1->text_edit && sym1->text_edit->new_text)
-		label1 = sym1->text_edit->new_text;
-	else if (sym1->insert_text)
-		label1 = sym1->insert_text;
-	else if (sym1->label)
-		label1 = sym1->label;
-
-	if (sort_data->use_label && sym2->label)
-		label2 = sym2->label;
-	else if (sym2->text_edit && sym2->text_edit->new_text)
-		label2 = sym2->text_edit->new_text;
-	else if (sym2->insert_text)
-		label2 = sym2->insert_text;
-	else if (sym2->label)
-		label2 = sym2->label;
+	const gchar *label1 = get_label(sym1, sort_data->use_label);
+	const gchar *label2 = get_label(sym2, sort_data->use_label);
 
 	if (sort_data->pass == 2 && label1 && label2 && sort_data->prefix)
 	{
@@ -443,6 +447,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		const gchar *label = NULL;
 		const gchar *insert_text = NULL;
 		const gchar *sort_text = NULL;
+		const gchar *filter_text = NULL;
 		const gchar *detail = NULL;
 		gint64 kind = 0;
 		gint64 format = 0;
@@ -464,6 +469,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 
 		JSONRPC_MESSAGE_PARSE(member, "label", JSONRPC_MESSAGE_GET_STRING(&label));
 		JSONRPC_MESSAGE_PARSE(member, "sortText", JSONRPC_MESSAGE_GET_STRING(&sort_text));
+		JSONRPC_MESSAGE_PARSE(member, "filterText", JSONRPC_MESSAGE_GET_STRING(&filter_text));
 		JSONRPC_MESSAGE_PARSE(member, "detail", JSONRPC_MESSAGE_GET_STRING(&detail));
 		JSONRPC_MESSAGE_PARSE(member, "textEdit", JSONRPC_MESSAGE_GET_VARIANT(&text_edit));
 		JSONRPC_MESSAGE_PARSE(member, "additionalTextEdits", JSONRPC_MESSAGE_GET_ITER(&additional_edits));
@@ -493,13 +499,17 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	symbols_filtered = g_ptr_array_new_full(symbols->len, free_autocomplete_symbol);
 	entry_set = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
-	/* remove duplicates */
+	if (prefixlen > 0)
+		sort_data.prefix = sci_get_contents_range(sci, pos - prefixlen, pos);
+
+	/* remove duplicates and items not matching filtering criteria */
 	for (i = 0; i < symbols->len; i++)
 	{
 		LspAutocompleteSymbol *sym = symbols->pdata[i];
 		gchar *display_label = get_symbol_label(server, sym);
 
-		if (g_hash_table_contains(entry_set, display_label))
+		if (g_hash_table_contains(entry_set, display_label) ||
+			filter_autocomplete_symbols(sym, sort_data.prefix, sort_data.use_label))
 		{
 			free_autocomplete_symbol(sym);
 			g_free(display_label);
@@ -514,8 +524,6 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	g_ptr_array_free(symbols, TRUE);
 	symbols = symbols_filtered;
 
-	if (prefixlen > 0)
-		sort_data.prefix = sci_get_contents_range(sci, pos - prefixlen, pos);
 	sort_data.pass = 2;
 	/* sort with symbols matching the typed prefix first */
 	g_ptr_array_sort_with_data(symbols, sort_autocomplete_symbols, &sort_data);
