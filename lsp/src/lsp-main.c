@@ -839,6 +839,8 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	{
 		// don't hightlight while typing
 		lsp_highlight_clear(doc);
+		lsp_hover_hide_calltip(doc);
+		lsp_diagnostics_hide_calltip(doc);
 	}
 
 	return FALSE;
