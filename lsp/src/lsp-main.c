@@ -289,6 +289,7 @@ static void update_menu(GeanyDocument *doc)
 	gboolean goto_implementation_enable = srv && srv->config.goto_implementation_enable;
 	gboolean diagnostics_enable = srv && srv->config.diagnostics_enable;
 	gboolean hover_popup_enable = srv && srv->config.hover_available;
+	gboolean swap_header_source_enable = srv && srv->config.swap_header_source_enable;
 
 	if (!menu_items.parent_item)
 		return;
@@ -310,6 +311,8 @@ static void update_menu(GeanyDocument *doc)
 
 	gtk_widget_set_sensitive(menu_items.expand_selection, selection_range_enable);
 	gtk_widget_set_sensitive(menu_items.shrink_selection, selection_range_enable);
+
+	gtk_widget_set_sensitive(menu_items.header_source, swap_header_source_enable);
 
 	gtk_widget_set_sensitive(menu_items.hover_popup, hover_popup_enable);
 }

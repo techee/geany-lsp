@@ -969,6 +969,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_str(&s->config.command_on_save_regex, kf, section, "command_on_save_regex");
 
 	get_bool(&s->config.progress_bar_enable, kf, section, "progress_bar_enable");
+	get_bool(&s->config.swap_header_source_enable, kf, section, "swap_header_source_enable");
 
 	// create for the first time, then just update
 	if (!s->config.command_regexes)
