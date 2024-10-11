@@ -284,12 +284,6 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 }
 
 
-static gboolean within_string(const gchar *s1, const gchar *s2)
-{
-	return strstr(s1, s2) != NULL;
-}
-
-
 static gint strstr_delta(const gchar *s1, const gchar *s2)
 {
 	const gchar *pos = strstr(s1, s2);
@@ -312,6 +306,51 @@ static gboolean has_identifier_chars(const gchar *s, const gchar *word_chars)
 }
 
 
+static void get_letter_counts(gint *counts, const gchar *str)
+{
+	gint i;
+
+	for (i = 0; str[i]; i++)
+	{
+		gchar c = str[i];
+		if (c >= 'a' && c <= 'z')
+			counts[c-'a']++;
+	}
+}
+
+
+// fuzzy filtering - only require the same letters appear in name and prefix and
+// that the first two letters of prefix appear as a substring in name. Most
+// servers filter by themselves and this avoids filtering-out good suggestions
+// when the typed string is just slightly misspelled. For servers that don't
+// filter by themselves this filters the the strings that are totally out and
+// together with sorting presents reasonable suggestions
+static gboolean should_filter(const gchar *name, const gchar *prefix)
+{
+	gint name_letters['z'-'a'+1] = {0};
+	gint prefix_letters['z'-'a'+1] = {0};
+	gchar c;
+
+	get_letter_counts(name_letters, name);
+	get_letter_counts(prefix_letters, prefix);
+
+	for (c = 'a'; c <= 'z'; c++)
+	{
+		if (name_letters[c-'a'] < prefix_letters[c-'a'])
+			return TRUE;
+	}
+
+	if (strlen(prefix) >= 2)
+	{
+		gchar pref[] = {prefix[0], prefix[1], '\0'};
+		if (!strstr(name, pref))
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
 static gboolean filter_autocomplete_symbols(LspAutocompleteSymbol *sym, const gchar *text,
 	gboolean use_label)
 {
@@ -322,7 +361,7 @@ static gboolean filter_autocomplete_symbols(LspAutocompleteSymbol *sym, const gc
 
 	filter_text = sym->filter_text ? sym->filter_text : get_label(sym, use_label);
 
-	return !GPOINTER_TO_INT(lsp_utils_lowercase_cmp((LspUtilsCmpFn)within_string, filter_text, text));
+	return GPOINTER_TO_INT(lsp_utils_lowercase_cmp((LspUtilsCmpFn)should_filter, filter_text, text));
 }
 
 
