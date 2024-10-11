@@ -97,6 +97,8 @@ enum {
 	KB_SHRINK_SELECTION,
 
 	KB_SHOW_HOVER_POPUP,
+	KB_SHOW_CODE_ACTIONS,
+
 	KB_SWAP_HEADER_SOURCE,
 
 	KB_RENAME_IN_FILE,
@@ -135,6 +137,8 @@ struct
 	GtkWidget *shrink_selection;
 
 	GtkWidget *hover_popup;
+	GtkWidget *code_action_popup;
+
 	GtkWidget *header_source;
 } menu_items;
 
@@ -289,6 +293,7 @@ static void update_menu(GeanyDocument *doc)
 	gboolean goto_implementation_enable = srv && srv->config.goto_implementation_enable;
 	gboolean diagnostics_enable = srv && srv->config.diagnostics_enable;
 	gboolean hover_popup_enable = srv && srv->config.hover_available;
+	gboolean code_action_enable = srv && (srv->config.code_action_enable || srv->config.code_lens_enable);
 	gboolean swap_header_source_enable = srv && srv->config.swap_header_source_enable;
 
 	if (!menu_items.parent_item)
@@ -315,6 +320,7 @@ static void update_menu(GeanyDocument *doc)
 	gtk_widget_set_sensitive(menu_items.header_source, swap_header_source_enable);
 
 	gtk_widget_set_sensitive(menu_items.hover_popup, hover_popup_enable);
+	gtk_widget_set_sensitive(menu_items.code_action_popup, code_action_enable);
 }
 
 
@@ -1090,6 +1096,43 @@ static gboolean update_command_menu_items(GPtrArray *code_action_commands, gpoin
 }
 
 
+// stolen from Geany
+static void show_menu_at_caret(GtkMenu* menu, ScintillaObject *sci)
+{
+	GdkWindow *window = gtk_widget_get_window(GTK_WIDGET(sci));
+	gint pos = sci_get_current_position(sci);
+	gint line = sci_get_line_from_position(sci, pos);
+	gint line_height = SSM(sci, SCI_TEXTHEIGHT, line, 0);
+	gint x = SSM(sci, SCI_POINTXFROMPOSITION, 0, pos);
+	gint y = SSM(sci, SCI_POINTYFROMPOSITION, 0, pos);
+	gint pos_next = SSM(sci, SCI_POSITIONAFTER, pos, 0);
+	gint char_width = 0;
+	/* if next pos is on the same Y (same line and not after wrapping), diff the X */
+	if (pos_next > pos && SSM(sci, SCI_POINTYFROMPOSITION, 0, pos_next) == y)
+		char_width = SSM(sci, SCI_POINTXFROMPOSITION, 0, pos_next) - x;
+	GdkRectangle rect = {x, y, char_width, line_height};
+	gtk_menu_popup_at_rect(GTK_MENU(menu), window, &rect, GDK_GRAVITY_SOUTH_WEST, GDK_GRAVITY_NORTH_WEST, NULL);
+}
+
+
+static gboolean show_code_action_popup(GPtrArray *code_action_commands, gpointer user_data)
+{
+	GPtrArray *code_lens_commands = lsp_code_lens_get_commands();
+
+	if (code_action_commands->len > 0 || code_lens_commands->len > 0)
+	{
+		GeanyDocument *doc = user_data;
+		GtkWidget *menu;
+
+		update_command_menu_items(code_action_commands, user_data);
+		menu = gtk_menu_item_get_submenu(GTK_MENU_ITEM(context_menu_items.command_item));
+		show_menu_at_caret(GTK_MENU(menu), doc->editor->sci);
+		gtk_menu_shell_select_first(GTK_MENU_SHELL(menu), FALSE);
+	}
+	return FALSE;
+}
+
+
 static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 	const gchar *word, gint pos, GeanyDocument *doc, gpointer user_data)
 {
@@ -1376,6 +1419,10 @@ static void invoke_kb(guint key_id, gint pos)
 			restart_all_servers();
 			break;
 
+		case KB_SHOW_CODE_ACTIONS:
+			lsp_command_send_code_action_request(doc, pos, show_code_action_popup, doc);
+			break;
+
 		default:
 			break;
 	}
@@ -1539,6 +1586,13 @@ static void create_menu_items()
 		GUINT_TO_POINTER(KB_SHOW_HOVER_POPUP));
 	keybindings_set_item(group, KB_SHOW_HOVER_POPUP, NULL, 0, 0, "show_hover_popup",
 		_("Show hover popup"), menu_items.hover_popup);
+
+	menu_items.code_action_popup = gtk_menu_item_new_with_mnemonic(_("Show Code Action Popup"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.code_action_popup);
+	g_signal_connect(menu_items.code_action_popup, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_SHOW_CODE_ACTIONS));
+	keybindings_set_item(group, KB_SHOW_CODE_ACTIONS, NULL, 0, 0, "show_code_action_popup",
+		_("Show code action popup"), menu_items.code_action_popup);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
