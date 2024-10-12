@@ -247,38 +247,6 @@ static gchar *get_autocomplete_trigger_chars(GVariant *node)
 }
 
 
-static gboolean supports_full_semantic_tokens(GVariant *node)
-{
-	gboolean val = FALSE;
-
-	JSONRPC_MESSAGE_PARSE(node,
-		"capabilities", "{",
-			"semanticTokensProvider", "{",
-				"full", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
-			"}",
-		"}");
-
-	return val;
-}
-
-
-static gboolean supports_delta_semantic_tokens(GVariant *node)
-{
-	gboolean val = FALSE;
-
-	JSONRPC_MESSAGE_PARSE(node,
-		"capabilities", "{",
-			"semanticTokensProvider", "{",
-				"full", "{",
-					"delta", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
-				"}",
-			"}",
-		"}");
-
-	return val;
-}
-
-
 static guint64 get_semantic_token_mask(LspServer *srv, GVariant *node)
 {
 	guint64 mask = 0;
@@ -389,52 +357,6 @@ static gboolean use_incremental_sync(GVariant *node)
 }
 
 
-static gboolean send_did_save(GVariant *node)
-{
-	gboolean val;
-	gboolean success = JSONRPC_MESSAGE_PARSE(node,
-		"capabilities", "{",
-			"textDocumentSync", "{",
-				"save", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
-			"}",
-		"}");
-
-	if (!success)
-	{
-		GVariant *var = NULL;
-
-		JSONRPC_MESSAGE_PARSE(node,
-			"capabilities", "{",
-				"textDocumentSync", "{",
-					"save", JSONRPC_MESSAGE_GET_VARIANT(&var),
-				"}",
-			"}");
-
-		success = val = var != NULL;
-		if (var)
-			g_variant_unref(var);
-	}
-
-	return success && val;
-}
-
-
-static gboolean include_text_on_save(GVariant *node)
-{
-	gboolean val;
-	gboolean success = JSONRPC_MESSAGE_PARSE(node,
-		"capabilities", "{",
-			"textDocumentSync", "{",
-				"save", "{",
-					"includeText", JSONRPC_MESSAGE_GET_BOOLEAN(&val),
-				"}",
-			"}",
-		"}");
-
-	return success && val;
-}
-
-
 static gboolean use_workspace_folders(GVariant *node)
 {
 	gboolean change_notifications = FALSE;
@@ -479,33 +401,74 @@ static gboolean use_workspace_folders(GVariant *node)
 }
 
 
-static void update_config(GVariant *variant, gboolean *option, const gchar *key)
+static gboolean has_capability(GVariant *variant, const gchar *key1, const gchar *key2, const gchar *key3)
 {
 	gboolean val = FALSE;
-	gboolean success = JSONRPC_MESSAGE_PARSE(variant,
-		"capabilities", "{",
-			key, JSONRPC_MESSAGE_GET_BOOLEAN(&val),
-		"}");
+	GVariant *var = NULL;
+	gboolean success;
 
-	if (success)  // explicit TRUE, FALSE
-	{
-		if (!val)
-			*option = FALSE;
-	}
-	else  // dict (possibly just empty) which also indicates TRUE
-	{
-		GVariant *var = NULL;
-
-		JSONRPC_MESSAGE_PARSE(variant,
+	if (key2 && key3)
+		success = JSONRPC_MESSAGE_PARSE(variant,
 			"capabilities", "{",
-				key, JSONRPC_MESSAGE_GET_VARIANT(&var),
+				key1, "{",
+					key2, "{",
+						key3, JSONRPC_MESSAGE_GET_BOOLEAN(&val),
+					"}",
+				"}",
+			"}");
+	else if (key2)
+		success = JSONRPC_MESSAGE_PARSE(variant,
+			"capabilities", "{",
+				key1, "{",
+					key2, JSONRPC_MESSAGE_GET_BOOLEAN(&val),
+				"}",
+			"}");
+	else
+		success = JSONRPC_MESSAGE_PARSE(variant,
+			"capabilities", "{",
+				key1, JSONRPC_MESSAGE_GET_BOOLEAN(&val),
 			"}");
 
-		if (var)
-			g_variant_unref(var);
-		else
-			*option = FALSE;
+	// explicit TRUE, FALSE
+	if (success)
+		return val;
+
+	// dict (possibly just empty) which also indicates TRUE
+	if (key2 && key3)
+		JSONRPC_MESSAGE_PARSE(variant,
+			"capabilities", "{",
+				key1, "{",
+					key2, "{",
+						key3, JSONRPC_MESSAGE_GET_VARIANT(&var),
+					"}",
+				"}",
+			"}");
+	else if (key2)
+		JSONRPC_MESSAGE_PARSE(variant,
+			"capabilities", "{",
+				key1, "{",
+					key2, JSONRPC_MESSAGE_GET_VARIANT(&var),
+				"}",
+			"}");
+	else
+		JSONRPC_MESSAGE_PARSE(variant,
+			"capabilities", "{",
+				key1, JSONRPC_MESSAGE_GET_VARIANT(&var),
+			"}");
+
+	if (var)
+	{
+		g_variant_unref(var);
+		return TRUE;
 	}
+
+	return FALSE;
+}
+
+
+static void update_config(GVariant *variant, gboolean *option, const gchar *key)
+{
+	*option = *option && has_capability(variant, key, NULL, NULL);
 }
 
 
@@ -564,15 +527,16 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
 
 		s->use_incremental_sync = use_incremental_sync(return_value);
-		s->send_did_save = send_did_save(return_value);
-		s->include_text_on_save = include_text_on_save(return_value);
+		s->send_did_save = has_capability(return_value, "textDocumentSync", "save", NULL);
+		s->include_text_on_save = has_capability(return_value, "textDocumentSync", "save", "includeText");
 		s->use_workspace_folders = use_workspace_folders(return_value);
 
 		s->initialize_response = lsp_utils_json_pretty_print(return_value);
 
-		s->config.semantic_tokens_supports_delta = supports_delta_semantic_tokens(return_value);
-		if (!supports_full_semantic_tokens(return_value) && !s->config.semantic_tokens_supports_delta)
-			s->config.semantic_tokens_enable = FALSE;
+		s->config.semantic_tokens_enable = s->config.semantic_tokens_enable &&
+			has_capability(return_value, "semanticTokensProvider", "full", NULL);
+		s->config.semantic_tokens_supports_delta = has_capability(return_value,
+			"semanticTokensProvider", "full", "delta");
 		s->semantic_token_mask = get_semantic_token_mask(s, return_value);
 
 		msgwin_status_add(_("LSP server %s initialized"), s->config.cmd);
