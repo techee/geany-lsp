@@ -628,6 +628,11 @@ static void perform_initialize(LspServer *server)
 			"publishDiagnostics", "{",  // zls requires this to publish diagnostics
 			"}",
 			"codeAction", "{",
+				"resolveSupport", "{",
+					"properties", "[",
+						"edit",
+					"]",
+				"}",
 				"codeActionLiteralSupport", "{",
 					"codeActionKind", "{",
 						"valueSet", "[",
