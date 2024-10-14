@@ -633,6 +633,7 @@ static void perform_initialize(LspServer *server)
 						"edit",
 					"]",
 				"}",
+				"dataSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 				"codeActionLiteralSupport", "{",
 					"codeActionKind", "{",
 						"valueSet", "[",
