@@ -610,7 +610,7 @@ static void perform_initialize(LspServer *server)
 						LSP_COMPLETION_KINDS,
 					"]",
 				"}",
-				"contxtSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
+				"contextSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
 			"}",
 			"hover", "{",
 				"contentFormat", "[",
