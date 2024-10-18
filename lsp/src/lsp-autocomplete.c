@@ -729,7 +729,7 @@ void lsp_autocomplete_completion(LspServer *server, GeanyDocument *doc, gboolean
 		"}",
 		"context", "{",
 			"triggerKind", JSONRPC_MESSAGE_PUT_INT32(is_trigger_char ? 2 : 1),
-			"triggerCharacter", JSONRPC_MESSAGE_PUT_STRING(c_str),
+			"triggerCharacter", JSONRPC_MESSAGE_PUT_STRING(is_trigger_char ? c_str : NULL),
 		"}"
 	);
 
