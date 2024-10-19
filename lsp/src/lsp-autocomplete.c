@@ -39,6 +39,7 @@ typedef struct
 	gchar *filter_text;
 	gchar *insert_text;
 	gchar *detail;
+	gchar *documentation;
 	LspTextEdit *text_edit;
 	GPtrArray * additional_edits;
 	gboolean is_snippet;
@@ -65,6 +66,7 @@ static GPtrArray *displayed_autocomplete_symbols = NULL;
 static gint sent_request_id = 0;
 static gint received_request_id = 0;
 static gint discard_up_to_request_id = 0;
+static gboolean statusbar_modified = FALSE;
 
 
 void lsp_autocomplete_discard_pending_requests()
@@ -89,6 +91,7 @@ static void free_autocomplete_symbol(gpointer data)
 	g_free(sym->filter_text);
 	g_free(sym->insert_text);
 	g_free(sym->detail);
+	g_free(sym->documentation);
 	lsp_utils_free_lsp_text_edit(sym->text_edit);
 	if (sym->additional_edits)
 		g_ptr_array_free(sym->additional_edits, TRUE);
@@ -212,6 +215,58 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 }
 
 
+void lsp_autocomplete_clear_statusbar(void)
+{
+	if (statusbar_modified)
+		ui_set_statusbar(FALSE, " ");
+	statusbar_modified = FALSE;
+}
+
+
+void lsp_autocomplete_selection_changed(GeanyDocument *doc, const gchar *text)
+{
+	LspServer *srv = lsp_server_get(doc);
+	LspAutocompleteSymbol *sym;
+	guint i;
+
+	if (!srv || !displayed_autocomplete_symbols)
+		return;
+
+	foreach_ptr_array(sym, i, displayed_autocomplete_symbols)
+	{
+		gchar *label = get_symbol_label(srv, sym);
+		gboolean should_break = FALSE;
+
+		if (!sym->documentation)
+			lsp_autocomplete_clear_statusbar();
+		else if (g_strcmp0(label, text) == 0)
+		{
+			GString *str;
+
+			g_strstrip(sym->documentation);
+			str = g_string_new(sym->documentation);
+			g_string_replace(str, "\n", " ", -1);
+			g_string_replace(str, "  ", " ", -1);
+			if (!EMPTY(str->str))
+			{
+				ui_set_statusbar(FALSE, "%s", str->str);
+				statusbar_modified = TRUE;
+			}
+			else if (statusbar_modified)
+				lsp_autocomplete_clear_statusbar();
+
+			g_string_free(str, TRUE);
+			should_break = TRUE;
+		}
+
+		g_free(label);
+
+		if (should_break)
+			break;
+	}
+}
+
+
 void lsp_autocomplete_style_init(GeanyDocument *doc)
 {
 	ScintillaObject *sci = doc->editor->sci;
@@ -244,6 +299,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 	gint pos = sci_get_current_position(sci);
 	GString *words = g_string_sized_new(2000);
 	gchar *label;
+	gchar *first_label = NULL;
 
 	for (i = 0; i < symbols->len; i++)
 	{
@@ -258,6 +314,8 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 			g_string_append_c(words, '\n');
 
 		label = get_symbol_label(server, symbol);
+		if (!first_label)
+			first_label = g_strdup(label);
 		g_string_append(words, label);
 
 		sprintf(buf, "?%u", icon_id + 1);
@@ -268,6 +326,11 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 
 	lsp_autocomplete_set_displayed_symbols(symbols);
 	SSM(sci, SCI_AUTOCSHOW, get_ident_prefixlen(server->config.word_chars, doc, pos), (sptr_t) words->str);
+	if (first_label)
+	{
+		lsp_autocomplete_selection_changed(doc, first_label);
+		g_free(first_label);
+	}
 
 // TODO: remove eventually
 #ifndef SC_AUTOCOMPLETE_SELECT_FIRST_ITEM
@@ -488,6 +551,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		const gchar *sort_text = NULL;
 		const gchar *filter_text = NULL;
 		const gchar *detail = NULL;
+		const gchar *documentation = NULL;
 		gint64 kind = 0;
 		gint64 format = 0;
 
@@ -513,11 +577,19 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 		JSONRPC_MESSAGE_PARSE(member, "textEdit", JSONRPC_MESSAGE_GET_VARIANT(&text_edit));
 		JSONRPC_MESSAGE_PARSE(member, "additionalTextEdits", JSONRPC_MESSAGE_GET_ITER(&additional_edits));
 
+		if (!JSONRPC_MESSAGE_PARSE(member, "documentation", JSONRPC_MESSAGE_GET_STRING(&documentation)))
+		{
+			JSONRPC_MESSAGE_PARSE(member, "documentation", "{",
+				"value", JSONRPC_MESSAGE_GET_STRING(&documentation),
+			"}");
+		}
+
 		sym = g_new0(LspAutocompleteSymbol, 1);
 		sym->label = g_strdup(label);
 		sym->insert_text = g_strdup(insert_text);
 		sym->sort_text = g_strdup(sort_text);
 		sym->detail = g_strdup(detail);
+		sym->documentation = g_strdup(documentation);
 		sym->kind = kind;
 		sym->text_edit = lsp_utils_parse_text_edit(text_edit);
 		sym->additional_edits = lsp_utils_parse_text_edits(additional_edits);

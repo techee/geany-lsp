@@ -681,7 +681,13 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	{
 		lsp_autocomplete_set_displayed_symbols(NULL);
 		lsp_autocomplete_discard_pending_requests();
+		lsp_autocomplete_clear_statusbar();
 		return FALSE;
+	}
+	else if (nt->nmhdr.code == SCN_AUTOCSELECTIONCHANGE &&
+		plugin_extension_autocomplete_provided(doc, &extension))
+	{
+		lsp_autocomplete_selection_changed(doc, nt->text);
 	}
 	else if (nt->nmhdr.code == SCN_CALLTIPCLICK &&
 		plugin_extension_calltips_provided(doc, &extension))
