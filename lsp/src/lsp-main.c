@@ -62,6 +62,7 @@ LspProjectConfigurationType project_configuration_type = UserConfigurationType;
 gchar *project_configuration_file;
 
 static gint last_click_pos;
+static gboolean session_loaded;
 
 
 PLUGIN_VERSION_CHECK(248)
@@ -352,6 +353,8 @@ static void on_document_visible(GeanyDocument *doc)
 {
 	LspServer *srv = lsp_server_get(doc);
 
+	session_loaded = TRUE;
+
 	update_menu(doc);
 
 	// quick synchronous refresh with the last value without server request
@@ -421,6 +424,7 @@ static void destroy_all(void)
 static void stop_and_init_all_servers(void)
 {
 	lsp_server_stop_all(FALSE);
+	session_loaded = FALSE;
 	lsp_server_init_all();
 
 	destroy_all();
@@ -609,7 +613,7 @@ static void on_document_filetype_set(G_GNUC_UNUSED GObject *obj, GeanyDocument *
 
 	// called also when opening documents - without this it would start servers
 	// unnecessarily
-	if (!lsp_sync_is_document_open(doc))
+	if (!session_loaded)
 		return;
 
 	srv_old = lsp_server_get_for_ft(filetype_old);
