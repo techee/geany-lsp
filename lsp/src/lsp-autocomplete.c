@@ -309,7 +309,7 @@ void lsp_autocomplete_selection_changed(GeanyDocument *doc, const gchar *text)
 	LspAutocompleteSymbol *sym = find_symbol(doc, text);
 	LspServer *srv = lsp_server_get(doc);
 
-	if (!sym || !srv)
+	if (!sym || !srv || !srv->config.autocomplete_show_documentation)
 		return;
 
 	if (!sym->resolved && srv->supports_completion_resolve)
