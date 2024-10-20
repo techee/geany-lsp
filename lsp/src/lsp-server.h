@@ -153,6 +153,7 @@ typedef struct LspServer
 	gboolean include_text_on_save;
 	gboolean use_workspace_folders;
 	gboolean supports_workspace_symbols;
+	gboolean supports_completion_resolve;
 
 	guint64 semantic_token_mask;
 } LspServer;

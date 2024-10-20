@@ -523,6 +523,8 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		update_config(return_value, &s->config.rename_enable, "renameProvider");
 		update_config(return_value, &s->config.selection_range_enable, "selectionRangeProvider");
 
+		s->supports_completion_resolve = has_capability(return_value, "completionProvider", "resolveProvider", NULL);
+
 		s->supports_workspace_symbols = TRUE;
 		update_config(return_value, &s->supports_workspace_symbols, "workspaceSymbolProvider");
 
