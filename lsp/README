@@ -231,7 +231,10 @@ servers may not be completely reliable when performing the rename so be very
 cautious when using it. The plugin does not perform any additional
 checks and does not show any preview of the changes so it is best to use this
 feature only after committing all modified files so you can
-easily revert to a working state if needed.
+easily revert to a working state if needed. Since this is potentially a
+dangerous operation, to prevent accidental renames, the "Rename" button in the
+dialog is not selected by defalut and simply pressing enter just cancels the
+dialog.
 
 Limitations
 ===========
