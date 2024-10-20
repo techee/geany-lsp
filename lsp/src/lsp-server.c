@@ -632,7 +632,7 @@ static void perform_initialize(LspServer *server)
 			"codeAction", "{",
 				"resolveSupport", "{",
 					"properties", "[",
-						"edit",
+						"edit", "command",
 					"]",
 				"}",
 				"dataSupport", JSONRPC_MESSAGE_PUT_BOOLEAN(TRUE),
