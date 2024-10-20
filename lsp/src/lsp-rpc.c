@@ -365,6 +365,13 @@ static gboolean handle_call(JsonrpcClient *client, gchar* method, GVariant *id, 
 		msg = NULL;
 		handled = TRUE;
 	}
+	else if (g_strcmp0(method, "workspace/semanticTokens/refresh") == 0)
+	{
+		// not supported at all - Kate seems to do the same as some servers
+		// require a successful reply
+		msg = NULL;
+		handled = TRUE;
+	}
 	else if (g_strcmp0(method, "window/showDocument") == 0)
 	{
 		msg = show_document(srv, params);
