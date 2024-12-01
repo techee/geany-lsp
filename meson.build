@@ -80,6 +80,10 @@ shared_module('lsp',
 	'lsp/deps/jsonrpc-glib/jsonrpc-server.c',
 	'lsp/deps/jsonrpc-glib/jsonrpc-marshalers.c',
 
+	'lsp/src/spawn/lspunixinputstream.c',
+	'lsp/src/spawn/lspunixoutputstream.c',
+	'lsp/src/spawn/spawn.c',
+
 	'lsp/src/lsp-autocomplete.c',
 	'lsp/src/lsp-main.c',
 	'lsp/src/lsp-server.c',

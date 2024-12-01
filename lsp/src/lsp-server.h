@@ -132,7 +132,8 @@ typedef struct
 typedef struct LspServer
 {
 	LspRpc *rpc;
-	GSubprocess *process;
+	//GSubprocess *process;
+	GPid pid;
 	GIOStream *stream;
 	LspLogInfo log;
 
