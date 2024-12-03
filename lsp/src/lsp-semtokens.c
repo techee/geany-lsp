@@ -424,7 +424,7 @@ void lsp_semtokens_send_request(GeanyDocument *doc)
 
 	/* Geany requests symbols before firing "document-activate" signal so we may
 	 * need to request document opening here */
-	if (!lsp_sync_is_document_open(doc))
+	if (!lsp_sync_is_document_open(server, doc))
 		lsp_sync_text_document_did_open(server, doc);
 
 	cached_data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
