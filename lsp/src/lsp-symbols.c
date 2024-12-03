@@ -242,7 +242,7 @@ void lsp_symbols_doc_request(GeanyDocument *doc, LspCallback callback,
 
 	/* Geany requests symbols before firing "document-activate" signal so we may
 	 * need to request document opening here */
-	if (!lsp_sync_is_document_open(doc))
+	if (!lsp_sync_is_document_open(server, doc))
 		lsp_sync_text_document_did_open(server, doc);
 
 	node = JSONRPC_MESSAGE_NEW (

@@ -380,7 +380,7 @@ static void on_document_visible(GeanyDocument *doc)
 	// this might not get called for the first time when server gets started because
 	// lsp_server_get() returns NULL. However, we also "open" current and modified
 	// documents after successful server handshake inside on_server_initialized()
-	if (!lsp_sync_is_document_open(doc))
+	if (!lsp_sync_is_document_open(srv, doc))
 		lsp_sync_text_document_did_open(srv, doc);
 
 	on_update_idle(doc);
@@ -429,7 +429,6 @@ static void stop_and_init_all_servers(void)
 
 	destroy_all();
 
-	lsp_sync_init();
 	lsp_diagnostics_init();
 	lsp_workspace_folders_init();
 	lsp_symbol_tree_init();
@@ -468,7 +467,7 @@ static void on_document_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *doc,
 	if (!srv)
 		return;
 
-	if (!lsp_sync_is_document_open(doc))
+	if (!lsp_sync_is_document_open(srv, doc))
 	{
 		// "new" documents without filename saved for the first time or
 		// "save as" performed
@@ -768,7 +767,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		}
 
 		// BEFORE insert, BEFORE delete - send the original document
-		if (!lsp_sync_is_document_open(doc) &&
+		if (!lsp_sync_is_document_open(srv, doc) &&
 			nt->modificationType & (SC_MOD_BEFOREINSERT | SC_MOD_BEFOREDELETE))
 		{
 			// might happen when the server just started and no interaction with it was

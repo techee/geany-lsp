@@ -34,14 +34,20 @@
 
 extern GeanyPlugin *geany_plugin;
 
-static GHashTable *open_docs = NULL;
 
-
-void lsp_sync_init()
+void lsp_sync_init(LspServer *srv)
 {
-	if (!open_docs)
-		open_docs = g_hash_table_new(NULL, NULL);
-	g_hash_table_remove_all(open_docs);
+	if (!srv->open_docs)
+		srv->open_docs = g_hash_table_new(NULL, NULL);
+	g_hash_table_remove_all(srv->open_docs);
+}
+
+
+void lsp_sync_free(LspServer *srv)
+{
+	if (srv->open_docs)
+		g_hash_table_destroy(srv->open_docs);
+	srv->open_docs = NULL;
 }
 
 
@@ -55,9 +61,12 @@ static guint get_next_doc_version_num(GeanyDocument *doc)
 }
 
 
-gboolean lsp_sync_is_document_open(GeanyDocument *doc)
+gboolean lsp_sync_is_document_open(LspServer *server, GeanyDocument *doc)
 {
-	return g_hash_table_lookup(open_docs, doc) != NULL;
+	if (!server)
+		return FALSE;
+
+	return g_hash_table_lookup(server->open_docs, doc) != NULL;
 }
 
 
@@ -69,12 +78,12 @@ void lsp_sync_text_document_did_open(LspServer *server, GeanyDocument *doc)
 	gchar *doc_text;
 	guint doc_version;
 
-	if (lsp_sync_is_document_open(doc))
+	if (!server || lsp_sync_is_document_open(server, doc))
 		return;
 
 	lsp_workspace_folders_doc_open(doc);
 
-	g_hash_table_add(open_docs, doc);
+	g_hash_table_add(server->open_docs, doc);
 
 	lsp_server_get_ft(doc, &lang_id);
 	doc_uri = lsp_utils_get_doc_uri(doc);
@@ -107,7 +116,7 @@ void lsp_sync_text_document_did_close(LspServer *server, GeanyDocument *doc)
 	GVariant *node;
 	gchar *doc_uri;
 
-	if (!lsp_sync_is_document_open(doc))
+	if (!server || !lsp_sync_is_document_open(server, doc))
 		return;
 
 	doc_uri = lsp_utils_get_doc_uri(doc);
@@ -120,7 +129,7 @@ void lsp_sync_text_document_did_close(LspServer *server, GeanyDocument *doc)
 
 	//printf("%s\n\n\n", lsp_utils_json_pretty_print(node));
 
-	g_hash_table_remove(open_docs, doc);
+	g_hash_table_remove(server->open_docs, doc);
 
 	lsp_rpc_notify(server, "textDocument/didClose", node, NULL, NULL);
 
