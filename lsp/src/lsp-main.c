@@ -381,8 +381,7 @@ static void on_document_visible(GeanyDocument *doc)
 	// this might not get called for the first time when server gets started because
 	// lsp_server_get() returns NULL. However, we also "open" current and modified
 	// documents after successful server handshake inside on_server_initialized()
-	if (!lsp_sync_is_document_open(srv, doc))
-		lsp_sync_text_document_did_open(srv, doc);
+	lsp_sync_text_document_did_open(srv, doc);
 
 	on_update_idle(doc);
 }
