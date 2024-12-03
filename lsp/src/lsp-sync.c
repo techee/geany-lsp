@@ -27,6 +27,7 @@
 #include "lsp-highlight.h"
 #include "lsp-semtokens.h"
 #include "lsp-workspace-folders.h"
+#include "lsp-symbols.h"
 
 #include <jsonrpc-glib.h>
 
@@ -43,10 +44,29 @@ void lsp_sync_init(LspServer *srv)
 }
 
 
+static void destroy_doc_data(GeanyDocument *doc)
+{
+	lsp_semtokens_destroy(doc);
+	lsp_symbols_destroy(doc);
+}
+
+
 void lsp_sync_free(LspServer *srv)
 {
 	if (srv->open_docs)
+	{
+		GList *docs = g_hash_table_get_keys(srv->open_docs);
+		GList *item;
+
+		foreach_list(item, docs)
+		{
+			GeanyDocument *doc = item->data;
+			destroy_doc_data(doc);
+		}
+		g_list_free(docs);
+
 		g_hash_table_destroy(srv->open_docs);
+	}
 	srv->open_docs = NULL;
 }
 
@@ -115,6 +135,9 @@ void lsp_sync_text_document_did_close(LspServer *server, GeanyDocument *doc)
 {
 	GVariant *node;
 	gchar *doc_uri;
+
+	if (doc)
+		destroy_doc_data(doc);
 
 	if (!server || !lsp_sync_is_document_open(server, doc))
 		return;

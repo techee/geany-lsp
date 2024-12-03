@@ -55,17 +55,10 @@ static void arr_free(GPtrArray *arr)
 }
 
 
-void lsp_symbols_destroy(void)
+void lsp_symbols_destroy(GeanyDocument *doc)
 {
-	guint i;
-
-	foreach_document(i)
-	{
-		GeanyDocument *doc = documents[i];
-
-		plugin_set_document_data_full(geany_plugin, doc, CACHED_SYMBOLS_KEY,
-				NULL, (GDestroyNotify)arr_free);
-	}
+	plugin_set_document_data_full(geany_plugin, doc, CACHED_SYMBOLS_KEY,
+			NULL, (GDestroyNotify)arr_free);
 }
 
 

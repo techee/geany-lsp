@@ -89,13 +89,9 @@ void lsp_semtokens_style_init(GeanyDocument *doc)
 }
 
 
-void lsp_semtokens_destroy(void)
+void lsp_semtokens_destroy(GeanyDocument *doc)
 {
-	guint i;
-	foreach_document(i)
-	{
-		plugin_set_document_data(geany_plugin, documents[i], CACHE_KEY, NULL);
-	}
+	plugin_set_document_data(geany_plugin, doc, CACHE_KEY, NULL);
 }
 
 
