@@ -39,6 +39,11 @@
 
 #include <jsonrpc-glib.h>
 
+#ifdef G_OS_UNIX
+# include <gio/gunixinputstream.h>
+# include <gio/gunixoutputstream.h>
+#endif
+
 
 static void start_lsp_server(LspServer *server);
 static LspServer *lsp_server_init(gint ft);
@@ -807,8 +812,16 @@ static void start_lsp_server(LspServer *server)
 		return;
 	}
 
+#ifdef G_OS_UNIX
+	input_stream = g_unix_input_stream_new(stdout_fd, FALSE);
+	output_stream = g_unix_output_stream_new(stdin_fd, FALSE);
+#else
+	// GWin32InputStream / GWin32OutputStream use windows handle-based file
+	// API and we need fd-based API. Use our copy of unix input/output streams
+	// on Windows
 	input_stream = lsp_unix_input_stream_new(stdout_fd, FALSE);
 	output_stream = lsp_unix_output_stream_new(stdin_fd, FALSE);
+#endif
 	server->stream = g_simple_io_stream_new(input_stream, output_stream);
 
 	server->log = lsp_log_start(&server->config);
