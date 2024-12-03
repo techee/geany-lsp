@@ -105,7 +105,7 @@ static void handle_notification(JsonrpcClient *client, gchar *method, GVariant *
 	lsp_log(srv->log, LspLogServerNotificationSent, method, params, NULL, NULL);
 
 	if (g_strcmp0(method, "textDocument/publishDiagnostics") == 0)
-		lsp_diagnostics_received(params);
+		lsp_diagnostics_received(srv, params);
 	else if (g_strcmp0(method, "window/logMessage") == 0 ||
 		g_strcmp0(method, "window/showMessage") == 0)
 	{

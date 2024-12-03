@@ -146,6 +146,7 @@ typedef struct LspServer
 	LspServerConfig config;
 
 	GHashTable *open_docs;
+	GHashTable *diag_table;
 	GSList *progress_ops;
 
 	gchar *autocomplete_trigger_chars;

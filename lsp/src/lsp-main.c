@@ -363,11 +363,12 @@ static void on_document_visible(GeanyDocument *doc)
 	// perform also without server - to revert to default Geany behavior
 	lsp_autocomplete_style_init(doc);
 
+	lsp_diagnostics_style_init(doc);
+	lsp_diagnostics_redraw(doc);
+
 	if (!srv)
 		return;
 
-	lsp_diagnostics_style_init(doc);
-	lsp_diagnostics_redraw(doc);
 	lsp_highlight_style_init(doc);
 	lsp_semtokens_style_init(doc);
 	lsp_code_lens_style_init(doc);
@@ -406,7 +407,7 @@ static void on_document_close(G_GNUC_UNUSED GObject * obj, GeanyDocument *doc,
 	if (!srv)
 		return;
 
-	lsp_diagnostics_clear(doc);
+	lsp_diagnostics_clear(srv, doc);
 	lsp_semtokens_clear(doc);
 	lsp_sync_text_document_did_close(srv, doc);
 }
@@ -414,7 +415,7 @@ static void on_document_close(G_GNUC_UNUSED GObject * obj, GeanyDocument *doc,
 
 static void destroy_all(void)
 {
-	lsp_diagnostics_destroy();
+	lsp_diagnostics_common_destroy();
 	lsp_semtokens_destroy();
 	lsp_symbols_destroy();
 	lsp_workspace_folders_destroy();
@@ -429,7 +430,6 @@ static void stop_and_init_all_servers(void)
 
 	destroy_all();
 
-	lsp_diagnostics_init();
 	lsp_workspace_folders_init();
 	lsp_symbol_tree_init();
 }
@@ -624,7 +624,7 @@ static void on_document_filetype_set(G_GNUC_UNUSED GObject *obj, GeanyDocument *
 	if (srv_old)
 	{
 		// only uses URI/path so no problem we are using the "new" doc here
-		lsp_diagnostics_clear(doc);
+		lsp_diagnostics_clear(srv_old, doc);
 		lsp_semtokens_clear(doc);
 		lsp_sync_text_document_did_close(srv_old, doc);
 	}
