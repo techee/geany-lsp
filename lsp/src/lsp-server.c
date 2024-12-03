@@ -93,6 +93,7 @@ static void free_server(LspServer *s)
 	lsp_log_stop(s->log);
 	lsp_sync_free(s);
 	lsp_diagnostics_free(s);
+	lsp_workspace_folders_free(s);
 
 	g_free(s->autocomplete_trigger_chars);
 	g_free(s->signature_trigger_chars);
@@ -1304,6 +1305,7 @@ static LspServer *lsp_server_new(GKeyFile *kf_global, GKeyFile *kf, GeanyFiletyp
 
 	lsp_sync_init(s);
 	lsp_diagnostics_init(s);
+	lsp_workspace_folders_init(s);
 
 	return s;
 }

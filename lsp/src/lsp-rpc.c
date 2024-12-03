@@ -289,7 +289,7 @@ static GVariant *workspace_folders(LspServer *srv, GVariant *params)
 {
 	GtkNotebook *notebook = GTK_NOTEBOOK(geany_data->main_widgets->sidebar_notebook);
 	gint num = gtk_notebook_get_n_pages(notebook);
-	GPtrArray *folders = lsp_workspace_folders_get();
+	GPtrArray *folders = lsp_workspace_folders_get(srv);
 	GVariant *msg = NULL;
 
 	if (num > 1)  // non-single-open document variant

@@ -418,7 +418,6 @@ static void destroy_all(void)
 	lsp_diagnostics_common_destroy();
 	lsp_semtokens_destroy();
 	lsp_symbols_destroy();
-	lsp_workspace_folders_destroy();
 }
 
 
@@ -430,7 +429,6 @@ static void stop_and_init_all_servers(void)
 
 	destroy_all();
 
-	lsp_workspace_folders_init();
 	lsp_symbol_tree_init();
 }
 
