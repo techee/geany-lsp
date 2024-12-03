@@ -412,21 +412,12 @@ static void on_document_close(G_GNUC_UNUSED GObject * obj, GeanyDocument *doc,
 }
 
 
-static void destroy_all(void)
-{
-	lsp_semtokens_destroy();
-	lsp_symbols_destroy();
-}
-
-
 static void stop_and_init_all_servers(void)
 {
 	lsp_server_stop_all(FALSE);
 	session_loaded = FALSE;
+
 	lsp_server_init_all();
-
-	destroy_all();
-
 	lsp_symbol_tree_init();
 }
 
@@ -1786,7 +1777,6 @@ void plugin_cleanup(void)
 
 	lsp_server_set_initialized_cb(NULL);
 	lsp_server_stop_all(TRUE);
-	destroy_all();
 }
 
 
