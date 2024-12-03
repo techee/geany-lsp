@@ -146,6 +146,7 @@ typedef struct LspServer
 	LspServerConfig config;
 
 	GHashTable *open_docs;
+	GSList *mru_docs;
 	GHashTable *diag_table;
 	GHashTable *wks_folder_table;
 	GSList *progress_ops;
