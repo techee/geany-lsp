@@ -92,6 +92,7 @@ static void free_server(LspServer *s)
 		g_object_unref(s->stream);
 	lsp_log_stop(s->log);
 	lsp_sync_free(s);
+	lsp_diagnostics_free(s);
 
 	g_free(s->autocomplete_trigger_chars);
 	g_free(s->signature_trigger_chars);
@@ -1302,6 +1303,7 @@ static LspServer *lsp_server_new(GKeyFile *kf_global, GKeyFile *kf, GeanyFiletyp
 	s->config.word_chars = g_string_free(wc, FALSE);
 
 	lsp_sync_init(s);
+	lsp_diagnostics_init(s);
 
 	return s;
 }
