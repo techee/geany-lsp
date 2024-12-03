@@ -414,7 +414,6 @@ static void on_document_close(G_GNUC_UNUSED GObject * obj, GeanyDocument *doc,
 
 static void destroy_all(void)
 {
-	lsp_diagnostics_common_destroy();
 	lsp_semtokens_destroy();
 	lsp_symbols_destroy();
 }
@@ -1781,6 +1780,7 @@ void plugin_cleanup(void)
 	gtk_widget_destroy(context_menu_items.separator2);
 
 	lsp_symbol_tree_destroy();
+	lsp_diagnostics_common_destroy();
 
 	plugin_extension_unregister(&extension);
 
