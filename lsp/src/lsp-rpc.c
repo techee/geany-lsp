@@ -142,6 +142,15 @@ static void handle_notification(JsonrpcClient *client, gchar *method, GVariant *
 	{
 		log_message(params);
 	}
+	else if (g_strcmp0(method, "telemetry/event") == 0)
+	{
+		if (srv->config.enable_telemetry)
+		{
+			gchar *s = lsp_utils_json_pretty_print(params);
+			printf("%s\n", s);
+			g_free(s);
+		}
+	}
 	else if (g_strcmp0(method, "$/progress") == 0)
 	{
 		lsp_progress_process_notification(srv, params);

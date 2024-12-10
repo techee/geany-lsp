@@ -118,6 +118,7 @@ typedef struct LspServerConfig
 	GPtrArray *command_regexes;
 
 	gchar *trace_value;
+	gboolean enable_telemetry;
 
 	gboolean rename_enable;
 } LspServerConfig;

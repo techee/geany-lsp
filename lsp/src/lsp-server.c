@@ -962,6 +962,7 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_bool(&s->config.swap_header_source_enable, kf, section, "swap_header_source_enable");
 
 	get_str(&s->config.trace_value, kf, section, "trace_value");
+	get_bool(&s->config.enable_telemetry, kf, section, "telemetry_notifications");
 
 	// create for the first time, then just update
 	if (!s->config.command_regexes)
