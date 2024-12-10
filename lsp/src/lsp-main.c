@@ -94,6 +94,8 @@ enum {
 
 	KB_FIND_IMPLEMENTATIONS,
 	KB_FIND_REFERENCES,
+	KB_HIGHLIGHT_OCCUR,
+	KB_HIGHLIGHT_CLEAR,
 
 	KB_EXPAND_SELECTION,
 	KB_SHRINK_SELECTION,
@@ -131,6 +133,8 @@ struct
 
 	GtkWidget *goto_ref;
 	GtkWidget *goto_impl;
+	GtkWidget *highlight_occur;
+	GtkWidget *highlight_clear;
 
 	GtkWidget *rename_in_file;
 	GtkWidget *rename_in_project;
@@ -1388,6 +1392,12 @@ static void invoke_kb(guint key_id, gint pos)
 		case KB_FIND_IMPLEMENTATIONS:
 			lsp_goto_implementations(pos);
 			break;
+		case KB_HIGHLIGHT_OCCUR:
+			lsp_highlight_schedule_request(doc);
+			break;
+		case KB_HIGHLIGHT_CLEAR:
+			lsp_highlight_clear(doc);
+			break;
 
 		case KB_EXPAND_SELECTION:
 			lsp_selection_range_expand();
@@ -1562,6 +1572,20 @@ static void create_menu_items()
 		GUINT_TO_POINTER(KB_FIND_IMPLEMENTATIONS));
 	keybindings_set_item(group, KB_FIND_IMPLEMENTATIONS, NULL, 0, 0, "find_implementations",
 		_("Find implementations"), menu_items.goto_impl);
+
+	menu_items.highlight_occur = gtk_menu_item_new_with_mnemonic(_("_Highlight Symbol Occurrences"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.highlight_occur);
+	g_signal_connect(menu_items.highlight_occur, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_HIGHLIGHT_OCCUR));
+	keybindings_set_item(group, KB_HIGHLIGHT_OCCUR, NULL, 0, 0, "highlight_occurrences",
+		_("Highlight symbol occurrences"), menu_items.highlight_occur);
+
+	menu_items.highlight_clear = gtk_menu_item_new_with_mnemonic(_("_Clear Highlighted"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.highlight_clear);
+	g_signal_connect(menu_items.highlight_clear, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_HIGHLIGHT_CLEAR));
+	keybindings_set_item(group, KB_HIGHLIGHT_CLEAR, NULL, 0, 0, "highlight_clear",
+		_("Clear highlighted"), menu_items.highlight_clear);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 
