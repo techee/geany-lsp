@@ -76,6 +76,7 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->diagnostics_info_style);
 	g_free(cfg->diagnostics_hint_style);
 	g_free(cfg->highlighting_style);
+	g_free(cfg->trace_value);
 	g_free(cfg->code_lens_style);
 	g_free(cfg->formatting_options_file);
 	g_free(cfg->formatting_options);
@@ -593,6 +594,16 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 }
 
 
+static const gchar *get_trace_level(LspServer *srv)
+{
+	if (g_strcmp0(srv->config.trace_value, "messages") == 0 ||
+		g_strcmp0(srv->config.trace_value, "verbose") == 0)
+		return srv->config.trace_value;
+
+	return "off";
+}
+
+
 static void perform_initialize(LspServer *server)
 {
 	gchar *project_base = lsp_utils_get_project_base_path();
@@ -730,7 +741,7 @@ static void perform_initialize(LspServer *server)
 		"}",
 		"processId", JSONRPC_MESSAGE_PUT_INT64(getpid()),
 		"locale", JSONRPC_MESSAGE_PUT_STRING("en"),
-		"trace", JSONRPC_MESSAGE_PUT_STRING("off"),
+		"trace", JSONRPC_MESSAGE_PUT_STRING(get_trace_level(server)),
 		"rootPath", JSONRPC_MESSAGE_PUT_STRING(project_base),
 		"rootUri", JSONRPC_MESSAGE_PUT_STRING(project_base_uri)
 	);
@@ -949,6 +960,8 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 
 	get_bool(&s->config.progress_bar_enable, kf, section, "progress_bar_enable");
 	get_bool(&s->config.swap_header_source_enable, kf, section, "swap_header_source_enable");
+
+	get_str(&s->config.trace_value, kf, section, "trace_value");
 
 	// create for the first time, then just update
 	if (!s->config.command_regexes)
