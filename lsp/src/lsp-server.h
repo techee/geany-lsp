@@ -117,6 +117,8 @@ typedef struct LspServerConfig
 	gint command_keybinding_num;
 	GPtrArray *command_regexes;
 
+	gchar *trace_value;
+
 	gboolean rename_enable;
 } LspServerConfig;
 

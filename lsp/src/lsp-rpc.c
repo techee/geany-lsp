@@ -94,6 +94,37 @@ static void log_message(GVariant *params)
 }
 
 
+static void log_trace(GVariant *params)
+{
+	const gchar *msg, *verbose;
+	gboolean success;
+
+	success = JSONRPC_MESSAGE_PARSE(params,
+		"message", JSONRPC_MESSAGE_GET_STRING(&msg));
+
+	JSONRPC_MESSAGE_PARSE(params,
+		"verbose", JSONRPC_MESSAGE_GET_STRING(&verbose));
+
+	if (success)
+	{
+		gchar *stripped_msg = g_strdup(msg);
+		g_strstrip(stripped_msg);
+
+		if (verbose)
+		{
+			gchar *stripped_verbose = g_strdup(verbose);
+			g_strstrip(stripped_verbose);
+			printf("%s: %s", stripped_msg, stripped_verbose);
+			g_free(stripped_verbose);
+		}
+		else
+			printf("%s", stripped_msg);
+
+		g_free(stripped_msg);
+	}
+}
+
+
 static void handle_notification(JsonrpcClient *client, gchar *method, GVariant *params,
 	gpointer user_data)
 {
@@ -114,6 +145,10 @@ static void handle_notification(JsonrpcClient *client, gchar *method, GVariant *
 	else if (g_strcmp0(method, "$/progress") == 0)
 	{
 		lsp_progress_process_notification(srv, params);
+	}
+	else if (g_strcmp0(method, "$/logTrace") == 0)
+	{
+		log_trace(params);
 	}
 	else
 	{
