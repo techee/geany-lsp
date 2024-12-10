@@ -832,25 +832,25 @@ static void start_lsp_server(LspServer *server)
 		return;
 	}
 
+	source = g_child_watch_source_new(server->pid);
+	g_source_set_callback(source, (GSourceFunc) (void(*)(void)) (GChildWatchFunc) process_stopped, server, NULL);
+	g_source_attach(source, NULL);
+	g_source_unref(source);
+
 #ifdef G_OS_UNIX
-	input_stream = g_unix_input_stream_new(stdout_fd, FALSE);
-	output_stream = g_unix_output_stream_new(stdin_fd, FALSE);
+	input_stream = g_unix_input_stream_new(stdout_fd, TRUE);
+	output_stream = g_unix_output_stream_new(stdin_fd, TRUE);
 #else
 	// GWin32InputStream / GWin32OutputStream use windows handle-based file
 	// API and we need fd-based API. Use our copy of unix input/output streams
 	// on Windows
-	input_stream = lsp_unix_input_stream_new(stdout_fd, FALSE);
-	output_stream = lsp_unix_output_stream_new(stdin_fd, FALSE);
+	input_stream = lsp_unix_input_stream_new(stdout_fd, TRUE);
+	output_stream = lsp_unix_output_stream_new(stdin_fd, TRUE);
 #endif
 	server->stream = g_simple_io_stream_new(input_stream, output_stream);
 
 	server->log = lsp_log_start(&server->config);
 	server->rpc = lsp_rpc_new(server, server->stream);
-
-	source = g_child_watch_source_new(server->pid);
-	g_source_set_callback(source, (GSourceFunc) (void(*)(void)) (GChildWatchFunc) process_stopped, server, NULL);
-	g_source_attach(source, NULL);
-	g_source_unref(source);
 
 	perform_initialize(server);
 }
