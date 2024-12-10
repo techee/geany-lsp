@@ -515,6 +515,8 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 
 	if (!error)
 	{
+		gboolean supports_semantic_token_range, supports_semantic_token_full;
+
 		g_free(s->autocomplete_trigger_chars);
 		s->autocomplete_trigger_chars = get_autocomplete_trigger_chars(return_value);
 
@@ -555,10 +557,16 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 
 		s->initialize_response = lsp_utils_json_pretty_print(return_value);
 
-		s->config.semantic_tokens_enable = s->config.semantic_tokens_enable &&
-			has_capability(return_value, "semanticTokensProvider", "full", NULL);
+		supports_semantic_token_range = has_capability(return_value, "semanticTokensProvider", "range", NULL);
+		supports_semantic_token_full = has_capability(return_value, "semanticTokensProvider", "full", NULL);
 		s->config.semantic_tokens_supports_delta = has_capability(return_value,
 			"semanticTokensProvider", "full", "delta");
+
+		s->config.semantic_tokens_enable = s->config.semantic_tokens_enable &&
+			(supports_semantic_token_full || supports_semantic_token_range);
+		s->config.semantic_tokens_range_only = !supports_semantic_token_full &&
+			supports_semantic_token_range;
+
 		s->semantic_token_mask = get_semantic_token_mask(s, return_value);
 
 		msgwin_status_add(_("LSP server %s initialized"), s->config.cmd);

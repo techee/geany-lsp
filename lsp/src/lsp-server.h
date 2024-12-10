@@ -88,6 +88,7 @@ typedef struct LspServerConfig
 	gboolean semantic_tokens_force_full;
 	gchar **semantic_tokens_types;
 	gboolean semantic_tokens_supports_delta;
+	gboolean semantic_tokens_range_only;
 	gint semantic_tokens_lexer_kw_index;
 	gchar *semantic_tokens_type_style;
 
