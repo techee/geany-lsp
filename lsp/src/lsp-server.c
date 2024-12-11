@@ -170,11 +170,14 @@ static void process_stopped(GPid pid, gint status, gpointer data)
 
 static void kill_server(LspServer *srv)
 {
-	GError *error = NULL;
-	if (!spawn_kill_process(srv->pid, &error))
+	if (srv->pid > 0)
 	{
-		msgwin_status_add(_("Failed to send SIGTERM to server: %s"), error->message);
-		g_error_free(error);
+		GError *error = NULL;
+		if (!spawn_kill_process(srv->pid, &error))
+		{
+			msgwin_status_add(_("Failed to send SIGTERM to server: %s"), error->message);
+			g_error_free(error);
+		}
 	}
 }
 
