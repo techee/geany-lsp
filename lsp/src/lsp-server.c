@@ -818,10 +818,21 @@ static void start_lsp_server(LspServer *server)
 	gint stderr_fd = -1;
 	gboolean success;
 	GSource *source;
+	GString *cmd = g_string_new(server->config.cmd);
 
-	msgwin_status_add(_("Starting LSP server %s"), server->config.cmd);
+#ifdef G_OS_UNIX
+	// command itself
+	if (g_str_has_prefix(cmd->str, "~/"))
+		utils_string_replace_first(cmd, "~", g_get_home_dir());
+	// arguments such as config files
+	gchar *replacement = g_strconcat(" ", g_get_home_dir(), "/", NULL);
+	utils_string_replace_all(cmd, " ~/", replacement);
+	g_free(replacement);
+#endif
 
-	success = lsp_spawn_async_with_pipes(NULL, server->config.cmd, NULL,
+	msgwin_status_add(_("Starting LSP server %s"), cmd->str);
+
+	success = lsp_spawn_async_with_pipes(NULL, cmd->str, NULL,
 		server->config.env, &server->pid,
 		&stdin_fd, &stdout_fd,
 		server->config.show_server_stderr ? NULL : &stderr_fd,
@@ -829,9 +840,10 @@ static void start_lsp_server(LspServer *server)
 
 	if (!success)
 	{
-		msgwin_status_add(_("LSP server process %s failed to start, giving up: %s"), server->config.cmd, error->message);
+		msgwin_status_add(_("LSP server process %s failed to start, giving up: %s"), cmd->str, error->message);
 		server->restarts = 100;  // don't retry - probably missing executable
 		g_error_free(error);
+		g_string_free(cmd, TRUE);
 		return;
 	}
 
@@ -856,6 +868,7 @@ static void start_lsp_server(LspServer *server)
 	server->rpc = lsp_rpc_new(server, server->stream);
 
 	perform_initialize(server);
+	g_string_free(cmd, TRUE);
 }
 
 
