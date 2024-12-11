@@ -18,6 +18,7 @@ The plugin provides the following LSP features:
 * Autocompletion
 * Function signagure
 * Diagnostic messages
+* Code actions
 * Code lenses
 * Semantic token type highlighting
 * Hover popup
