@@ -584,7 +584,7 @@ static void replace_char(gchar *str, gchar find, gchar replace)
 static void show_in_msgwin(LspFileDiag *diag)
 {
 	gint lineno = diag->diag->range.start.line;
-	gchar *fname = g_strdup(diag->fname);
+	gchar *fname = utils_get_utf8_from_locale(diag->fname);
 	gchar *new_msg = g_strdup(diag->diag->message);
 	gchar *base_path;
 
