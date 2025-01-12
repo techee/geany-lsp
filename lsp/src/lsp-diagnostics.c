@@ -58,6 +58,7 @@ static gint style_indices[LSP_DIAG_SEVERITY_MAX];
 
 static ScintillaObject *calltip_sci;
 static GtkWidget *issue_label;
+static GtkWidget *issue_label_container;
 
 
 static void diag_free(LspDiag *diag)
@@ -80,8 +81,11 @@ void lsp_diagnostics_common_destroy(void)
 {
 	if (issue_label)
 		gtk_widget_destroy(issue_label);
+	if (issue_label_container)
+		gtk_widget_destroy(issue_label_container);
 	calltip_sci = NULL;
 	issue_label = NULL;
+	issue_label_container = NULL;
 }
 
 
@@ -288,14 +292,31 @@ static void clear_indicators(ScintillaObject *sci)
 }
 
 
+static gboolean on_issue_label_clicked(GtkWidget *widget, GdkEventButton *event,
+	G_GNUC_UNUSED gpointer user_data)
+{
+	if (event->button == 1)
+	{
+		lsp_diagnostics_show_all(TRUE);
+	}
+	return FALSE;
+}
+
+
 static void create_label(void)
 {
 	GtkWidget *geany_statusbar;
 
 	issue_label = gtk_label_new("");
+	issue_label_container = gtk_event_box_new();
+	gtk_container_add(GTK_CONTAINER(issue_label_container), issue_label);
+
 	geany_statusbar = ui_lookup_widget(geany_data->main_widgets->window, "statusbar");
-	gtk_box_pack_start(GTK_BOX(geany_statusbar), issue_label, FALSE, FALSE, 4);
-	gtk_widget_show_all(issue_label);
+	gtk_box_pack_start(GTK_BOX(geany_statusbar), issue_label_container, FALSE, FALSE, 4);
+	gtk_widget_show_all(issue_label_container);
+
+	g_signal_connect(issue_label_container, "button-press-event",
+		G_CALLBACK(on_issue_label_clicked), NULL);
 }
 
 
@@ -593,7 +614,7 @@ static void show_in_msgwin(LspFileDiag *diag)
 }
 
 
-void lsp_diagnostics_show_all(void)
+void lsp_diagnostics_show_all(gboolean current_doc_only)
 {
 	GeanyDocument *doc = document_get_current();
 	LspServer *srv = lsp_server_get(doc);
@@ -615,6 +636,9 @@ void lsp_diagnostics_show_all(void)
 
 		foreach_ptr_array(diag, i, diags)
 		{
+			if (current_doc_only && !utils_str_equal(doc->file_name, key))
+				continue;
+
 			item = g_new0(LspFileDiag, 1);
 			item->fname = key;
 			item->diag = diag;
