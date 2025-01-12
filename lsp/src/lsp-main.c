@@ -1399,7 +1399,7 @@ static void invoke_kb(guint key_id, gint pos)
 			lsp_diagnostics_show_calltip(pos);
 			break;
 		case KB_SHOW_ALL_DIAGS:
-			lsp_diagnostics_show_all();
+			lsp_diagnostics_show_all(FALSE);
 			break;
 
 		case KB_FIND_REFERENCES:
