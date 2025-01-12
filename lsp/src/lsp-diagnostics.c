@@ -636,7 +636,7 @@ void lsp_diagnostics_show_all(gboolean current_doc_only)
 
 		foreach_ptr_array(diag, i, diags)
 		{
-			if (current_doc_only && !utils_str_equal(doc->file_name, key))
+			if (current_doc_only && !utils_str_equal(doc->real_path, key))
 				continue;
 
 			item = g_new0(LspFileDiag, 1);
