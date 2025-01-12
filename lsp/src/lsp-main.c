@@ -91,6 +91,7 @@ enum {
 	KB_GOTO_NEXT_DIAG,
 	KB_GOTO_PREV_DIAG,
 	KB_SHOW_DIAG,
+	KB_SHOW_FILE_DIAGS,
 	KB_SHOW_ALL_DIAGS,
 
 	KB_FIND_IMPLEMENTATIONS,
@@ -130,6 +131,7 @@ struct
 	GtkWidget *goto_next_diag;
 	GtkWidget *goto_prev_diag;
 	GtkWidget *show_diag;
+	GtkWidget *show_file_diags;
 	GtkWidget *show_all_diags;
 
 	GtkWidget *goto_ref;
@@ -1398,6 +1400,9 @@ static void invoke_kb(guint key_id, gint pos)
 		case KB_SHOW_DIAG:
 			lsp_diagnostics_show_calltip(pos);
 			break;
+		case KB_SHOW_FILE_DIAGS:
+			lsp_diagnostics_show_all(TRUE);
+			break;
 		case KB_SHOW_ALL_DIAGS:
 			lsp_diagnostics_show_all(FALSE);
 			break;
@@ -1565,6 +1570,13 @@ static void create_menu_items()
 		GUINT_TO_POINTER(KB_SHOW_DIAG));
 	keybindings_set_item(group, KB_SHOW_DIAG, NULL, 0, 0, "show_diag",
 		_("Show current diagnostic"), menu_items.show_diag);
+
+	menu_items.show_file_diags = gtk_menu_item_new_with_mnemonic(_("Show _Current File Diagnostics"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.show_file_diags);
+	g_signal_connect(menu_items.show_file_diags, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_SHOW_FILE_DIAGS));
+	keybindings_set_item(group, KB_SHOW_FILE_DIAGS, NULL, 0, 0, "show_file_diags",
+		_("Show current file diagnostics"), menu_items.show_file_diags);
 
 	menu_items.show_all_diags = gtk_menu_item_new_with_mnemonic(_("Show _All Diagnostics"));
 	gtk_container_add(GTK_CONTAINER(menu), menu_items.show_all_diags);
