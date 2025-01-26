@@ -237,12 +237,19 @@ static gboolean goto_provided(GeanyDocument *doc, gpointer user_data)
 
 static gboolean goto_perform(GeanyDocument *doc, gint pos, gboolean definition, gpointer user_data)
 {
+	LspServer *srv = lsp_server_get(doc);
+	gchar *iden = lsp_utils_get_current_iden(doc, pos, srv->config.word_chars);
+
+	if (!iden)
+		return FALSE;
+
 	if (definition)
 		lsp_goto_definition(pos);
 	else
 		lsp_goto_declaration(pos);
 
-	return TRUE;  //TODO - possibly return TRUE only when cursor on identifier
+	g_free(iden);
+	return TRUE;
 }
 
 
