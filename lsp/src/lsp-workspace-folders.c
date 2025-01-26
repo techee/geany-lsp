@@ -46,7 +46,7 @@ void lsp_workspace_folders_free(LspServer *srv)
 }
 
 
-static void noitfy_root_change(LspServer *srv, const gchar *root, gboolean added)
+static void notify_root_change(LspServer *srv, const gchar *root, gboolean added)
 {
 	gchar *root_uri = g_filename_to_uri(root, NULL, NULL);
 	GVariant *node;
@@ -96,7 +96,7 @@ void lsp_workspace_folders_add_project_root(LspServer *srv)
 
 	base_path = lsp_utils_get_project_base_path();
 	if (base_path)
-		noitfy_root_change(srv, base_path, TRUE);
+		notify_root_change(srv, base_path, TRUE);
 	g_free(base_path);
 }
 
@@ -130,7 +130,7 @@ void lsp_workspace_folders_doc_open(GeanyDocument *doc)
 	{
 		g_hash_table_insert(srv->wks_folder_table, project_root, GINT_TO_POINTER(0));
 
-		noitfy_root_change(srv, project_root, TRUE);
+		notify_root_change(srv, project_root, TRUE);
 	}
 	else
 		g_free(project_root);
@@ -168,7 +168,7 @@ void lsp_workspace_folders_doc_closed(GeanyDocument *doc)
 
 		if (!root_used)
 		{
-			noitfy_root_change(srv, root->data, FALSE);
+			notify_root_change(srv, root->data, FALSE);
 
 			g_hash_table_remove(srv->wks_folder_table, root->data);
 		}
