@@ -1232,6 +1232,13 @@ static GeanyFiletype *lsp_server_get_ft_impl(GeanyDocument *doc, gchar **lsp_lan
 }
 
 
+void lsp_server_clear_cached_ft(GeanyDocument *doc)
+{
+	plugin_set_document_data(geany_plugin, doc, CACHED_FILETYPE_KEY, NULL);
+	plugin_set_document_data_full(geany_plugin, doc, CACHED_LANG_ID_KEY, NULL, g_free);
+}
+
+
 GeanyFiletype *lsp_server_get_ft(GeanyDocument *doc, gchar **lsp_lang_id)
 {
 	GeanyFiletype *ft = plugin_get_document_data(geany_plugin, doc, CACHED_FILETYPE_KEY);
@@ -1423,8 +1430,7 @@ void lsp_server_init_all(void)
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
-		plugin_set_document_data(geany_plugin, doc, CACHED_FILETYPE_KEY, NULL);
-		plugin_set_document_data_full(geany_plugin, doc, CACHED_LANG_ID_KEY, NULL, g_free);
+		lsp_server_clear_cached_ft(doc);
 	}
 
 	lsp_servers = g_ptr_array_new_full(0, (GDestroyNotify)stop_and_free_server);

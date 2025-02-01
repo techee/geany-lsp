@@ -622,6 +622,7 @@ static void on_document_filetype_set(G_GNUC_UNUSED GObject *obj, GeanyDocument *
 		return;
 
 	srv_old = lsp_server_get_for_ft(filetype_old);
+	lsp_server_clear_cached_ft(doc);
 	srv_new = lsp_server_get(doc);
 
 	if (srv_old == srv_new)
