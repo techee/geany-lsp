@@ -247,9 +247,8 @@ Performance implications
 ========================
 
 To provide all the features, this plugin needs to react on various events
-like keystrokes, mouse movement, clicks, etc. and also communicate heavily
-with the LSP server to send the current document text and what kind of event
-happened.
+(e.g. keystrokes) and also communicates heavily with the LSP server to send the
+current document text and what kind of event happened.
 These additional tasks cause more CPU usage of the Geany process and especially
 the LSP server process, so they require also more power which might be
 relevant if you are using a laptop on battery power.
