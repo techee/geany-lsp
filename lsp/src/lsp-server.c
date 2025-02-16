@@ -45,6 +45,8 @@
 # include "spawn/lspunixoutputstream.h"
 #endif
 
+#include <unistd.h>
+
 #define CACHED_FILETYPE_KEY "lsp_server_cached_filetype"
 #define CACHED_LANG_ID_KEY "lsp_server_cached_lang_id"
 
