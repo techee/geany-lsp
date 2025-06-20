@@ -80,4 +80,4 @@ More information about the supported features and configuration can be found in
 
 ---
 
-Jiri Techet, 2024
+Jiri Techet, 2025
