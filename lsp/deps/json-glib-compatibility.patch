@@ -1,0 +1,21 @@
+From 62795500e17de61a012bd14cd94594a8f653a9f0 Mon Sep 17 00:00:00 2001
+From: Jiří Techet <techet@gmail.com>
+Date: Sat, 12 Jul 2025 20:15:30 +0200
+Subject: Patch json-glib to define G_GNUC_FALLTHROUGH when not available
+
+
+diff --git a/lsp/deps/json-glib/json-scanner.c b/lsp/deps/json-glib/json-scanner.c
+index 9bbaa24..bba6a6e 100644
+--- a/lsp/deps/json-glib/json-scanner.c
++++ b/lsp/deps/json-glib/json-scanner.c
+@@ -38,6 +38,10 @@
+ #include <glib.h>
+ #include <glib/gprintf.h>
+ 
++#ifndef G_GNUC_FALLTHROUGH
++# define G_GNUC_FALLTHROUGH  /* GLib < 2.60 */
++#endif
++
+ typedef enum
+ {
+   JSON_ERROR_TYPE_UNKNOWN,
