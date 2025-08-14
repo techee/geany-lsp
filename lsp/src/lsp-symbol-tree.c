@@ -994,17 +994,7 @@ static gboolean on_default_sym_tree_button_press_event(GtkWidget *widget, GdkEve
 static gint find_symbol_tab(void)
 {
 	GtkNotebook *notebook = GTK_NOTEBOOK(geany_data->main_widgets->sidebar_notebook);
-	gint pagenum = gtk_notebook_get_n_pages(notebook);
-	gint i;
-
-	for (i = 0; i < pagenum; i++)
-	{
-		GtkWidget *page = gtk_notebook_get_nth_page(notebook, i);
-		if (page == s_sym_view_vbox)
-			return i;
-	}
-
-	return -1;
+	return gtk_notebook_page_num(notebook, s_sym_view_vbox);
 }
 
 
