@@ -402,7 +402,8 @@ GPtrArray *lsp_utils_parse_text_edits(GVariantIter *iter)
 }
 
 
-void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean process_snippets)
+void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean process_snippets,
+	gboolean set_cursor)
 {
 	GSList *cursor_positions = NULL;
 	gboolean first_sel = TRUE;
@@ -429,11 +430,14 @@ void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean pr
 
 	sci_insert_text(sci, start_pos, processed);
 
-	foreach_slist(node, cursor_positions)  // sorted in reverse order
+	if (set_cursor)
 	{
-		gint pos = start_pos + GPOINTER_TO_INT(node->data);
-		SSM(sci, first_sel ? SCI_SETSELECTION : SCI_ADDSELECTION,  pos, pos);
-		first_sel = FALSE;
+		foreach_slist(node, cursor_positions)  // sorted in reverse order
+		{
+			gint pos = start_pos + GPOINTER_TO_INT(node->data);
+			SSM(sci, first_sel ? SCI_SETSELECTION : SCI_ADDSELECTION,  pos, pos);
+			first_sel = FALSE;
+		}
 	}
 
 	g_free(processed);
@@ -481,7 +485,9 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 	for (i = 0; i < arr->len; i++)
 	{
 		LspTextEdit *e = arr->pdata[i];
-		lsp_utils_apply_text_edit(sci, e, process_snippets);
+		// only the "main" edit determines the resulting cursor position - additional
+		// edits like formatting or added imports shouldn't move the cursor
+		lsp_utils_apply_text_edit(sci, e, process_snippets, e == edit);
 	}
 
 	g_ptr_array_free(arr, TRUE);
