@@ -286,8 +286,10 @@ static void clear_indicators(ScintillaObject *sci)
 	{
 		gint index = style_indices[severity];
 		if (index > 0)
+		{
 			sci_indicator_set(sci, index);
-		sci_indicator_clear(sci, 0, sci_get_length(sci));
+			sci_indicator_clear(sci, 0, sci_get_length(sci));
+		}
 	}
 }
 
@@ -490,7 +492,7 @@ void lsp_diagnostics_received(LspServer *srv, GVariant* diags)
 		const gchar *code = NULL;
 		const gchar *source = NULL;
 		const gchar *message = NULL;
-		gint64 severity = 0;
+		gint64 severity = LspError;
 		LspDiag *lsp_diag;
 
 		JSONRPC_MESSAGE_PARSE(diag, "code", JSONRPC_MESSAGE_GET_STRING(&code));
@@ -503,7 +505,7 @@ void lsp_diagnostics_received(LspServer *srv, GVariant* diags)
 		lsp_diag->code = g_strdup(code);
 		lsp_diag->source = g_strdup(source);
 		lsp_diag->message = g_strdup(message);
-		lsp_diag->severity = severity;
+		lsp_diag->severity = CLAMP(severity, LSP_DIAG_SEVERITY_MIN, LspHint);
 		lsp_diag->range = lsp_utils_parse_range(range);
 		lsp_diag->diag_raw = diag;
 

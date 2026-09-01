@@ -313,11 +313,15 @@ gboolean lsp_utils_is_lsp_disabled_for_project(void)
 
 LspPosition lsp_utils_parse_pos(GVariant *variant)
 {
-	LspPosition lsp_pos;
+	LspPosition lsp_pos = {0};
 
-	JSONRPC_MESSAGE_PARSE(variant,
+	if (!JSONRPC_MESSAGE_PARSE(variant,
 		"character", JSONRPC_MESSAGE_GET_INT64(&lsp_pos.character),
-		"line", JSONRPC_MESSAGE_GET_INT64(&lsp_pos.line));
+		"line", JSONRPC_MESSAGE_GET_INT64(&lsp_pos.line)))
+	{
+		LspPosition empty = {0};
+		lsp_pos = empty;
+	}
 
 	return lsp_pos;
 }
@@ -325,9 +329,9 @@ LspPosition lsp_utils_parse_pos(GVariant *variant)
 
 LspRange lsp_utils_parse_range(GVariant *variant)
 {
-	LspRange range;
+	LspRange range = {{0}};
 
-	JSONRPC_MESSAGE_PARSE(variant,
+	if (!JSONRPC_MESSAGE_PARSE(variant,
 		"start", "{",
 			"character", JSONRPC_MESSAGE_GET_INT64(&range.start.character),
 			"line", JSONRPC_MESSAGE_GET_INT64(&range.start.line),
@@ -335,7 +339,11 @@ LspRange lsp_utils_parse_range(GVariant *variant)
 		"end", "{",
 			"character", JSONRPC_MESSAGE_GET_INT64(&range.end.character),
 			"line", JSONRPC_MESSAGE_GET_INT64(&range.end.line),
-		"}");
+		"}"))
+	{
+		LspRange empty = {{0}};
+		range = empty;
+	}
 
 	return range;
 }
@@ -493,7 +501,15 @@ static void apply_edits_in_file(const gchar *uri, GPtrArray *edits)
 		if (doc)
 			sci = doc->editor->sci;
 		else
+		{
 			sci = lsp_utils_new_sci_from_file(fname);
+			if (!sci)
+			{
+				g_free(fname);
+				g_free(fname_locale);
+				return;
+			}
+		}
 
 		sci_start_undo_action(sci);
 		lsp_utils_apply_text_edits(sci, NULL, edits, FALSE);
@@ -770,6 +786,9 @@ JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallba
 		msgwin_status_add(_("JSON parsing error: initialization_options_file: %s"), error->message);
 		g_error_free(error);
 	}
+
+	if (!json_node)
+		json_node = json_from_string("{}", NULL);
 
 	g_free(file_contents);
 	return json_node;

@@ -96,7 +96,7 @@ static void log_message(GVariant *params)
 
 static void log_trace(GVariant *params)
 {
-	const gchar *msg, *verbose;
+	const gchar *msg = NULL, *verbose = NULL;
 	gboolean success;
 
 	success = JSONRPC_MESSAGE_PARSE(params,
@@ -203,7 +203,8 @@ static GVariant *create_progress(LspServer *srv, GVariant *params)
 
 static GVariant *apply_edit(LspServer *srv, GVariant *params)
 {
-	GVariant *edit, *msg;
+	GVariant *edit = NULL;
+	GVariant *msg;
 	gboolean success;
 
 	success = JSONRPC_MESSAGE_PARSE(params,

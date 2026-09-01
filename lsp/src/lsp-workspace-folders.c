@@ -159,7 +159,8 @@ void lsp_workspace_folders_doc_closed(GeanyDocument *doc)
 			if (doc == document)
 				continue;
 
-			if (g_str_has_prefix(document->real_path, root->data))
+			if (document->real_path &&
+				g_str_has_prefix(document->real_path, root->data))
 			{
 				root_used = TRUE;
 				break;
@@ -190,7 +191,6 @@ GPtrArray *lsp_workspace_folders_get(LspServer *srv)
 	project_base = lsp_utils_get_project_base_path();
 	if (project_base)
 		g_ptr_array_add(arr, project_base);
-	g_free(project_base);
 
 	lst = g_hash_table_get_keys(srv->wks_folder_table);
 	foreach_list(node, lst)

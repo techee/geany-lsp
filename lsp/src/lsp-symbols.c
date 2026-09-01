@@ -65,7 +65,6 @@ void lsp_symbols_destroy(GeanyDocument *doc)
 static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gchar *scope,
 	const gchar *scope_sep, gboolean workspace)
 {
-	GeanyDocument *doc = document_get_current();
 	GVariant *member = NULL;
 	GVariantIter iter;
 
@@ -73,6 +72,8 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 
 	while (g_variant_iter_loop(&iter, "v", &member))
 	{
+		GeanyDocument *doc = document_get_current();
+		GeanyFiletypeID ft_id = (doc && doc->file_type) ? doc->file_type->id : 0;
 		LspSymbol *sym;
 		const gchar *name = NULL;
 		const gchar *detail = NULL;
@@ -154,7 +155,7 @@ static void parse_symbols(GPtrArray *symbols, GVariant *symbol_variant, const gc
 		else if (doc && doc->real_path)
 			file_name = utils_get_utf8_from_locale(doc->real_path);
 
-		sym = lsp_symbol_new(name, detail, sym_scope, file_name, doc->file_type->id, kind,
+		sym = lsp_symbol_new(name, detail, sym_scope, file_name, ft_id, kind,
 			line_num + 1, line_pos, lsp_symbol_kinds_get_symbol_icon(kind));
 
 		g_ptr_array_add(symbols, sym);

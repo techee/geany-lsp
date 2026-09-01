@@ -121,7 +121,7 @@ static void show_in_msgwin(LspLocation *loc, GHashTable *sci_table)
 	g_free(line_str);
 	g_free(fname);
 	g_free(base_path);
-	if (!sci_table && !doc)
+	if (!sci_table && !doc && sci)
 	{
 		g_object_ref_sink(sci);
 		g_object_unref(sci);

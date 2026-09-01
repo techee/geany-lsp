@@ -30,7 +30,13 @@
 
 static void goto_cb(GVariant *return_value, GError *error, gpointer user_data)
 {
-	if (!error)
+	GeanyDocument *doc = user_data;
+
+	if (doc != document_get_current())
+		return;
+
+	if (!error && return_value &&
+		g_variant_is_of_type(return_value, G_VARIANT_TYPE_STRING))
 	{
 		const gchar *str = g_variant_get_string(return_value, NULL);
 
