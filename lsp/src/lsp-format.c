@@ -42,15 +42,26 @@ static void format_cb(GVariant *return_value, GError *error, gpointer user_data)
 
 	if (!error && DOC_VALID(doc) && g_variant_is_of_type(return_value, G_VARIANT_TYPE_ARRAY))
 	{
+		ScintillaObject *sci = doc->editor->sci;
+		gint pos = sci_get_current_position(sci);
+		gint line = sci_get_line_from_position(sci, pos);
+		gint column = SSM(sci, SCI_GETCOLUMN, pos, 0);
+		gint first_visible_line = SSM(sci, SCI_GETFIRSTVISIBLELINE, 0, 0);
 		GPtrArray *edits;
 		GVariantIter iter;
 
 		g_variant_iter_init(&iter, return_value);
 		edits = lsp_utils_parse_text_edits(&iter);
 
-		sci_start_undo_action(doc->editor->sci);
-		lsp_utils_apply_text_edits(doc->editor->sci, NULL, edits, FALSE);
-		sci_end_undo_action(doc->editor->sci);
+		sci_start_undo_action(sci);
+		lsp_utils_apply_text_edits(sci, NULL, edits, FALSE);
+		sci_end_undo_action(sci);
+
+		// Servers like lua-language-server return a single edit replacing the
+		// whole document after which both the cursor position and scrolling
+		// position are lost so restore them based on the pre-format values
+		sci_set_current_position(sci, SSM(sci, SCI_FINDCOLUMN, line, column), FALSE);
+		SSM(sci, SCI_SETFIRSTVISIBLELINE, first_visible_line, 0);
 
 		g_ptr_array_free(edits, TRUE);
 
