@@ -1177,7 +1177,7 @@ static void create_symlist_popup_menu(void)
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_symtree_goto), s_symbol_menu.find_refs);
 
-	s_symbol_menu.find_impls = item = ui_image_menu_item_new(GTK_STOCK_FIND, _("Find _Implementations"));
+	s_symbol_menu.find_impls = item = ui_image_menu_item_new(GTK_STOCK_FIND, _("Find I_mplementations"));
 	gtk_widget_show(item);
 	gtk_container_add(GTK_CONTAINER(menu), item);
 	g_signal_connect(item, "activate", G_CALLBACK(on_symtree_goto), s_symbol_menu.find_refs);
