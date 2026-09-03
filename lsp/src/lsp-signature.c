@@ -31,7 +31,6 @@
 typedef struct {
 	GeanyDocument *doc;
 	gint pos;
-	gboolean force;
 } LspSignatureData;
 
 
@@ -218,8 +217,7 @@ static void signature_cb(GVariant *return_value, GError *error, gpointer user_da
 				// null response
 				lsp_signature_hide_calltip(current_doc);
 			}
-			else if (sci_get_current_position(current_doc->editor->sci) < data->pos + 10 &&
-				(data->force || (!data->force && !SSM(current_doc->editor->sci, SCI_AUTOCACTIVE, 0, 0))))
+			else if (sci_get_current_position(current_doc->editor->sci) < data->pos + 10)
 			{
 				GVariantIter *iter = NULL;
 				gint64 active = 0;
@@ -315,7 +313,6 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 	data = g_new0(LspSignatureData, 1);
 	data->doc = doc;
 	data->pos = pos;
-	data->force = force;
 
 	lsp_rpc_call(server, "textDocument/signatureHelp", node,
 		signature_cb, data);
