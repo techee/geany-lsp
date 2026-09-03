@@ -73,8 +73,11 @@ typedef struct LspServerConfig
 
 	gboolean hover_enable;
 	gboolean hover_available;
-	gint hover_popup_max_lines;
-	gint hover_popup_max_paragraphs;
+	gint popup_max_lines;
+	gint popup_max_width;
+	gchar *popup_background_color;
+	gchar *popup_border_color;
+	gchar *popup_text_color;
 
 	gboolean signature_enable;
 

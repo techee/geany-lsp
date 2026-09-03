@@ -1,5 +1,5 @@
 /*
- * Copyright 2023 Jiri Techet <techet@gmail.com>
+ * Copyright 2026 Jiri Techet <techet@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,14 +16,21 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
  */
 
-#ifndef LSP_HOVER_H
-#define LSP_HOVER_H 1
+#ifndef LSP_POPUP_H
+#define LSP_POPUP_H 1
 
-#include "lsp-server.h"
+#include <geanyplugin.h>
 
-#include <glib.h>
+void lsp_popup_mouse_tracking_init(GeanyDocument *doc);
 
-void lsp_hover_send_request(LspServer *server, GeanyDocument *doc, gint pos,
-	gboolean keyboard_invoked);
+void lsp_popup_show(GeanyDocument *doc, gint pos, const gchar *text);
+void lsp_popup_show_signature(GeanyDocument *doc, gint pos, const gchar *text,
+	gint bold_start, gint bold_end);
 
-#endif  /* LSP_HOVER_H */
+gboolean lsp_popup_showing_signature(GeanyDocument *doc);
+
+void lsp_popup_hide(GeanyDocument *doc);
+
+void lsp_popup_destroy(void);
+
+#endif  /* LSP_POPUP_H */

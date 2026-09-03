@@ -79,6 +79,9 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->diagnostics_warning_style);
 	g_free(cfg->diagnostics_info_style);
 	g_free(cfg->diagnostics_hint_style);
+	g_free(cfg->popup_background_color);
+	g_free(cfg->popup_border_color);
+	g_free(cfg->popup_text_color);
 	g_free(cfg->highlighting_style);
 	g_free(cfg->trace_value);
 	g_free(cfg->code_lens_style);
@@ -969,8 +972,11 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 	get_str(&s->config.diagnostics_hint_style, kf, section, "diagnostics_hint_style");
 
 	get_bool(&s->config.hover_enable, kf, section, "hover_enable");
-	get_int(&s->config.hover_popup_max_lines, kf, section, "hover_popup_max_lines");
-	get_int(&s->config.hover_popup_max_paragraphs, kf, section, "hover_popup_max_paragraphs");
+	get_int(&s->config.popup_max_lines, kf, section, "popup_max_lines");
+	get_int(&s->config.popup_max_width, kf, section, "popup_max_width");
+	get_str(&s->config.popup_background_color, kf, section, "popup_background_color");
+	get_str(&s->config.popup_border_color, kf, section, "popup_border_color");
+	get_str(&s->config.popup_text_color, kf, section, "popup_text_color");
 	get_bool(&s->config.signature_enable, kf, section, "signature_enable");
 	get_bool(&s->config.goto_enable, kf, section, "goto_enable");
 	get_bool(&s->config.show_server_stderr, kf, section, "show_server_stderr");

@@ -35,6 +35,8 @@ lsp_la_SOURCES = \
 	lsp-log.c \
 	lsp-log.h \
 	lsp-main.c \
+	lsp-popup.c \
+	lsp-popup.h \
 	lsp-progress.c \
 	lsp-progress.h \
 	lsp-rename.c \

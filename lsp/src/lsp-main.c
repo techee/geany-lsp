@@ -26,6 +26,7 @@
 #include "lsp-autocomplete.h"
 #include "lsp-diagnostics.h"
 #include "lsp-hover.h"
+#include "lsp-popup.h"
 #include "lsp-semtokens.h"
 #include "lsp-signature.h"
 #include "lsp-goto.h"
@@ -376,6 +377,8 @@ static void on_document_visible(GeanyDocument *doc)
 
 	update_menu(doc);
 
+	lsp_popup_mouse_tracking_init(doc);
+
 	// quick synchronous refresh with the last value without server request
 	lsp_symbol_tree_refresh();
 
@@ -699,62 +702,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	{
 		lsp_autocomplete_selection_changed(doc, nt->text);
 	}
-	else if (nt->nmhdr.code == SCN_CALLTIPCLICK &&
-		plugin_extension_calltips_provided(doc, &extension))
-	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-
-		if (!srv)
-			return FALSE;
-
-		if (srv->config.signature_enable)
-		{
-			if (nt->position == 1)  /* up arrow */
-				lsp_signature_show_prev();
-			if (nt->position == 2)  /* down arrow */
-				lsp_signature_show_next();
-		}
-	}
-
-	if (nt->nmhdr.code == SCN_DWELLSTART)
-	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-		if (!srv)
-			return FALSE;
-
-		// also delivered when other window has focus
-		if (!gtk_widget_has_focus(GTK_WIDGET(sci)))
-			return FALSE;
-
-		// the event is also delivered for the margin with numbers where position
-		// is -1. In addition, at the top of Scintilla window, the event is delivered
-		// when mouse is at the menubar place, with y = 0
-		if (nt->position < 0 || nt->y == 0)
-			return FALSE;
-
-		if (lsp_signature_showing_calltip(doc))
-			;  /* don't cancel signature calltips by accidental hovers */
-		else if (srv->config.diagnostics_enable && lsp_diagnostics_has_diag(nt->position))
-			lsp_diagnostics_show_calltip(nt->position);
-		else if (srv->config.hover_enable)
-			lsp_hover_send_request(srv, doc, nt->position);
-
-		return FALSE;
-	}
-	else if (nt->nmhdr.code == SCN_DWELLEND)
-	{
-		LspServer *srv = lsp_server_get_if_running(doc);
-		if (!srv)
-			return FALSE;
-
-		if (srv->config.diagnostics_enable)
-			lsp_diagnostics_hide_calltip(doc);
-		if (srv->config.hover_enable)
-			lsp_hover_hide_calltip(doc);
-
-		return FALSE;
-	}
-	else if (nt->nmhdr.code == SCN_MODIFIED)
+	if (nt->nmhdr.code == SCN_MODIFIED)
 	{
 		LspServer *srv;
 
@@ -839,8 +787,7 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 		if (nt->updated & (SC_UPDATE_H_SCROLL | SC_UPDATE_V_SCROLL | SC_UPDATE_SELECTION /* when caret moves */))
 		{
 			lsp_signature_hide_calltip(doc);
-			lsp_hover_hide_calltip(doc);
-			lsp_diagnostics_hide_calltip(doc);
+			lsp_popup_hide(doc);
 
 			SSM(sci, SCI_AUTOCCANCEL, 0, 0);
 
@@ -862,8 +809,9 @@ static gboolean on_editor_notify(G_GNUC_UNUSED GObject *obj, GeanyEditor *editor
 	{
 		// don't hightlight while typing
 		lsp_highlight_clear(doc);
-		lsp_hover_hide_calltip(doc);
-		lsp_diagnostics_hide_calltip(doc);
+		// keyboard-driven signature popups survive typing
+		if (!lsp_popup_showing_signature(doc))
+			lsp_popup_hide(doc);
 	}
 
 	return FALSE;
@@ -1290,7 +1238,7 @@ static void show_hover_popup(void)
 	LspServer *srv = lsp_server_get(doc);
 
 	if (srv)
-		lsp_hover_send_request(srv, doc, sci_get_current_position(doc->editor->sci));
+		lsp_hover_send_request(srv, doc, sci_get_current_position(doc->editor->sci), TRUE);
 }
 
 
@@ -1411,7 +1359,7 @@ static void invoke_kb(guint key_id, gint pos)
 			lsp_diagnostics_goto_prev_diag(pos);
 			break;
 		case KB_SHOW_DIAG:
-			lsp_diagnostics_show_calltip(pos);
+			lsp_diagnostics_show_popup(pos);
 			break;
 		case KB_SHOW_FILE_DIAGS:
 			lsp_diagnostics_show_all(TRUE);
@@ -1866,6 +1814,7 @@ void plugin_cleanup(void)
 
 	lsp_symbol_tree_destroy();
 	lsp_diagnostics_common_destroy();
+	lsp_popup_destroy();
 }
 
 

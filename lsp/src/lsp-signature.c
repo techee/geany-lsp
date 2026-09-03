@@ -21,6 +21,7 @@
 #endif
 
 #include "lsp-signature.h"
+#include "lsp-popup.h"
 #include "lsp-utils.h"
 #include "lsp-rpc.h"
 
@@ -34,35 +35,169 @@ typedef struct {
 } LspSignatureData;
 
 
+typedef struct {
+	gchar *label;
+	/* byte offsets of the active parameter within the label, -1 if unknown */
+	gint bold_start;
+	gint bold_end;
+} LspSignatureInfo;
+
+
 static GPtrArray *signatures = NULL;
 static gint displayed_signature = 0;
-static ScintillaObject *calltip_sci;
 
 
-static void show_signature(ScintillaObject *sci)
+static void signature_info_free(gpointer data)
 {
-	gboolean have_arrow = FALSE;
-	GString *str = g_string_new(NULL);
+	LspSignatureInfo *info = data;
 
-	if (displayed_signature > 0)
+	g_free(info->label);
+	g_free(info);
+}
+
+
+static void show_signature(GeanyDocument *doc)
+{
+	LspSignatureInfo *info = signatures->pdata[displayed_signature];
+
+	lsp_popup_show_signature(doc, sci_get_current_position(doc->editor->sci),
+		info->label, info->bold_start, info->bold_end);
+}
+
+
+static gboolean is_identifier_char(gchar c)
+{
+	return g_ascii_isalnum(c) || c == '_';
+}
+
+
+/* find the parameter label substring within the signature label, preferring
+ * occurrences not surrounded by identifier characters */
+static void find_param_substring(const gchar *label, const gchar *param,
+	gint *bold_start, gint *bold_end)
+{
+	gsize param_len = strlen(param);
+	const gchar *fallback = NULL;
+	const gchar *p = label;
+
+	if (param_len == 0)
+		return;
+
+	while ((p = strstr(p, param)) != NULL)
 	{
-		g_string_append_c(str, '\001');  /* up arrow */
-		have_arrow = TRUE;
+		if ((p == label || !is_identifier_char(p[-1])) && !is_identifier_char(p[param_len]))
+		{
+			*bold_start = p - label;
+			*bold_end = *bold_start + param_len;
+			return;
+		}
+		if (!fallback)
+			fallback = p;
+		p++;
 	}
-	if (displayed_signature < signatures->len - 1)
+
+	if (fallback)
 	{
-		g_string_append_c(str, '\002');  /* down arrow */
-		have_arrow = TRUE;
+		*bold_start = fallback - label;
+		*bold_end = *bold_start + param_len;
 	}
-	if (have_arrow)
-		g_string_append_c(str, ' ');
-	g_string_append(str, signatures->pdata[displayed_signature]);
+}
 
-	lsp_utils_wrap_string(str->str, -1);
-	calltip_sci = sci;
-	SSM(sci, SCI_CALLTIPSHOW, sci_get_current_position(sci), (sptr_t) str->str);
 
-	g_string_free(str, TRUE);
+/* LSP parameter offsets are in UTF-16 code units within the label */
+static gint utf16_offset_to_bytes(const gchar *label, gint64 utf16_offset)
+{
+	const gchar *p = label;
+	gint64 units = 0;
+
+	while (*p && units < utf16_offset)
+	{
+		units += g_utf8_get_char(p) >= 0x10000 ? 2 : 1;
+		p = g_utf8_next_char(p);
+	}
+
+	return p - label;
+}
+
+
+static gint64 get_int64_from_variant(GVariant *variant, gint64 dflt)
+{
+	GVariant *v = variant;
+	gint64 res = dflt;
+
+	if (g_variant_is_of_type(v, G_VARIANT_TYPE_VARIANT))
+		v = g_variant_get_variant(v);
+	else
+		g_variant_ref(v);
+
+	if (g_variant_is_of_type(v, G_VARIANT_TYPE_INT64))
+		res = g_variant_get_int64(v);
+	else if (g_variant_is_of_type(v, G_VARIANT_TYPE_DOUBLE))
+		res = (gint64)g_variant_get_double(v);
+
+	g_variant_unref(v);
+	return res;
+}
+
+
+/* computes the byte range of the active parameter within the signature label.
+ * The parameter label is either a substring of the signature label, or a
+ * [start, end) offset pair */
+static void get_param_bold_range(GVariant *signature, const gchar *label,
+	gint64 active_param, gint *bold_start, gint *bold_end)
+{
+	GVariantIter *iter = NULL;
+	GVariant *param = NULL;
+	gint64 index = 0;
+
+	*bold_start = -1;
+	*bold_end = -1;
+
+	JSONRPC_MESSAGE_PARSE(signature, "parameters", JSONRPC_MESSAGE_GET_ITER(&iter));
+	if (!iter)
+		return;
+
+	/* signature-specific value overriding the one from the SignatureHelp */
+	g_variant_lookup(signature, "activeParameter", "x", &active_param);
+
+	while (g_variant_iter_loop(iter, "v", &param))
+	{
+		GVariant *param_label;
+
+		if (index++ != active_param)
+			continue;
+
+		param_label = g_variant_lookup_value(param, "label", NULL);
+		if (param_label)
+		{
+			if (g_variant_is_of_type(param_label, G_VARIANT_TYPE_STRING))
+			{
+				find_param_substring(label,
+					g_variant_get_string(param_label, NULL), bold_start, bold_end);
+			}
+			else if (g_variant_is_of_type(param_label, G_VARIANT_TYPE_ARRAY) &&
+				g_variant_n_children(param_label) == 2)
+			{
+				GVariant *start_v = g_variant_get_child_value(param_label, 0);
+				GVariant *end_v = g_variant_get_child_value(param_label, 1);
+				gint64 start = get_int64_from_variant(start_v, -1);
+				gint64 end = get_int64_from_variant(end_v, -1);
+
+				if (start >= 0 && end > start)
+				{
+					*bold_start = utf16_offset_to_bytes(label, start);
+					*bold_end = utf16_offset_to_bytes(label, end);
+				}
+
+				g_variant_unref(start_v);
+				g_variant_unref(end_v);
+			}
+
+			g_variant_unref(param_label);
+		}
+	}
+
+	g_variant_iter_free(iter);
 }
 
 
@@ -87,14 +222,16 @@ static void signature_cb(GVariant *return_value, GError *error, gpointer user_da
 				(data->force || (!data->force && !SSM(current_doc->editor->sci, SCI_AUTOCACTIVE, 0, 0))))
 			{
 				GVariantIter *iter = NULL;
-				gint64 active = 1;
+				gint64 active = 0;
+				gint64 active_param = 0;
 
 				JSONRPC_MESSAGE_PARSE(return_value, "signatures", JSONRPC_MESSAGE_GET_ITER(&iter));
 				JSONRPC_MESSAGE_PARSE(return_value, "activeSignature", JSONRPC_MESSAGE_GET_INT64(&active));
+				JSONRPC_MESSAGE_PARSE(return_value, "activeParameter", JSONRPC_MESSAGE_GET_INT64(&active_param));
 
 				if (signatures)
 					g_ptr_array_free(signatures, TRUE);
-				signatures = g_ptr_array_new_full(1, g_free);
+				signatures = g_ptr_array_new_full(1, signature_info_free);
 
 				if (iter)
 				{
@@ -107,16 +244,23 @@ static void signature_cb(GVariant *return_value, GError *error, gpointer user_da
 						JSONRPC_MESSAGE_PARSE(member, "label", JSONRPC_MESSAGE_GET_STRING(&label));
 
 						if (label)
-							g_ptr_array_add(signatures, g_strdup(label));
+						{
+							LspSignatureInfo *info = g_new0(LspSignatureInfo, 1);
+
+							info->label = g_strdup(label);
+							get_param_bold_range(member, info->label, active_param,
+								&info->bold_start, &info->bold_end);
+							g_ptr_array_add(signatures, info);
+						}
 					}
 				}
 
-				displayed_signature = CLAMP(active, 1, signatures->len) - 1;
+				displayed_signature = CLAMP(active, 0, (gint64)signatures->len - 1);
 
 				if (signatures->len == 0)
-					SSM(current_doc->editor->sci, SCI_CALLTIPCANCEL, 0, 0);
+					lsp_signature_hide_calltip(current_doc);
 				else
-					show_signature(current_doc->editor->sci);
+					show_signature(current_doc);
 
 				if (iter)
 					g_variant_iter_free(iter);
@@ -125,32 +269,6 @@ static void signature_cb(GVariant *return_value, GError *error, gpointer user_da
 	}
 
 	g_free(user_data);
-}
-
-
-void lsp_signature_show_prev(void)
-{
-	GeanyDocument *doc = document_get_current();
-
-	if (!doc || !signatures)
-		return;
-
-	if (displayed_signature > 0)
-		displayed_signature--;
-	show_signature(doc->editor->sci);
-}
-
-
-void lsp_signature_show_next(void)
-{
-	GeanyDocument *doc = document_get_current();
-
-	if (!doc || !signatures)
-		return;
-
-	if (displayed_signature < signatures->len - 1)
-		displayed_signature++;
-	show_signature(doc->editor->sci);
 }
 
 
@@ -209,18 +327,18 @@ void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean 
 
 gboolean lsp_signature_showing_calltip(GeanyDocument *doc)
 {
-	return SSM(doc->editor->sci, SCI_CALLTIPACTIVE, 0, 0) &&
-		calltip_sci == doc->editor->sci && signatures && signatures->len > 0;
+	return lsp_popup_showing_signature(doc);
 }
 
 
 void lsp_signature_hide_calltip(GeanyDocument *doc)
 {
-	if (calltip_sci == doc->editor->sci && signatures && signatures->len > 0)
+	if (lsp_popup_showing_signature(doc))
+		lsp_popup_hide(doc);
+
+	if (signatures)
 	{
-		SSM(doc->editor->sci, SCI_CALLTIPCANCEL, 0, 0);
 		g_ptr_array_free(signatures, TRUE);
 		signatures = NULL;
-		calltip_sci = NULL;
 	}
 }

@@ -25,9 +25,6 @@
 
 void lsp_signature_send_request(LspServer *server, GeanyDocument *doc, gboolean force);
 
-void lsp_signature_show_prev(void);
-void lsp_signature_show_next(void);
-
 void lsp_signature_hide_calltip(GeanyDocument *doc);
 gboolean lsp_signature_showing_calltip(GeanyDocument *doc);
 

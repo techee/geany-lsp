@@ -86,6 +86,7 @@ shared_module('lsp',
 
 	'lsp/src/lsp-autocomplete.c',
 	'lsp/src/lsp-main.c',
+	'lsp/src/lsp-popup.c',
 	'lsp/src/lsp-server.c',
 	'lsp/src/lsp-sync.c',
 	'lsp/src/lsp-rpc.c',

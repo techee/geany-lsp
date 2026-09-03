@@ -21,6 +21,7 @@
 #endif
 
 #include "lsp-diagnostics.h"
+#include "lsp-popup.h"
 #include "lsp-utils.h"
 
 #include <jsonrpc-glib.h>
@@ -56,7 +57,6 @@ typedef enum {
 
 static gint style_indices[LSP_DIAG_SEVERITY_MAX];
 
-static ScintillaObject *calltip_sci;
 static GtkWidget *issue_label;
 static GtkWidget *issue_label_container;
 
@@ -83,7 +83,6 @@ void lsp_diagnostics_common_destroy(void)
 		gtk_widget_destroy(issue_label);
 	if (issue_label_container)
 		gtk_widget_destroy(issue_label_container);
-	calltip_sci = NULL;
 	issue_label = NULL;
 	issue_label_container = NULL;
 }
@@ -235,7 +234,7 @@ static gboolean is_diagnostics_disabled_for(GeanyDocument *doc, LspServerConfig 
 }
 
 
-void lsp_diagnostics_show_calltip(gint pos)
+void lsp_diagnostics_show_popup(gint pos)
 {
 	GeanyDocument *doc = document_get_current();
 	LspServer *srv = lsp_server_get_if_running(doc);
@@ -257,7 +256,6 @@ void lsp_diagnostics_show_calltip(gint pos)
 
 	if (first || second)
 	{
-		ScintillaObject *sci = doc->editor->sci;
 		gchar *msg;
 
 		if (first && second)
@@ -267,10 +265,7 @@ void lsp_diagnostics_show_calltip(gint pos)
 		else
 			msg = g_strdup(second);
 
-		lsp_utils_wrap_string(msg, -1);
-
-		calltip_sci = sci;
-		SSM(sci, SCI_CALLTIPSHOW, pos, (sptr_t) msg);
+		lsp_popup_show(doc, pos, msg);
 		g_free(msg);
 	}
 
@@ -435,8 +430,6 @@ void lsp_diagnostics_style_init(GeanyDocument *doc)
 	style_indices[LspWarning] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_warning_style);
 	style_indices[LspInfo] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_info_style);
 	style_indices[LspHint] = lsp_utils_set_indicator_style(sci, srv->config.diagnostics_hint_style);
-
-	SSM(sci, SCI_SETMOUSEDWELLTIME, 500, 0);
 }
 
 
@@ -536,16 +529,6 @@ void lsp_diagnostics_clear(LspServer *srv, GeanyDocument *doc)
 	}
 
 	refresh_issue_statusbar(doc);
-}
-
-
-void lsp_diagnostics_hide_calltip(GeanyDocument *doc)
-{
-	if (doc->editor->sci == calltip_sci)
-	{
-		SSM(doc->editor->sci, SCI_CALLTIPCANCEL, 0, 0);
-		calltip_sci = NULL;
-	}
 }
 
 
