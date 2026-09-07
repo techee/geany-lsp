@@ -66,13 +66,18 @@ static LspServerInitializedCallback lsp_server_initialized_cb;
 
 static void free_config(LspServerConfig *cfg)
 {
+	gint i;
+
 	g_free(cfg->cmd);
 	g_strfreev(cfg->env);
 	g_free(cfg->ref_lang);
 	g_strfreev(cfg->autocomplete_trigger_sequences);
-	g_strfreev(cfg->semantic_tokens_types);
+	for (i = 0; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
+	{
+		g_strfreev(cfg->semantic_tokens_types[i]);
+		g_free(cfg->semantic_tokens_type_style[i]);
+	}
 	g_free(cfg->command_on_save_regex);
-	g_free(cfg->semantic_tokens_type_style);
 	g_free(cfg->autocomplete_hide_after_words);
 	g_free(cfg->diagnostics_disable_for);
 	g_free(cfg->diagnostics_error_style);
@@ -277,11 +282,31 @@ static gchar *get_autocomplete_trigger_chars(GVariant *node)
 }
 
 
-static guint64 get_semantic_token_mask(LspServer *srv, GVariant *node)
+static gboolean strv_contains(gchar **strv, const gchar *str)
 {
-	guint64 mask = 0;
+	gchar **ptr;
+
+	if (!strv)
+		return FALSE;
+
+	foreach_strv(ptr, strv)
+	{
+		if (g_strcmp0(str, *ptr) == 0)
+			return TRUE;
+	}
+
+	return FALSE;
+}
+
+
+static void get_semantic_token_masks(LspServer *srv, GVariant *node)
+{
 	guint64 index = 1;
 	GVariantIter *iter = NULL;
+	gint i;
+
+	for (i = 0; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
+		srv->semantic_token_masks[i] = 0;
 
 	JSONRPC_MESSAGE_PARSE(node,
 		"capabilities", "{",
@@ -292,29 +317,23 @@ static guint64 get_semantic_token_mask(LspServer *srv, GVariant *node)
 			"}",
 		"}");
 
-	if (iter && srv->config.semantic_tokens_types)
+	if (iter)
 	{
 		GVariant *val = NULL;
 		while (g_variant_iter_loop(iter, "v", &val))
 		{
 			const gchar *str = g_variant_get_string(val, NULL);
-			gchar **token_ptr;
 
-			foreach_strv(token_ptr, srv->config.semantic_tokens_types)
+			for (i = 0; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
 			{
-				if (g_strcmp0(str, *token_ptr) == 0)
-				{
-					mask |= index;
-					break;
-				}
+				if (strv_contains(srv->config.semantic_tokens_types[i], str))
+					srv->semantic_token_masks[i] |= index;
 			}
 
 			index <<= 1;
 		}
 		g_variant_iter_free(iter);
 	}
-
-	return mask;
 }
 
 
@@ -577,7 +596,7 @@ static void initialize_cb(GVariant *return_value, GError *error, gpointer user_d
 		s->config.semantic_tokens_range_only = !supports_semantic_token_full &&
 			supports_semantic_token_range;
 
-		s->semantic_token_mask = get_semantic_token_mask(s, return_value);
+		get_semantic_token_masks(s, return_value);
 
 		msgwin_status_add(_("LSP server %s initialized"), s->config.cmd);
 
@@ -985,9 +1004,19 @@ static void load_config(GKeyFile *kf, const gchar *section, LspServer *s)
 
 	get_bool(&s->config.semantic_tokens_enable, kf, section, "semantic_tokens_enable");
 	get_bool(&s->config.semantic_tokens_force_full, kf, section, "semantic_tokens_force_full");
-	get_strv(&s->config.semantic_tokens_types, kf, section, "semantic_tokens_types");
 	get_int(&s->config.semantic_tokens_lexer_kw_index, kf, section, "semantic_tokens_lexer_kw_index");
-	get_str(&s->config.semantic_tokens_type_style, kf, section, "semantic_tokens_type_style");
+	for (i = 0; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
+	{
+		gchar *key;
+
+		key = i == 0 ? g_strdup("semantic_tokens_types") : g_strdup_printf("semantic_tokens_types%d", i);
+		get_strv(&s->config.semantic_tokens_types[i], kf, section, key);
+		g_free(key);
+
+		key = i == 0 ? g_strdup("semantic_tokens_type_style") : g_strdup_printf("semantic_tokens_type_style%d", i);
+		get_str(&s->config.semantic_tokens_type_style[i], kf, section, key);
+		g_free(key);
+	}
 
 	get_bool(&s->config.highlighting_enable, kf, section, "highlighting_enable");
 	get_str(&s->config.highlighting_style, kf, section, "highlighting_style");

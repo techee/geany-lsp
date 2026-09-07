@@ -28,6 +28,11 @@ typedef void (*LspCallback) (gpointer user_data);
 struct LspRpc;
 typedef struct LspRpc LspRpc;
 
+/* number of semantic_tokens_typesN/semantic_tokens_type_styleN config key
+ * pairs (N from 1 to this value). Index 0 of the corresponding arrays is used
+ * for the unnumbered semantic_tokens_types/semantic_tokens_type_style keys */
+#define LSP_SEMTOKENS_CUSTOM_STYLES 9
+
 
 typedef struct LspServerConfig
 {
@@ -89,11 +94,13 @@ typedef struct LspServerConfig
 
 	gboolean semantic_tokens_enable;
 	gboolean semantic_tokens_force_full;
-	gchar **semantic_tokens_types;
 	gboolean semantic_tokens_supports_delta;
 	gboolean semantic_tokens_range_only;
 	gint semantic_tokens_lexer_kw_index;
-	gchar *semantic_tokens_type_style;
+	/* index 0: semantic_tokens_types/semantic_tokens_type_style,
+	 * index N: semantic_tokens_typesN/semantic_tokens_type_styleN */
+	gchar **semantic_tokens_types[LSP_SEMTOKENS_CUSTOM_STYLES + 1];
+	gchar *semantic_tokens_type_style[LSP_SEMTOKENS_CUSTOM_STYLES + 1];
 
 	gboolean highlighting_enable;
 	gchar *highlighting_style;
@@ -168,7 +175,7 @@ typedef struct LspServer
 	gboolean supports_workspace_symbols;
 	gboolean supports_completion_resolve;
 
-	guint64 semantic_token_mask;
+	guint64 semantic_token_masks[LSP_SEMTOKENS_CUSTOM_STYLES + 1];
 } LspServer;
 
 typedef void (*LspServerInitializedCallback) (LspServer *srv);

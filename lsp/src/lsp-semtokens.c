@@ -47,7 +47,7 @@ typedef struct {
 } CachedData;
 
 
-static gint style_index;
+static gint style_indices[LSP_SEMTOKENS_CUSTOM_STYLES + 1];
 
 static guint keyword_hash = 0;
 
@@ -77,15 +77,57 @@ void lsp_semtokens_style_init(GeanyDocument *doc)
 {
 	LspServer *srv = lsp_server_get_if_running(doc);
 	ScintillaObject *sci;
+	gint i;
 
 	if (!srv)
 		return;
 
 	sci = doc->editor->sci;
 
-	style_index = 0;
-	if (!EMPTY(srv->config.semantic_tokens_type_style))
-		style_index = lsp_utils_set_indicator_style(sci, srv->config.semantic_tokens_type_style);
+	for (i = 0; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
+	{
+		const gchar *style = srv->config.semantic_tokens_type_style[i];
+
+		style_indices[i] = 0;
+		if (!EMPTY(style))
+			style_indices[i] = lsp_utils_set_indicator_style(sci, style);
+	}
+}
+
+
+static void clear_indicators(ScintillaObject *sci)
+{
+	gint i;
+
+	for (i = 0; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
+	{
+		if (style_indices[i] > 0)
+		{
+			sci_indicator_set(sci, style_indices[i]);
+			sci_indicator_clear(sci, 0, sci_get_length(sci));
+		}
+	}
+}
+
+
+/* Returns the index of the style the token type should be highlighted with or
+ * -1 if the token type isn't configured to be highlighted. Custom styles
+ * (semantic_tokens_typesN) take precedence over the default style
+ * (semantic_tokens_types) and lower N takes precedence over higher N. */
+static gint get_style_index(LspServer *srv, guint64 token_type)
+{
+	gint i;
+
+	for (i = 1; i <= LSP_SEMTOKENS_CUSTOM_STYLES; i++)
+	{
+		if (style_indices[i] > 0 && (token_type & srv->semantic_token_masks[i]))
+			return i;
+	}
+
+	if (token_type & srv->semantic_token_masks[0])
+		return 0;
+
+	return -1;
 }
 
 
@@ -123,7 +165,7 @@ static const gchar *get_cached(GeanyDocument *doc)
 {
 	CachedData *data;
 
-	if (style_index > 0)
+	if (style_indices[0] > 0)
 		return "";
 
 	data = plugin_get_document_data(geany_plugin, doc, CACHE_KEY);
@@ -151,25 +193,21 @@ static void highlight_keywords(LspServer *srv, GeanyDocument *doc)
 }
 
 
-static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, guint64 token_mask)
+static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, LspServer *srv)
 {
 	GHashTable *type_table = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 	ScintillaObject *sci = doc->editor->sci;
 	guint delta_line = 0;
 	guint delta_char = 0;
 	guint len = 0;
-	guint token_type = 0;
+	guint64 token_type = 0;
 	LspPosition last_pos = {0, 0};
 	gboolean first = TRUE;
 	GList *keys, *item;
 	GString *type_str;
 	gint i;
 
-	if (style_index > 0)
-	{
-		sci_indicator_set(doc->editor->sci, style_index);
-		sci_indicator_clear(doc->editor->sci, 0, sci_get_length(doc->editor->sci));
-	}
+	clear_indicators(sci);
 
 	for (i = 0; i < tokens->len; i++)
 	{
@@ -187,34 +225,39 @@ static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, guint64 token_m
 				len = v;
 				break;
 			case 3:
-				token_type = 1 << v;
+				token_type = v < 64 ? G_GUINT64_CONSTANT(1) << v : 0;
 				break;
 		}
 
 		if (i % 5 == 4)
 		{
+			gint style = get_style_index(srv, token_type);
+
 			last_pos.line += delta_line;
 			if (delta_line == 0)
 				last_pos.character += delta_char;
 			else
 				last_pos.character = delta_char;
 
-			if (token_type & token_mask)
+			if (style >= 0)
 			{
 				LspPosition end_pos = last_pos;
 				gint sci_pos_start, sci_pos_end;
-				gchar *str;
 
 				end_pos.character += len;
 				sci_pos_start = lsp_utils_lsp_pos_to_scintilla(sci, last_pos);
 				sci_pos_end = lsp_utils_lsp_pos_to_scintilla(sci, end_pos);
 
-				if (style_index > 0)
-					editor_indicator_set_on_range(doc->editor, style_index, sci_pos_start, sci_pos_end);
+				if (style_indices[style] > 0)
+					editor_indicator_set_on_range(doc->editor, style_indices[style], sci_pos_start, sci_pos_end);
 
-				str = sci_get_contents_range(sci, sci_pos_start, sci_pos_end);
-				if (str)
-					g_hash_table_insert(type_table, str, NULL);
+				/* only the default style can fall back to lexer keywords */
+				if (style == 0)
+				{
+					gchar *str = sci_get_contents_range(sci, sci_pos_start, sci_pos_end);
+					if (str)
+						g_hash_table_insert(type_table, str, NULL);
+				}
 			}
 		}
 	}
@@ -237,7 +280,7 @@ static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, guint64 token_m
 }
 
 
-static void process_full_result(GeanyDocument *doc, GVariant *result, guint64 token_mask)
+static void process_full_result(GeanyDocument *doc, GVariant *result, LspServer *srv)
 {
 	GVariantIter *iter = NULL;
 	const gchar *result_id = NULL;
@@ -272,7 +315,7 @@ static void process_full_result(GeanyDocument *doc, GVariant *result, guint64 to
 		}
 
 		g_free(data->tokens_str);
-		data->tokens_str = process_tokens(data->tokens, doc, token_mask);
+		data->tokens_str = process_tokens(data->tokens, doc, srv);
 
 		g_variant_iter_free(iter);
 	}
@@ -288,7 +331,7 @@ static gint sort_edits(gconstpointer a, gconstpointer b)
 }
 
 
-static gboolean process_delta_result(GeanyDocument *doc, GVariant *result, guint64 token_mask)
+static gboolean process_delta_result(GeanyDocument *doc, GVariant *result, LspServer *srv)
 {
 	GVariantIter *iter = NULL;
 	const gchar *result_id = NULL;
@@ -354,7 +397,7 @@ static gboolean process_delta_result(GeanyDocument *doc, GVariant *result, guint
 			sem_tokens_edit_apply(data, edit);
 
 		g_free(data->tokens_str);
-		data->tokens_str = process_tokens(data->tokens, doc, token_mask);
+		data->tokens_str = process_tokens(data->tokens, doc, srv);
 		g_free(data->result_id);
 		data->result_id = g_strdup(result_id);
 
@@ -392,11 +435,11 @@ static void semtokens_cb(GVariant *return_value, GError *error, gpointer user_da
 
 			if (iter)
 			{
-				process_full_result(doc, return_value, srv->semantic_token_mask);
+				process_full_result(doc, return_value, srv);
 				g_variant_iter_free(iter);
 			}
 			else
-				success = process_delta_result(doc, return_value, srv->semantic_token_mask);
+				success = process_delta_result(doc, return_value, srv);
 
 			if (success)
 				highlight_keywords(srv, doc);
@@ -485,9 +528,5 @@ void lsp_semtokens_clear(GeanyDocument *doc)
 	plugin_set_document_data(geany_plugin, doc, CACHE_KEY, NULL);
 	keyword_hash = 0;
 
-	if (style_index > 0)
-	{
-		sci_indicator_set(doc->editor->sci, style_index);
-		sci_indicator_clear(doc->editor->sci, 0, sci_get_length(doc->editor->sci));
-	}
+	clear_indicators(doc->editor->sci);
 }
