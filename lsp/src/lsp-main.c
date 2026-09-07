@@ -1288,7 +1288,7 @@ static gboolean on_code_actions_received_kb(GPtrArray *code_action_commands, gpo
 
 		foreach_ptr_array(cmd, i, code_lens_commands)
 		{
-			if (cmd->line == line &&
+			if ((gint)cmd->line == line &&
 				g_regex_match_simple(cmd_str, cmd->title, G_REGEX_CASELESS, G_REGEX_MATCH_NOTEMPTY))
 			{
 				lsp_command_perform(srv, cmd, NULL, NULL);

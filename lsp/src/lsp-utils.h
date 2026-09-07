@@ -70,7 +70,7 @@ typedef struct
 } LspLocation;
 
 
-typedef gpointer (* LspUtilsCmpFn)(const gchar *s1, const gchar *s2);
+typedef gint (* LspUtilsCmpFn)(const gchar *s1, const gchar *s2);
 
 
 void lsp_utils_free_lsp_text_edit(LspTextEdit *e);
@@ -112,7 +112,7 @@ gboolean lsp_utils_apply_workspace_edit(GVariant *workspace_edit);
 
 gboolean lsp_utils_wrap_string(gchar *string, gint wrapstart);
 
-gpointer lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2);
+gint lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2);
 
 GVariant *lsp_utils_parse_json_file_as_variant(const gchar *utf8_fname, const gchar *fallback_json);
 JsonNode *lsp_utils_parse_json_file(const gchar *utf8_fname, const gchar *fallback_json);

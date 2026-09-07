@@ -1074,7 +1074,7 @@ void lsp_symbol_tree_refresh(void)
 static void on_sidebar_switch_page(GtkNotebook *notebook,
 	gpointer page, guint page_num, gpointer user_data)
 {
-	if (page_num == find_symbol_tab())
+	if ((gint)page_num == find_symbol_tab())
 		lsp_symbol_tree_refresh();
 }
 

@@ -114,7 +114,7 @@ static LspRange *find_selection_range(ScintillaObject *sci, gboolean expand)
 	LspRange selection_range = get_current_selection(sci);;
 	LspRange *found_range = NULL;
 	LspRange *range;
-	gint i;
+	guint i;
 
 	// sorted from the smallest to the biggest
 	foreach_ptr_array(range, i, selections)

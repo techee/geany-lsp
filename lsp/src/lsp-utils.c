@@ -329,7 +329,7 @@ LspPosition lsp_utils_parse_pos(GVariant *variant)
 
 LspRange lsp_utils_parse_range(GVariant *variant)
 {
-	LspRange range = {{0}};
+	LspRange range = {{0, 0}, {0, 0}};
 
 	if (!JSONRPC_MESSAGE_PARSE(variant,
 		"start", "{",
@@ -341,7 +341,7 @@ LspRange lsp_utils_parse_range(GVariant *variant)
 			"line", JSONRPC_MESSAGE_GET_INT64(&range.end.line),
 		"}"))
 	{
-		LspRange empty = {{0}};
+		LspRange empty = {{0, 0}, {0, 0}};
 		range = empty;
 	}
 
@@ -463,7 +463,7 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 	gboolean process_snippets)
 {
 	GPtrArray *arr;
-	gint i;
+	guint i;
 
 	if (!edit && !edits)
 		return;
@@ -721,23 +721,23 @@ static gchar *utf8_strdown(const gchar *str)
 }
 
 
-gpointer lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2)
+gint lsp_utils_lowercase_cmp(LspUtilsCmpFn cmp, const gchar *s1, const gchar *s2)
 {
 	gchar *tmp1, *tmp2;
-	gpointer result;
+	gint result;
 
-	g_return_val_if_fail(s1 != NULL, GINT_TO_POINTER(1));
-	g_return_val_if_fail(s2 != NULL, GINT_TO_POINTER(-1));
+	g_return_val_if_fail(s1 != NULL, 1);
+	g_return_val_if_fail(s2 != NULL, -1);
 
 	/* ensure strings are UTF-8 and lowercase */
 	tmp1 = utf8_strdown(s1);
 	if (!tmp1)
-		return GINT_TO_POINTER(1);
+		return 1;
 	tmp2 = utf8_strdown(s2);
 	if (!tmp2)
 	{
 		g_free(tmp1);
-		return GINT_TO_POINTER(-1);
+		return -1;
 	}
 
 	/* compare */

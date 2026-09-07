@@ -151,7 +151,7 @@ static gchar *get_symbol_label(LspServer *server, LspAutocompleteSymbol *sym)
 }
 
 
-static guint get_ident_prefixlen(const gchar *word_chars, GeanyDocument *doc, gint pos)
+static gint get_ident_prefixlen(const gchar *word_chars, GeanyDocument *doc, gint pos)
 {
 	ScintillaObject *sci = doc->editor->sci;
 	gint num = 0;
@@ -217,7 +217,7 @@ void lsp_autocomplete_item_selected(LspServer *server, GeanyDocument *doc, guint
 			for (i = 0; i < sel_num; i++)
 			{
 				gint pos = SSM(sci, SCI_GETSELECTIONNCARET, i, 0);
-				guint rootlen = get_ident_prefixlen(server->config.word_chars, doc, pos);
+				gint rootlen = get_ident_prefixlen(server->config.word_chars, doc, pos);
 				LspTextEdit text_edit;
 
 				text_edit.new_text = insert_text;
@@ -273,7 +273,7 @@ static void resolve_cb(GVariant *return_value, GError *error, gpointer user_data
 			data->symbol->documentation = g_strdup(documentation);
 			data->symbol->resolved = TRUE;
 
-			if (current_selection < displayed_autocomplete_symbols->len)
+			if (current_selection >= 0 && (guint)current_selection < displayed_autocomplete_symbols->len)
 			{
 				LspAutocompleteSymbol *sym = displayed_autocomplete_symbols->pdata[current_selection];
 
@@ -397,7 +397,7 @@ static void show_tags_list(LspServer *server, GeanyDocument *doc, GPtrArray *sym
 		guint icon_id = lsp_symbol_kinds_get_completion_icon(symbol->kind);
 		gchar buf[10];
 
-		if (i > server->config.autocomplete_window_max_entries)
+		if ((gint)i > server->config.autocomplete_window_max_entries)
 			break;
 
 		if (i > 0)
@@ -514,7 +514,7 @@ static gboolean filter_autocomplete_symbols(LspAutocompleteSymbol *sym, const gc
 
 	filter_text = sym->filter_text ? sym->filter_text : get_label(sym, use_label);
 
-	return GPOINTER_TO_INT(lsp_utils_lowercase_cmp((LspUtilsCmpFn)should_filter, filter_text, text));
+	return lsp_utils_lowercase_cmp(should_filter, filter_text, text);
 }
 
 
@@ -547,18 +547,16 @@ static gint sort_autocomplete_symbols(gconstpointer a, gconstpointer b, gpointer
 		if (utils_str_casecmp(label1, sort_data->prefix) != 0 && utils_str_casecmp(label2, sort_data->prefix) == 0)
 			return 1;
 
-		if (lsp_utils_lowercase_cmp((LspUtilsCmpFn)g_str_has_prefix, label1, sort_data->prefix) &&
-			!lsp_utils_lowercase_cmp((LspUtilsCmpFn)g_str_has_prefix, label2, sort_data->prefix))
+		if (lsp_utils_lowercase_cmp(g_str_has_prefix, label1, sort_data->prefix) &&
+			!lsp_utils_lowercase_cmp(g_str_has_prefix, label2, sort_data->prefix))
 			return -1;
-		if (!lsp_utils_lowercase_cmp((LspUtilsCmpFn)g_str_has_prefix, label1, sort_data->prefix) &&
-			lsp_utils_lowercase_cmp((LspUtilsCmpFn)g_str_has_prefix, label2, sort_data->prefix))
+		if (!lsp_utils_lowercase_cmp(g_str_has_prefix, label1, sort_data->prefix) &&
+			lsp_utils_lowercase_cmp(g_str_has_prefix, label2, sort_data->prefix))
 			return 1;
 
 		// anywhere within string, any case, earlier occurrence wins
-		diff1 = GPOINTER_TO_INT(lsp_utils_lowercase_cmp(
-			(LspUtilsCmpFn)strstr_delta, label1, sort_data->prefix));
-		diff2 = GPOINTER_TO_INT(lsp_utils_lowercase_cmp(
-			(LspUtilsCmpFn)strstr_delta, label2, sort_data->prefix));
+		diff1 = lsp_utils_lowercase_cmp(strstr_delta, label1, sort_data->prefix);
+		diff2 = lsp_utils_lowercase_cmp(strstr_delta, label2, sort_data->prefix);
 		if (diff1 != -1 && diff2 == -1)
 			return -1;
 		if (diff1 == -1 && diff2 != -1)
@@ -614,7 +612,7 @@ static void process_response(LspServer *server, GVariant *response, GeanyDocumen
 	SortData sort_data = { 1, NULL, server->config.autocomplete_use_label, server->config.word_chars };
 	GPtrArray *symbols, *symbols_filtered;
 	GHashTable *entry_set;
-	gint i;
+	guint i;
 
 	JSONRPC_MESSAGE_PARSE(response, 
 		//"isIncomplete", JSONRPC_MESSAGE_GET_BOOLEAN(&is_incomplete),

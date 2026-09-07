@@ -110,7 +110,7 @@ static LspDiag *get_diag(gint pos, gint where)
 	LspServer *srv = lsp_server_get(doc);
 	LspDiag *previous_diag = NULL;
 	GPtrArray *diags;
-	gint i;
+	guint i;
 
 	if (!srv || !doc->real_path)
 		return NULL;
@@ -338,7 +338,7 @@ static void refresh_issue_statusbar(GeanyDocument *doc)
 	if (srv && doc->real_path && !is_diagnostics_disabled_for(doc, &srv->config))
 	{
 		GPtrArray *diags = g_hash_table_lookup(srv->diag_table, doc->real_path);
-		gint i;
+		guint i;
 
 		for (i = 0; diags && i < diags->len; i++)
 		{
@@ -359,7 +359,7 @@ void lsp_diagnostics_redraw(GeanyDocument *doc)
 	ScintillaObject *sci;
 	GPtrArray *diags;
 	gint last_start_pos = 0, last_end_pos = 0;
-	gint i;
+	guint i;
 
 	if (!srv || !doc || !doc->real_path || is_diagnostics_disabled_for(doc, &srv->config))
 	{

@@ -67,7 +67,7 @@ void lsp_semtokens_init(gint ft_id)
 	foreach_document(i)
 	{
 		GeanyDocument *doc = documents[i];
-		if (doc->file_type->id == ft_id)
+		if ((gint)doc->file_type->id == ft_id)
 			plugin_set_document_data(geany_plugin, doc, CACHE_KEY, NULL);
 	}
 }
@@ -205,7 +205,7 @@ static gchar *process_tokens(GArray *tokens, GeanyDocument *doc, LspServer *srv)
 	gboolean first = TRUE;
 	GList *keys, *item;
 	GString *type_str;
-	gint i;
+	guint i;
 
 	clear_indicators(sci);
 

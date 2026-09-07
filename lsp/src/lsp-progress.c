@@ -136,7 +136,7 @@ void lsp_progress_free_all(LspServer *server)
 
 	g_slist_free_full(server->progress_ops, (GDestroyNotify)progress_free);
 	server->progress_ops = 0;
-	progress_num = MAX(0, progress_num - len);
+	progress_num = MAX(0, progress_num - (gint)len);
 	if (progress_num == 0)
 		ui_progress_bar_stop();
 }
