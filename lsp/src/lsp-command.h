@@ -40,6 +40,12 @@ void lsp_command_free(LspCommand *cmd);
 
 void lsp_command_perform(LspServer *server, LspCommand *cmd, LspCallback callback, gpointer user_data);
 
+// Custom commands defined by the command_N configuration options. The index is
+// 0-based and corresponds to the "Command N" keybinding N-1. The returned
+// command is newly allocated and should be freed with lsp_command_free()
+LspCommand *lsp_command_get_custom(LspServer *server, guint index);
+gboolean lsp_command_has_custom(LspServer *server);
+
 // Careful! Returning TRUE from actions_resolved_cb frees the actions array, FALSE passes the
 // ownership to the caller
 void lsp_command_send_code_action_request(GeanyDocument *doc, gint pos, CodeActionCallback actions_resolved_cb, gpointer user_data);

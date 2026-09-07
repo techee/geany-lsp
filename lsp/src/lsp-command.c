@@ -40,6 +40,7 @@ typedef struct
 {
 	CodeActionCallback callback;
 	gpointer user_data;
+	GeanyDocument *doc;
 } CodeActionData;
 
 
@@ -55,6 +56,89 @@ void lsp_command_free(LspCommand *cmd)
 	if (cmd->data)
 		g_variant_unref(cmd->data);
 	g_free(cmd);
+}
+
+
+LspCommand *lsp_command_get_custom(LspServer *server, guint index)
+{
+	gchar **fields;
+	gchar *title, *command;
+	LspCommand *cmd;
+
+	if (!server->config.commands || index >= server->config.commands->len)
+		return NULL;
+
+	fields = server->config.commands->pdata[index];
+	// title;command[;argument;...]
+	if (!fields || g_strv_length(fields) < 2)
+		return NULL;
+
+	title = g_strstrip(g_strdup(fields[0]));
+	command = g_strstrip(g_strdup(fields[1]));
+
+	if (EMPTY(title) || EMPTY(command))
+	{
+		g_free(title);
+		g_free(command);
+		return NULL;
+	}
+
+	cmd = g_new0(LspCommand, 1);
+	cmd->title = title;
+	cmd->command = command;
+
+	if (fields[2])
+	{
+		gchar **args = g_strdupv(fields + 2);
+		gchar **arg;
+
+		foreach_strv(arg, args)
+			g_strstrip(*arg);
+
+		cmd->arguments = g_variant_ref_sink(g_variant_new_strv((const gchar * const *)args, -1));
+		g_strfreev(args);
+	}
+
+	return cmd;
+}
+
+
+gboolean lsp_command_has_custom(LspServer *server)
+{
+	guint i;
+
+	if (!server->config.commands)
+		return FALSE;
+
+	for (i = 0; i < server->config.commands->len; i++)
+	{
+		LspCommand *cmd = lsp_command_get_custom(server, i);
+
+		if (cmd)
+		{
+			lsp_command_free(cmd);
+			return TRUE;
+		}
+	}
+
+	return FALSE;
+}
+
+
+static void add_custom_commands(LspServer *server, GPtrArray *commands)
+{
+	guint i;
+
+	if (!server || !server->config.commands)
+		return;
+
+	for (i = 0; i < server->config.commands->len; i++)
+	{
+		LspCommand *cmd = lsp_command_get_custom(server, i);
+
+		if (cmd)
+			g_ptr_array_add(commands, cmd);
+	}
 }
 
 
@@ -268,6 +352,10 @@ static void code_action_cb(GVariant *return_value, GError *error, gpointer user_
 		}
 	}
 
+	// custom commands are always available regardless of the server response
+	if (DOC_VALID(data->doc))
+		add_custom_commands(lsp_server_get_if_running(data->doc), code_actions);
+
 	if (data->callback(code_actions, data->user_data))
 		g_ptr_array_free(code_actions, TRUE);
 
@@ -293,6 +381,17 @@ void lsp_command_send_code_action_request(GeanyDocument *doc, gint pos, CodeActi
 		GPtrArray *empty = g_ptr_array_new_full(0, (GDestroyNotify)lsp_command_free);
 		if (actions_resolved_cb(empty, user_data))
 			g_ptr_array_free(empty, TRUE);
+		return;
+	}
+
+	if (!srv->config.code_action_enable)
+	{
+		// server doesn't support code actions - don't send the request but
+		// still provide custom commands
+		GPtrArray *custom = g_ptr_array_new_full(1, (GDestroyNotify)lsp_command_free);
+		add_custom_commands(srv, custom);
+		if (actions_resolved_cb(custom, user_data))
+			g_ptr_array_free(custom, TRUE);
 		return;
 	}
 
@@ -343,6 +442,7 @@ void lsp_command_send_code_action_request(GeanyDocument *doc, gint pos, CodeActi
 	data = g_new0(CodeActionData, 1);
 	data->user_data = user_data;
 	data->callback = actions_resolved_cb;
+	data->doc = doc;
 	lsp_rpc_call(srv, "textDocument/codeAction", node, code_action_cb, data);
 
 	g_variant_unref(node);

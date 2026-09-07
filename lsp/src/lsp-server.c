@@ -99,6 +99,8 @@ static void free_config(LspServerConfig *cfg)
 	g_free(cfg->rpc_log);
 	g_strfreev(cfg->lang_id_mappings);
 	g_ptr_array_free(cfg->command_regexes, TRUE);
+	if (cfg->commands)
+		g_ptr_array_free(cfg->commands, TRUE);
 	g_strfreev(cfg->project_root_marker_patterns);
 }
 
@@ -1085,6 +1087,7 @@ static void load_filetype_only_config(GKeyFile *kf, const gchar *section, LspSer
 {
 	gchar *cmd = NULL;
 	gchar *use = NULL;
+	gint i;
 
 	get_str(&cmd, kf, section, "cmd");
 	get_str(&use, kf, section, "use");
@@ -1101,6 +1104,21 @@ static void load_filetype_only_config(GKeyFile *kf, const gchar *section, LspSer
 	get_str(&s->config.initialization_options_file, kf, section, "initialization_options_file");
 	get_str(&s->config.initialization_options, kf, section, "initialization_options");
 	get_strv(&s->config.lang_id_mappings, kf, section, "lang_id_mappings");
+
+	// custom commands - one slot per command keybinding, NULL when not defined
+	if (!s->config.commands)
+		s->config.commands = g_ptr_array_new_full(s->config.command_keybinding_num, (GDestroyNotify)g_strfreev);
+
+	g_ptr_array_set_size(s->config.commands, s->config.command_keybinding_num);
+
+	for (i = 0; i < s->config.command_keybinding_num; i++)
+	{
+		gchar *key = g_strdup_printf("command_%d", i + 1);
+
+		get_strv((gchar ***)&s->config.commands->pdata[i], kf, section, key);
+
+		g_free(key);
+	}
 }
 
 

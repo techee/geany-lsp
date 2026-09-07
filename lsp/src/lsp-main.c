@@ -314,7 +314,8 @@ static void update_menu(GeanyDocument *doc)
 	gboolean goto_implementation_enable = srv && srv->config.goto_implementation_enable;
 	gboolean diagnostics_enable = srv && srv->config.diagnostics_enable;
 	gboolean hover_popup_enable = srv && srv->config.hover_available;
-	gboolean code_action_enable = srv && (srv->config.code_action_enable || srv->config.code_lens_enable);
+	gboolean code_action_enable = srv && (srv->config.code_action_enable || srv->config.code_lens_enable ||
+		lsp_command_has_custom(srv));
 	gboolean swap_header_source_enable = srv && srv->config.swap_header_source_enable;
 
 	if (!menu_items.parent_item)
@@ -593,7 +594,8 @@ static void on_document_before_save(G_GNUC_UNUSED GObject *obj, GeanyDocument *d
 	code_actions_performed = g_ptr_array_new_full(1, g_free);
 	plugin_set_document_data_full(geany_plugin, doc, CODE_ACTIONS_PERFORMED, code_actions_performed, free_ptrarray);
 
-	if (srv->config.code_action_enable && !EMPTY(srv->config.command_on_save_regex))
+	if ((srv->config.code_action_enable || lsp_command_has_custom(srv)) &&
+		!EMPTY(srv->config.command_on_save_regex))
 		lsp_command_send_code_action_request(doc, sci_get_current_position(doc->editor->sci),
 			on_code_actions_received, doc);
 	else if (srv->config.document_formatting_enable && srv->config.format_on_save)
@@ -1104,7 +1106,8 @@ static gboolean on_update_editor_menu(G_GNUC_UNUSED GObject *obj,
 	LspServer *srv = lsp_server_get_if_running(doc);
 	gboolean goto_definition_enable = srv && srv->config.goto_definition_enable;
 	gboolean goto_references_enable = srv && srv->config.goto_references_enable;
-	gboolean code_action_enable = srv && srv->config.code_action_enable;
+	gboolean code_action_enable = srv && (srv->config.code_action_enable || srv->config.code_lens_enable ||
+		lsp_command_has_custom(srv));
 	gboolean document_formatting_enable = srv && srv->config.document_formatting_enable;
 	gboolean range_formatting_enable = srv && srv->config.range_formatting_enable;
 	gboolean rename_enable = srv && srv->config.rename_enable;
@@ -1303,14 +1306,27 @@ static void invoke_command_kb(guint key_id, gint pos)
 {
 	GeanyDocument *doc = document_get_current();
 	LspServer *srv = lsp_server_get(doc);
+	guint index = key_id - KB_COUNT;
+	LspCommand *cmd;
 
 	if (!srv)
 		return;
 
-	if (key_id >= KB_COUNT + srv->config.command_keybinding_num)
+	if ((gint)index >= srv->config.command_keybinding_num)
 		return;
 
-	lsp_command_send_code_action_request(doc, pos, on_code_actions_received_kb, GINT_TO_POINTER(key_id - KB_COUNT));
+	// custom command defined using command_N takes precedence over command_N_regex
+	cmd = lsp_command_get_custom(srv, index);
+	if (cmd)
+	{
+		srv = lsp_server_get_if_running(doc);
+		if (srv)
+			lsp_command_perform(srv, cmd, NULL, NULL);
+		lsp_command_free(cmd);
+		return;
+	}
+
+	lsp_command_send_code_action_request(doc, pos, on_code_actions_received_kb, GINT_TO_POINTER(index));
 }
 
 

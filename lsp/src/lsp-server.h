@@ -127,6 +127,8 @@ typedef struct LspServerConfig
 	gchar *command_on_save_regex;
 	gint command_keybinding_num;
 	GPtrArray *command_regexes;
+	// custom commands from command_N options - gchar** per keybinding slot or NULL
+	GPtrArray *commands;
 
 	gchar *trace_value;
 	gboolean enable_telemetry;
