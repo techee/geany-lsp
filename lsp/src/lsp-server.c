@@ -864,6 +864,7 @@ static void start_lsp_server(LspServer *server)
 	gint stdout_fd = -1;
 	gboolean success;
 	GString *cmd = g_string_new(server->config.cmd);
+	gchar **env = NULL;
 
 #ifdef G_OS_UNIX
 	// command itself
@@ -877,10 +878,31 @@ static void start_lsp_server(LspServer *server)
 
 	msgwin_status_add(_("Starting LSP server %s"), cmd->str);
 
-	success = lsp_spawn_with_pipes_and_stderr_callback(NULL, cmd->str, NULL,
-		server->config.env,
+	// a non-NULL environment passed to the spawn functions replaces the
+	// whole environment of the child so add the configured variables on
+	// top of our own environment instead of passing them directly
+	if (server->config.env)
+	{
+		gchar **entry;
+
+		env = g_get_environ();
+		for (entry = server->config.env; *entry; entry++)
+		{
+			gchar *sep = strchr(*entry, '=');
+			gchar *key = sep ? g_strndup(*entry, sep - *entry) : g_strdup(*entry);
+			const gchar *val = sep ? sep + 1 : "";
+
+			if (*key)
+				env = g_environ_setenv(env, key, val, TRUE);
+			g_free(key);
+		}
+	}
+
+	success = lsp_spawn_with_pipes_and_stderr_callback(NULL, cmd->str, NULL, env,
 		&stdin_fd, &stdout_fd, stderr_cb, server, 0,
 		process_stopped, server, &server->pid, &error);
+
+	g_strfreev(env);
 
 	if (!success)
 	{
