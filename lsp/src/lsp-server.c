@@ -145,7 +145,9 @@ static void process_stopped(GPid pid, gint status, gpointer data)
 {
 	LspServer *s = data;
 
-	g_spawn_close_pid(pid);
+	// don't call g_spawn_close_pid() here - the spawn code closes pid itself
+	// right after this callback returns and closing it twice closes an
+	// unrelated handle on Windows
 	s->pid = 0;
 
 	// normal shutdown
