@@ -28,6 +28,17 @@ AC_DEFUN([GP_CHECK_LSP],
 
     AM_CONDITIONAL(ENABLE_BUILTIN_JSONRPC, [ test x"$have_system_jsonrpc" = "xno" ])
 
+    dnl gio-2.0 doesn't necessarily ship the unix-specific headers
+    dnl (GUnixInputStream/GUnixOutputStream) in its include path; on some
+    dnl setups (e.g. nix, macOS) they live in the separate gio-unix-2.0
+    dnl include directory. Use the plugin's own implementation as fallback.
+    PKG_CHECK_MODULES([GIO_UNIX], [gio-unix-2.0],
+        [have_gio_unix=yes],
+        [have_gio_unix=no])
+    AS_IF([test x"$have_gio_unix" = "xyes"],
+        [AC_DEFINE([HAVE_GIO_UNIX], [1], [Define if the gio-unix-2.0 headers are available])])
+    AM_CONDITIONAL([HAVE_GIO_UNIX], [test x"$have_gio_unix" = "xyes"])
+
     GP_COMMIT_PLUGIN_STATUS([LSP])
 
     AC_CONFIG_FILES([

@@ -37,7 +37,7 @@
 
 #include <jsonrpc-glib.h>
 
-#ifdef G_OS_UNIX
+#if defined(G_OS_UNIX) && defined(HAVE_GIO_UNIX)
 # include <gio/gunixinputstream.h>
 # include <gio/gunixoutputstream.h>
 #else
@@ -913,13 +913,13 @@ static void start_lsp_server(LspServer *server)
 		return;
 	}
 
-#ifdef G_OS_UNIX
+#if defined(G_OS_UNIX) && defined(HAVE_GIO_UNIX)
 	input_stream = g_unix_input_stream_new(stdout_fd, TRUE);
 	output_stream = g_unix_output_stream_new(stdin_fd, TRUE);
 #else
 	// GWin32InputStream / GWin32OutputStream use windows handle-based file
-	// API and we need fd-based API. Use our copy of unix input/output streams
-	// on Windows
+	// API and we need fd-based API. Also use our copy of unix input/output
+	// streams when the system gio doesn't provide the unix-specific ones
 	input_stream = lsp_unix_input_stream_new(stdout_fd, TRUE);
 	output_stream = lsp_unix_output_stream_new(stdin_fd, TRUE);
 #endif
