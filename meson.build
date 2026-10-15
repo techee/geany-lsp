@@ -9,6 +9,9 @@ plugin_name = 'lsp'
 
 
 geany_dep = dependency('geany', version : '>=2.1')
+# gio-2.0 doesn't necessarily ship the unix-specific headers in its include
+# path; use the plugin's own implementation as fallback
+gio_unix_dep = dependency('gio-unix-2.0', required : false)
 
 
 i18n = import('i18n')
@@ -41,6 +44,9 @@ conf_data.set_quoted('DBGPLUG_DATA_DIR', get_option('prefix') / plugin_datadir)
 conf_data.set_quoted('PLUGINDATADIR', get_option('prefix') / plugin_datadir)
 conf_data.set_quoted('PLUGINDOCDIR', get_option('prefix') / plugin_docdir)
 conf_data.set_quoted('PLUGINHTMLDOCDIR', get_option('prefix') / plugin_docdir / 'html')
+if gio_unix_dep.found()
+	conf_data.set('HAVE_GIO_UNIX', 1)
+endif
 
 configure_file(
   output: 'config.h',
@@ -117,7 +123,7 @@ shared_module('lsp',
 	name_suffix: plugin_suffix,
 	include_directories: plugin_inc,
 	c_args: ['-DHAVE_CONFIG_H', '-DJSON_COMPILATION', '-DJSONRPC_GLIB_COMPILATION'],
-	dependencies: [geany_dep],
+	dependencies: [geany_dep, gio_unix_dep],
 	install_dir: plugin_path,
 	install: true
 )
