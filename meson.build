@@ -9,9 +9,13 @@ plugin_name = 'lsp'
 
 
 geany_dep = dependency('geany', version : '>=2.1')
-# gio-2.0 doesn't necessarily ship the unix-specific headers in its include
-# path; use the plugin's own implementation as fallback
-gio_unix_dep = dependency('gio-unix-2.0', required : false)
+# GUnixInputStream/GUnixOutputStream headers are provided by gio-unix-2.0
+# whose include directory isn't necessarily part of gio-2.0 (e.g. nix,
+# macOS). On Windows, the plugin's own copy of these streams is used.
+gio_unix_dep = []
+if (host_machine.system() != 'windows')
+	gio_unix_dep = dependency('gio-unix-2.0')
+endif
 
 
 i18n = import('i18n')
@@ -44,9 +48,6 @@ conf_data.set_quoted('DBGPLUG_DATA_DIR', get_option('prefix') / plugin_datadir)
 conf_data.set_quoted('PLUGINDATADIR', get_option('prefix') / plugin_datadir)
 conf_data.set_quoted('PLUGINDOCDIR', get_option('prefix') / plugin_docdir)
 conf_data.set_quoted('PLUGINHTMLDOCDIR', get_option('prefix') / plugin_docdir / 'html')
-if gio_unix_dep.found()
-	conf_data.set('HAVE_GIO_UNIX', 1)
-endif
 
 configure_file(
   output: 'config.h',
