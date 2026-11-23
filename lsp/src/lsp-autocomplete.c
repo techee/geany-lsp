@@ -68,6 +68,7 @@ typedef struct
 {
 	LspAutocompleteSymbol *symbol;
 	GeanyDocument *doc;
+	gint request_id;
 } ResolveData;
 
 
@@ -253,9 +254,12 @@ static void resolve_cb(GVariant *return_value, GError *error, gpointer user_data
 	LspServer *server = lsp_server_get_if_running(data->doc);
 
 	if (!error && server && data->doc == document_get_current() && displayed_autocomplete_symbols &&
+		data->request_id == received_request_id &&
 		g_ptr_array_find(displayed_autocomplete_symbols, data->symbol, NULL))
 	{
+		gint current_selection = SSM(data->doc->editor->sci, SCI_AUTOCGETCURRENT, 0, 0);
 		const gchar *documentation = NULL;
+		GVariantIter *additional_edits = NULL;
 
 		if (!JSONRPC_MESSAGE_PARSE(return_value, "documentation", JSONRPC_MESSAGE_GET_STRING(&documentation)))
 		{
@@ -266,20 +270,34 @@ static void resolve_cb(GVariant *return_value, GError *error, gpointer user_data
 
 		if (documentation)
 		{
-			gint current_selection = SSM(data->doc->editor->sci, SCI_AUTOCGETCURRENT, 0, 0);
-			gchar *label;
-
 			g_free(data->symbol->documentation);
 			data->symbol->documentation = g_strdup(documentation);
-			data->symbol->resolved = TRUE;
+		}
 
-			if (current_selection >= 0 && (guint)current_selection < displayed_autocomplete_symbols->len)
+		JSONRPC_MESSAGE_PARSE(return_value, "additionalTextEdits", JSONRPC_MESSAGE_GET_ITER(&additional_edits));
+
+		if (additional_edits)
+		{
+			if (sent_request_id == received_request_id)
 			{
-				LspAutocompleteSymbol *sym = displayed_autocomplete_symbols->pdata[current_selection];
+				if (data->symbol->additional_edits)
+					g_ptr_array_free(data->symbol->additional_edits, TRUE);
+				data->symbol->additional_edits = lsp_utils_parse_text_edits(additional_edits);
+			}
+			g_variant_iter_free(additional_edits);
+		}
 
-				label = get_symbol_label(server, sym);
-				if (sym == data->symbol)
-					lsp_autocomplete_selection_changed(data->doc, label);  // reshow
+		data->symbol->resolved = TRUE;
+
+		if (current_selection >= 0 && (guint)current_selection < displayed_autocomplete_symbols->len)
+		{
+			LspAutocompleteSymbol *sym = displayed_autocomplete_symbols->pdata[current_selection];
+
+			if (sym == data->symbol)
+			{
+				gchar *label = get_symbol_label(server, sym);
+
+				lsp_autocomplete_selection_changed(data->doc, label);  // reshow
 				g_free(label);
 			}
 		}
@@ -322,17 +340,25 @@ void lsp_autocomplete_selection_changed(GeanyDocument *doc, const gchar *text)
 {
 	LspAutocompleteSymbol *sym = find_symbol(doc, text);
 	LspServer *srv = lsp_server_get(doc);
+	gboolean show_doc, has_additional_edits, resolve_edits;
 
-	if (!sym || !srv || !srv->config.autocomplete_show_documentation)
+	if (!sym || !srv)
 		return;
 
-	if (!sym->resolved && srv->supports_completion_resolve)
+	show_doc = srv->config.autocomplete_show_documentation;
+	has_additional_edits = sym->additional_edits && sym->additional_edits->len > 0;
+	resolve_edits = srv->config.autocomplete_apply_additional_edits && !has_additional_edits;
+
+	if (!sym->resolved && srv->supports_completion_resolve && (show_doc || resolve_edits))
 	{
 		ResolveData *data = g_new0(ResolveData, 1);
 		data->doc = doc;
 		data->symbol = sym;
+		data->request_id = received_request_id;
 		lsp_rpc_call(srv, "completionItem/resolve", sym->raw_symbol, resolve_cb, data);
 	}
+	else if (!show_doc)
+		return;
 	else if (!sym->documentation)
 		lsp_autocomplete_clear_statusbar();
 	else

@@ -654,6 +654,10 @@ static void perform_initialize(LspServer *server)
 	GVariant *node, *capabilities, *info;
 	gchar *project_base_uri = NULL;
 	GVariantDict dct;
+	const gchar *resolve_properties[] = {"documentation", NULL, NULL};
+
+	if (server->config.autocomplete_apply_additional_edits)
+		resolve_properties[1] = "additionalTextEdits";
 
 	if (!project_base && doc && server->config.project_root_marker_patterns)
 		project_base = lsp_utils_find_project_root(doc, &server->config);
@@ -681,6 +685,9 @@ static void perform_initialize(LspServer *server)
 					"documentationFormat", "[",
 						"plaintext",
 					"]",
+					"resolveSupport", "{",
+						"properties", JSONRPC_MESSAGE_PUT_STRV(resolve_properties),
+					"}",
 				"}",
 				"completionItemKind", "{",
 					"valueSet", "[",
