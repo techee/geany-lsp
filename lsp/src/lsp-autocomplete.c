@@ -367,6 +367,8 @@ void lsp_autocomplete_selection_changed(GeanyDocument *doc, const gchar *text)
 
 		g_strstrip(sym->documentation);
 		str = g_string_new(sym->documentation);
+		utils_string_replace_all(str, "\r\n", "\n");
+		utils_string_replace_all(str, "\r", "\n");
 		utils_string_replace_all(str, "\n\n", " | ");
 		utils_string_replace_all(str, "\n", " ");
 		utils_string_replace_all(str, "  ", " ");
