@@ -49,9 +49,14 @@ LspPosition lsp_utils_scintilla_pos_to_lsp(ScintillaObject *sci, gint sci_pos)
 
 gint lsp_utils_lsp_pos_to_scintilla(ScintillaObject *sci, LspPosition lsp_pos)
 {
-	gint line_start_pos = sci_get_position_from_line(sci, lsp_pos.line);
-	gint line_end_pos = sci_get_line_end_position(sci, lsp_pos.line);
-	gint line_len = SSM(sci, SCI_COUNTCODEUNITS, line_start_pos, line_end_pos);
+	gint line_start_pos, line_end_pos, line_len;
+
+	if (lsp_pos.line >= sci_get_line_count(sci))
+		return sci_get_length(sci);
+
+	line_start_pos = sci_get_position_from_line(sci, lsp_pos.line);
+	line_end_pos = sci_get_line_end_position(sci, lsp_pos.line);
+	line_len = SSM(sci, SCI_COUNTCODEUNITS, line_start_pos, line_end_pos);
 
 	if (lsp_pos.character >= line_len)
 		return line_end_pos;
