@@ -886,6 +886,10 @@ gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos, const gc
 			if (!strchr(wordchars, c))
 				break;
 		}
+		// multibyte sequences are considered to be a part of the identifier
+		// with the exception of \r\n
+		else if (sci_get_char_at(sci, new_pos) == '\r')
+			break;
 		pos = new_pos;
 	}
 	start_pos = pos;
@@ -902,6 +906,9 @@ gchar *lsp_utils_get_current_iden(GeanyDocument *doc, gint current_pos, const gc
 			if (!strchr(wordchars, c))
 				break;
 		}
+		// see comment above
+		else if (sci_get_char_at(sci, pos) == '\r')
+			break;
 		pos = new_pos;
 	}
 	end_pos = pos;
