@@ -215,9 +215,6 @@ gchar *lsp_utils_get_project_base_path(void)
 			gchar *path;
 			gchar *dir = g_path_get_dirname(project->file_name);
 
-			if (utils_str_equal(project->base_path, "./"))
-				return dir;
-
 			path = g_build_filename(dir, project->base_path, NULL);
 			SETPTR(path, utf8_real_path_from_utf8(path));
 			g_free(dir);
