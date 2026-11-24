@@ -455,6 +455,15 @@ static gint sort_edits(gconstpointer a, gconstpointer b)
 	if (line_delta != 0)
 		return line_delta;
 
+	if (char_delta != 0)
+		return char_delta;
+
+	line_delta = e2->range.end.line - e1->range.end.line;
+	char_delta = e2->range.end.character - e1->range.end.character;
+
+	if (line_delta != 0)
+		return line_delta;
+
 	return char_delta;
 }
 
