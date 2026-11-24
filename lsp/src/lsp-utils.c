@@ -488,8 +488,12 @@ void lsp_utils_apply_text_edits(ScintillaObject *sci, LspTextEdit *edit, GPtrArr
 		g_ptr_array_add(arr, edit);
 	if (edits)
 	{
-		for (i = 0; i < edits->len; i++)
-			g_ptr_array_add(arr, edits->pdata[i]);
+		// When edits happen at the same location, make sure we preserve the
+		// original ordering sent by the server by adding them in reverse
+		// order (sort_edits() called later reverses it back to the original
+		// ordering - it uses g_ptr_array_sort() which is stable)
+		for (i = edits->len; i > 0; i--)
+			g_ptr_array_add(arr, edits->pdata[i - 1]);
 	}
 
 	// We get the text edit ranges against the original document. We need to sort
