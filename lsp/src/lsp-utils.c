@@ -584,7 +584,7 @@ static void apply_edits_in_file(const gchar *uri, GPtrArray *edits)
 		{
 			gchar *contents = sci_get_contents(sci, -1);
 
-			g_file_set_contents(fname, contents, -1, NULL);
+			g_file_set_contents(fname_locale, contents, -1, NULL);
 
 #if 0
 			GVariant *node;
