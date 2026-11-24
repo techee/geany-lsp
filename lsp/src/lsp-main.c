@@ -99,6 +99,8 @@ enum {
 	KB_FIND_REFERENCES,
 	KB_HIGHLIGHT_OCCUR,
 	KB_HIGHLIGHT_CLEAR,
+	KB_GOTO_NEXT_HIGHLIGHT,
+	KB_GOTO_PREV_HIGHLIGHT,
 
 	KB_EXPAND_SELECTION,
 	KB_SHRINK_SELECTION,
@@ -139,6 +141,8 @@ struct
 	GtkWidget *goto_impl;
 	GtkWidget *highlight_occur;
 	GtkWidget *highlight_clear;
+	GtkWidget *goto_next_highlight;
+	GtkWidget *goto_prev_highlight;
 
 	GtkWidget *rename_in_file;
 	GtkWidget *rename_in_project;
@@ -1396,6 +1400,12 @@ static void invoke_kb(guint key_id, gint pos)
 		case KB_HIGHLIGHT_CLEAR:
 			lsp_highlight_clear(doc);
 			break;
+		case KB_GOTO_NEXT_HIGHLIGHT:
+			lsp_highlight_goto_next(pos);
+			break;
+		case KB_GOTO_PREV_HIGHLIGHT:
+			lsp_highlight_goto_prev(pos);
+			break;
 
 		case KB_EXPAND_SELECTION:
 			lsp_selection_range_expand();
@@ -1589,6 +1599,20 @@ static void create_menu_items()
 		GUINT_TO_POINTER(KB_HIGHLIGHT_CLEAR));
 	keybindings_set_item(group, KB_HIGHLIGHT_CLEAR, NULL, 0, 0, "highlight_clear",
 		_("Clear highlighted"), menu_items.highlight_clear);
+
+	menu_items.goto_next_highlight = gtk_menu_item_new_with_mnemonic(_("Go to Next Highlighted"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.goto_next_highlight);
+	g_signal_connect(menu_items.goto_next_highlight, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_NEXT_HIGHLIGHT));
+	keybindings_set_item(group, KB_GOTO_NEXT_HIGHLIGHT, NULL, 0, 0, "goto_next_highlight",
+		_("Go to next highlighted"), menu_items.goto_next_highlight);
+
+	menu_items.goto_prev_highlight = gtk_menu_item_new_with_mnemonic(_("Go to Previous Highlighted"));
+	gtk_container_add(GTK_CONTAINER(menu), menu_items.goto_prev_highlight);
+	g_signal_connect(menu_items.goto_prev_highlight, "activate", G_CALLBACK(on_menu_invoked),
+		GUINT_TO_POINTER(KB_GOTO_PREV_HIGHLIGHT));
+	keybindings_set_item(group, KB_GOTO_PREV_HIGHLIGHT, NULL, 0, 0, "goto_prev_highlight",
+		_("Go to previous highlighted"), menu_items.goto_prev_highlight);
 
 	gtk_container_add(GTK_CONTAINER(menu), gtk_separator_menu_item_new());
 

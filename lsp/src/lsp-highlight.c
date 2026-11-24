@@ -265,6 +265,63 @@ void lsp_highlight_schedule_request(GeanyDocument *doc)
 }
 
 
+static void goto_highlight(gint pos, gboolean following)
+{
+	GeanyDocument *doc = document_get_current();
+	ScintillaObject *sci;
+	gint target_pos = -1;
+	gint range_start = 0;
+	gint len;
+
+	if (!doc || indicator <= 0)
+		return;
+
+	sci = doc->editor->sci;
+	len = sci_get_length(sci);
+
+	while (range_start < len)
+	{
+		gint range_end = SSM(sci, SCI_INDICATOREND, indicator, range_start);
+
+		if (range_end <= range_start)
+			break;
+
+		if (SSM(sci, SCI_INDICATORVALUEAT, indicator, range_start))
+		{
+			if (following && range_start > pos)
+			{
+				target_pos = range_start;
+				break;
+			}
+			else if (!following)
+			{
+				if (range_end < pos)
+					target_pos = range_start;
+				else
+					break;
+			}
+		}
+
+		range_start = range_end;
+	}
+
+	if (target_pos >= 0)
+		sci_set_current_position(sci, target_pos, TRUE);
+}
+
+
+void lsp_highlight_goto_next(gint pos)
+{
+	goto_highlight(pos, TRUE);
+}
+
+
+void lsp_highlight_goto_prev(gint pos)
+{
+	goto_highlight(pos, FALSE);
+}
+
+
 void lsp_highlight_rename(gint pos)
 {
 	GeanyDocument *doc = document_get_current();

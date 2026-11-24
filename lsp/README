@@ -210,7 +210,8 @@ When you click on a symbol in the document, this feature highlights all its
 occurrences in the document. You can customize the highlighting style to your
 preference by configuring it in the configuration file. Also, it is possible
 to disable this feature to be performed automatically, but, instead, manually
-through a keybinding.
+through a keybinding. The caret can be moved to the next or the previous
+highlighted occurrence using the corresponding keybindings or the LSP Client menu.
 
 Smart selection expanding/shrinking
 -----------------------------------
