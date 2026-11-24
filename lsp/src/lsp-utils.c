@@ -171,7 +171,8 @@ gchar *lsp_utils_get_real_path_from_uri_locale(const gchar *uri)
 
 	fname = g_filename_from_uri(uri, NULL, NULL);
 
-	g_return_val_if_fail(fname, NULL);
+	if (!fname)
+		return NULL;
 
 	SETPTR(fname, utils_get_real_path(fname));
 
