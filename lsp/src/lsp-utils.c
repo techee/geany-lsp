@@ -413,6 +413,35 @@ GPtrArray *lsp_utils_parse_text_edits(GVariantIter *iter)
 }
 
 
+/* Stolen from Geany */
+static const gchar *get_eol_char(gint eol_mode)
+{
+	switch (eol_mode)
+	{
+		case SC_EOL_CRLF: return "\r\n"; break;
+		case SC_EOL_CR: return "\r"; break;
+		default: return "\n"; break;
+	}
+}
+
+
+/* Stolen from Geany */
+static void ensure_same_eol_characters(GString *string, gint target_eol_mode)
+{
+	const gchar *eol_str = get_eol_char(target_eol_mode);
+
+	/* first convert data to LF only */
+	utils_string_replace_all(string, "\r\n", "\n");
+	utils_string_replace_all(string, "\r", "\n");
+
+	if (target_eol_mode == SC_EOL_LF)
+		return;
+
+	/* now convert to desired line endings */
+	utils_string_replace_all(string, "\n", eol_str);
+}
+
+
 void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean process_snippets,
 	gboolean set_cursor)
 {
@@ -420,6 +449,7 @@ void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean pr
 	gboolean first_sel = TRUE;
 	gint start_pos;
 	gint end_pos;
+	GString *new_text;
 	gchar *processed;
 	GSList *node;
 
@@ -431,13 +461,18 @@ void lsp_utils_apply_text_edit(ScintillaObject *sci, LspTextEdit *e, gboolean pr
 
 	SSM(sci, SCI_DELETERANGE, start_pos, end_pos - start_pos);
 
+	new_text = g_string_new(e->new_text);
+	ensure_same_eol_characters(new_text, SSM(sci, SCI_GETEOLMODE, 0, 0));
+
 	if (process_snippets)
-		processed = lsp_utils_process_snippet(e->new_text, &cursor_positions);
+		processed = lsp_utils_process_snippet(new_text->str, &cursor_positions);
 	else
 	{
-		processed = g_strdup(e->new_text);
-		cursor_positions = g_slist_prepend(cursor_positions, GINT_TO_POINTER(strlen(e->new_text)));
+		processed = g_strdup(new_text->str);
+		cursor_positions = g_slist_prepend(cursor_positions, GINT_TO_POINTER(new_text->len));
 	}
+
+	g_string_free(new_text, TRUE);
 
 	sci_insert_text(sci, start_pos, processed);
 
@@ -863,6 +898,14 @@ ScintillaObject *lsp_utils_new_sci_from_file(const gchar *utf8_fname)
 	SSM(sci, SCI_SETWRAPMODE, SC_WRAP_NONE, 0);
 
 	sci_set_text(sci, file_contents);
+
+	// make edits applied to the file use its line endings
+	if (strstr(file_contents, "\r\n"))
+		SSM(sci, SCI_SETEOLMODE, SC_EOL_CRLF, 0);
+	else if (strchr(file_contents, '\r'))
+		SSM(sci, SCI_SETEOLMODE, SC_EOL_CR, 0);
+	else
+		SSM(sci, SCI_SETEOLMODE, SC_EOL_LF, 0);
 
 	g_free(file_contents);
 	return sci;
