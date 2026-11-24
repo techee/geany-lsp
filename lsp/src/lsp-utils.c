@@ -1109,6 +1109,9 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 			case SnippetOuter:
 				if (c == '$')
 					state = SnippetAfterDollar;
+				// backslash escapes $, } and itself
+				else if (c == '\\' && (snippet[i+1] == '$' || snippet[i+1] == '}' || snippet[i+1] == '\\'))
+					g_string_append_c(res, snippet[++i]);
 				else
 					g_string_append_c(res, c);
 				break;
@@ -1130,7 +1133,7 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 				{
 					state = SnippetOuter;
 					g_string_append_c(res, '$');
-					g_string_append_c(res, c);
+					i--;  // process in outer state
 				}
 				break;
 
@@ -1138,7 +1141,7 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 				if (!isdigit(c))
 				{
 					state = SnippetOuter;
-					g_string_append_c(res, c);
+					i--;  // process in outer state
 				}
 				break;
 
@@ -1146,13 +1149,14 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 				if (!(isalpha(c) || isdigit(c) || c == '_'))
 				{
 					state = SnippetOuter;
-					g_string_append_c(res, c);
+					i--;  // process in outer state
 				}
 				break;
 
 			case SnippetAfterBrace:  // after ${
 			{
 				gint braces_num = 1;
+				gboolean escaped = FALSE;
 
 				if (isdigit(c))
 				{
@@ -1167,12 +1171,15 @@ gchar *lsp_utils_process_snippet(const gchar *snippet, GSList **positions)
 				{
 					if (c == '{')
 						braces_num++;
-					else if (c == '}')
+					// escaped } doesn't terminate the placeholder but can close
+					// { inside it like in ${1:x interface{\}}
+					else if (c == '}' && !(escaped && braces_num == 1))
 						braces_num--;
 
 					if (braces_num == 0)
 						break;
 
+					escaped = c == '\\' && !escaped;
 					c = snippet[++i];
 				}
 
