@@ -467,6 +467,13 @@ static void call_cb(GObject *source_object, GAsyncResult *res, gpointer user_dat
 		lsp_log(srv->log, LspLogClientMessageReceived, data->method_name,
 			return_value, error, data->req_time);
 		is_startup_shutdown = srv->startup_shutdown;
+
+		// Error responses from the server are a normal part of the communication.
+		// Other errors mean that the connection failed - the server terminated
+		// or the jsonrpc library closed the connection because it received
+		// a message it cannot process (invalid header, too large, invalid JSON).
+		if (error && error->domain != JSONRPC_CLIENT_ERROR)
+			msgwin_status_add(_("Request failed for LSP server %s: %s"), srv->config.cmd, error->message);
 	}
 
 	if (data->callback && (!is_startup_shutdown || data->cb_on_startup_shutdown))
