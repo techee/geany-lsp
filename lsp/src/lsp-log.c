@@ -147,7 +147,13 @@ void lsp_log(LspLogInfo log, LspLogType type, const gchar *method, GVariant *par
 
 	if (log.full)
 	{
-		if (!params)
+		if (error)
+		{
+			GVariant *err = g_variant_ref_sink(g_variant_new_parsed("{'error': <%s>}", error->message));
+			json_msg = lsp_utils_json_pretty_print(err);
+			g_variant_unref(err);
+		}
+		else if (!params)
 			json_msg = g_strdup("null");
 		else
 			json_msg = lsp_utils_json_pretty_print(params);
